@@ -1,0 +1,27 @@
+{
+  "cluster_name": "netprompt_ai_native_sfc_testbed",
+  "testbed": "Chameleon",
+  "nodes": [
+    {
+      "id": "controller-node",
+      "role": "CentralController",
+      "private_ip": "10.191.131.168",
+      "os": "Ubuntu 22.04",
+      "services": ["KnowledgeGraph", "CentralLLM", "SFCOrchestrator"]
+    },
+    {
+      "id": "network-node",
+      "role": "ProgrammableNetworkNode",
+      "private_ip": "10.191.130.192",
+      "os": "Ubuntu 22.04",
+      "services": ["Mininet", "BMv2", "P4C", "DroneNetworkEmulation"]
+    },
+    {
+      "id": "edge-node",
+      "role": "EdgeComputeNode",
+      "private_ip": "10.191.130.193",
+      "os": "Ubuntu 22.04",
+      "services": ["EdgeAnalytics", "SLM", "VideoProcessing"]
+    }
+  ]
+}

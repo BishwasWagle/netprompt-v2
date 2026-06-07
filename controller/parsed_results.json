@@ -1,0 +1,92 @@
+[
+  {
+    "sfc_mode": "BandwidthOptimizedSFC",
+    "throughput_mbps": 112.0,
+    "rtt_min_ms": 44.036,
+    "rtt_avg_ms": 44.11,
+    "rtt_max_ms": 44.734,
+    "rtt_mdev_ms": 0.207,
+    "packet_loss_percent": 0.0,
+    "source_file": "results_Field_3_BandwidthOptimizedSFC_from_network_node.txt"
+  },
+  {
+    "sfc_mode": "LowLatencyVideoSFC",
+    "throughput_mbps": 76.1,
+    "rtt_min_ms": 14.035,
+    "rtt_avg_ms": 14.086,
+    "rtt_max_ms": 14.508,
+    "rtt_mdev_ms": 0.14,
+    "packet_loss_percent": 0.0,
+    "source_file": "results_Field_3_LowLatencyVideoSFC_from_network_node.txt"
+  },
+  {
+    "sfc_mode": "ReliableRelaySFC",
+    "throughput_mbps": 56.9,
+    "rtt_min_ms": 24.036,
+    "rtt_avg_ms": 24.086,
+    "rtt_max_ms": 24.493,
+    "rtt_mdev_ms": 0.135,
+    "packet_loss_percent": 0.0,
+    "source_file": "results_Field_2_ReliableRelaySFC_from_network_node.txt"
+  },
+  {
+    "sfc_mode": "LowLatencyVideoSFC",
+    "throughput_mbps": 76.2,
+    "rtt_min_ms": 14.037,
+    "rtt_avg_ms": 14.066,
+    "rtt_max_ms": 14.292,
+    "rtt_mdev_ms": 0.075,
+    "packet_loss_percent": 0.0,
+    "source_file": "results_Field_2_LowLatencyVideoSFC_from_network_node.txt"
+  },
+  {
+    "sfc_mode": "LowLatencyVideoSFC",
+    "throughput_mbps": 76.1,
+    "rtt_min_ms": 14.035,
+    "rtt_avg_ms": 14.103,
+    "rtt_max_ms": 14.671,
+    "rtt_mdev_ms": 0.189,
+    "packet_loss_percent": 0.0,
+    "source_file": "results_LowLatencyVideoSFC_from_network_node.txt"
+  },
+  {
+    "sfc_mode": "LowLatencyVideoSFC",
+    "throughput_mbps": 76.1,
+    "rtt_min_ms": 14.036,
+    "rtt_avg_ms": 14.086,
+    "rtt_max_ms": 14.5,
+    "rtt_mdev_ms": 0.138,
+    "packet_loss_percent": 0.0,
+    "source_file": "results_Field_4_LowLatencyVideoSFC_from_network_node.txt"
+  },
+  {
+    "sfc_mode": "LowLatencyVideoSFC",
+    "throughput_mbps": 76.2,
+    "rtt_min_ms": 14.03,
+    "rtt_avg_ms": 14.086,
+    "rtt_max_ms": 14.456,
+    "rtt_mdev_ms": 0.124,
+    "packet_loss_percent": 0.0,
+    "source_file": "results_Field_5_LowLatencyVideoSFC_from_network_node.txt"
+  },
+  {
+    "sfc_mode": "LowLatencyVideoSFC",
+    "throughput_mbps": 76.1,
+    "rtt_min_ms": 14.037,
+    "rtt_avg_ms": 14.078,
+    "rtt_max_ms": 14.38,
+    "rtt_mdev_ms": 0.1,
+    "packet_loss_percent": 0.0,
+    "source_file": "results_Field_1_LowLatencyVideoSFC_from_network_node.txt"
+  },
+  {
+    "sfc_mode": "ReliableRelaySFC",
+    "throughput_mbps": 56.9,
+    "rtt_min_ms": 24.036,
+    "rtt_avg_ms": 24.134,
+    "rtt_max_ms": 24.972,
+    "rtt_mdev_ms": 0.279,
+    "packet_loss_percent": 0.0,
+    "source_file": "results_Field_5_ReliableRelaySFC_from_network_node.txt"
+  }
+]

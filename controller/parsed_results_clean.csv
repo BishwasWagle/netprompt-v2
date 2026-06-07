@@ -1,0 +1,6 @@
+field_id,sfc_mode,throughput_mbps,rtt_min_ms,rtt_avg_ms,rtt_max_ms,rtt_mdev_ms,packet_loss_percent,source_file
+Field_1,LowLatencyVideoSFC,76.1,14.037,14.078,14.38,0.1,0.0,results_Field_1_LowLatencyVideoSFC_from_network_node.txt
+Field_2,ReliableRelaySFC,56.9,24.036,24.086,24.493,0.135,0.0,results_Field_2_ReliableRelaySFC_from_network_node.txt
+Field_3,BandwidthOptimizedSFC,112.0,44.036,44.11,44.734,0.207,0.0,results_Field_3_BandwidthOptimizedSFC_from_network_node.txt
+Field_4,LowLatencyVideoSFC,76.1,14.036,14.086,14.5,0.138,0.0,results_Field_4_LowLatencyVideoSFC_from_network_node.txt
+Field_5,ReliableRelaySFC,56.9,24.036,24.134,24.972,0.279,0.0,results_Field_5_ReliableRelaySFC_from_network_node.txt

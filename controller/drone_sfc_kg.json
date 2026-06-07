@@ -1,0 +1,340 @@
+{
+  "knowledge_graph": {
+    "name": "AI_Native_Drone_SFC_KG",
+    "nodes": [
+      {
+        "id": "controller-node",
+        "type": "CentralController"
+      },
+      {
+        "id": "network-node",
+        "type": "ProgrammableNetworkNode"
+      },
+      {
+        "id": "edge-node",
+        "type": "EdgeComputeNode"
+      },
+      {
+        "id": "Drone_1",
+        "type": "Drone",
+        "role": "RelayDrone",
+        "battery_percent": 71,
+        "compute_capacity": "Medium",
+        "network_interface": [
+          "5G",
+          "WiFi"
+        ],
+        "assigned_field": "Field_1"
+      },
+      {
+        "id": "Drone_2",
+        "type": "Drone",
+        "role": "RelayDrone",
+        "battery_percent": 72,
+        "compute_capacity": "Medium",
+        "network_interface": [
+          "5G",
+          "WiFi"
+        ],
+        "assigned_field": "Field_2"
+      },
+      {
+        "id": "Drone_3",
+        "type": "Drone",
+        "role": "RelayDrone",
+        "battery_percent": 73,
+        "compute_capacity": "Medium",
+        "network_interface": [
+          "5G",
+          "WiFi"
+        ],
+        "assigned_field": "Field_3"
+      },
+      {
+        "id": "Drone_4",
+        "type": "Drone",
+        "role": "SearchDrone",
+        "battery_percent": 74,
+        "compute_capacity": "Medium",
+        "network_interface": [
+          "5G",
+          "WiFi"
+        ],
+        "assigned_field": "Field_4"
+      },
+      {
+        "id": "Drone_5",
+        "type": "Drone",
+        "role": "SearchDrone",
+        "battery_percent": 75,
+        "compute_capacity": "Medium",
+        "network_interface": [
+          "5G",
+          "WiFi"
+        ],
+        "assigned_field": "Field_5"
+      },
+      {
+        "id": "Drone_6",
+        "type": "Drone",
+        "role": "SearchDrone",
+        "battery_percent": 76,
+        "compute_capacity": "Medium",
+        "network_interface": [
+          "5G",
+          "WiFi"
+        ],
+        "assigned_field": "Field_1"
+      },
+      {
+        "id": "Drone_7",
+        "type": "Drone",
+        "role": "ComputeOrBackupDrone",
+        "battery_percent": 77,
+        "compute_capacity": "Medium",
+        "network_interface": [
+          "5G",
+          "WiFi"
+        ],
+        "assigned_field": "Field_2"
+      },
+      {
+        "id": "Drone_8",
+        "type": "Drone",
+        "role": "ComputeOrBackupDrone",
+        "battery_percent": 78,
+        "compute_capacity": "Medium",
+        "network_interface": [
+          "5G",
+          "WiFi"
+        ],
+        "assigned_field": "Field_3"
+      },
+      {
+        "id": "Drone_9",
+        "type": "Drone",
+        "role": "ComputeOrBackupDrone",
+        "battery_percent": 79,
+        "compute_capacity": "Medium",
+        "network_interface": [
+          "5G",
+          "WiFi"
+        ],
+        "assigned_field": "Field_4"
+      },
+      {
+        "id": "Drone_10",
+        "type": "Drone",
+        "role": "ComputeOrBackupDrone",
+        "battery_percent": 80,
+        "compute_capacity": "Medium",
+        "network_interface": [
+          "5G",
+          "WiFi"
+        ],
+        "assigned_field": "Field_5"
+      },
+      {
+        "id": "Field_1",
+        "type": "AgriculturalField",
+        "latency_requirement_ms": 20,
+        "bandwidth_requirement_mbps": 40,
+        "priority": "High"
+      },
+      {
+        "id": "Field_2",
+        "type": "AgriculturalField",
+        "latency_requirement_ms": 50,
+        "bandwidth_requirement_mbps": 20,
+        "priority": "Medium"
+      },
+      {
+        "id": "Field_3",
+        "type": "AgriculturalField",
+        "latency_requirement_ms": 50,
+        "bandwidth_requirement_mbps": 40,
+        "priority": "Medium"
+      },
+      {
+        "id": "Field_4",
+        "type": "AgriculturalField",
+        "latency_requirement_ms": 20,
+        "bandwidth_requirement_mbps": 20,
+        "priority": "High"
+      },
+      {
+        "id": "Field_5",
+        "type": "AgriculturalField",
+        "latency_requirement_ms": 50,
+        "bandwidth_requirement_mbps": 20,
+        "priority": "Medium"
+      },
+      {
+        "id": "LowLatencyVideoSFC",
+        "type": "SFCTemplate",
+        "max_latency_ms": 20,
+        "min_bandwidth_mbps": 40,
+        "functions": [
+          "TrafficClassification",
+          "QoSPrioritization",
+          "FastForwarding",
+          "TelemetryCollection"
+        ],
+        "p4_actions": [
+          "classify_video",
+          "set_high_priority",
+          "forward_primary_path"
+        ]
+      },
+      {
+        "id": "BandwidthOptimizedSFC",
+        "type": "SFCTemplate",
+        "max_latency_ms": 60,
+        "min_bandwidth_mbps": 80,
+        "functions": [
+          "Compression",
+          "AdaptiveForwarding",
+          "TrafficShaping"
+        ],
+        "p4_actions": [
+          "mark_bulk_traffic",
+          "bandwidth_aware_forward",
+          "rate_limit_background"
+        ]
+      },
+      {
+        "id": "ReliableRelaySFC",
+        "type": "SFCTemplate",
+        "max_latency_ms": 50,
+        "reliability_threshold": 0.95,
+        "functions": [
+          "RelaySelection",
+          "BackupPathSelection",
+          "PacketRecovery"
+        ],
+        "p4_actions": [
+          "select_best_relay",
+          "dynamic_reroute",
+          "backup_path_forward"
+        ]
+      },
+      {
+        "id": "EnergyAwareSFC",
+        "type": "SFCTemplate",
+        "battery_threshold_percent": 40,
+        "functions": [
+          "LocalFiltering",
+          "Compression",
+          "EnergyAwareForwarding"
+        ],
+        "p4_actions": [
+          "drop_low_priority_packets",
+          "compress_payload",
+          "forward_to_nearest_relay"
+        ]
+      }
+    ],
+    "relationships": [
+      {
+        "source": "Drone_1",
+        "relation": "ASSIGNED_TO",
+        "target": "Field_1"
+      },
+      {
+        "source": "Drone_2",
+        "relation": "ASSIGNED_TO",
+        "target": "Field_2"
+      },
+      {
+        "source": "Drone_3",
+        "relation": "ASSIGNED_TO",
+        "target": "Field_3"
+      },
+      {
+        "source": "Drone_4",
+        "relation": "ASSIGNED_TO",
+        "target": "Field_4"
+      },
+      {
+        "source": "Drone_5",
+        "relation": "ASSIGNED_TO",
+        "target": "Field_5"
+      },
+      {
+        "source": "Drone_6",
+        "relation": "ASSIGNED_TO",
+        "target": "Field_1"
+      },
+      {
+        "source": "Drone_7",
+        "relation": "ASSIGNED_TO",
+        "target": "Field_2"
+      },
+      {
+        "source": "Drone_8",
+        "relation": "ASSIGNED_TO",
+        "target": "Field_3"
+      },
+      {
+        "source": "Drone_9",
+        "relation": "ASSIGNED_TO",
+        "target": "Field_4"
+      },
+      {
+        "source": "Drone_10",
+        "relation": "ASSIGNED_TO",
+        "target": "Field_5"
+      },
+      {
+        "source": "Drone_4",
+        "relation": "CONNECTED_TO",
+        "target": "Drone_1"
+      },
+      {
+        "source": "Drone_5",
+        "relation": "CONNECTED_TO",
+        "target": "Drone_1"
+      },
+      {
+        "source": "Drone_6",
+        "relation": "CONNECTED_TO",
+        "target": "Drone_1"
+      },
+      {
+        "source": "Drone_7",
+        "relation": "CONNECTED_TO",
+        "target": "Drone_1"
+      },
+      {
+        "source": "Drone_8",
+        "relation": "CONNECTED_TO",
+        "target": "Drone_1"
+      },
+      {
+        "source": "Drone_9",
+        "relation": "CONNECTED_TO",
+        "target": "Drone_1"
+      },
+      {
+        "source": "Drone_10",
+        "relation": "CONNECTED_TO",
+        "target": "Drone_1"
+      },
+      {
+        "source": "Drone_1",
+        "relation": "CONNECTED_TO",
+        "target": "network-node"
+      },
+      {
+        "source": "network-node",
+        "relation": "CONNECTED_TO",
+        "target": "edge-node"
+      },
+      {
+        "source": "controller-node",
+        "relation": "CONTROLS",
+        "target": "network-node"
+      }
+    ]
+  }
+}

@@ -1,0 +1,92 @@
+Experiment Type: Multi-Hop Dynamic SFC-P4
+Scenario: low_latency
+Scenario Description: Optimized low-latency condition
+Selected SFC: LowLatencyVideoSFC
+P4 JSON: /home/cc/netprompt-milestone-II/compiled_p4/low_latency.json
+Access Rules: /home/cc/netprompt-milestone-II/p4_multihop_rules/low_latency_s1_rules.txt
+Relay Rules: /home/cc/netprompt-milestone-II/p4_multihop_rules/low_latency_s2_rules.txt
+Backup Rules: /home/cc/netprompt-milestone-II/p4_multihop_rules/low_latency_s3_rules.txt
+Policy Type: primary_path_low_latency
+Configured Bandwidth: 80 Mbps
+Configured Delay: 5ms
+Configured Loss: 0%
+
+Applied Queue Policy:
+- LowLatencyVideoSFC: d4/d5 pfifo limit 20
+
+PingAll Dropped Percent: 0.0
+
+Throughput Result d4 -> edge:
+tcp connect failed: Connection timed out
+------------------------------------------------------------
+Client connecting to 10.0.0.100, TCP port 5001
+TCP window size: -1.00 Byte (default)
+------------------------------------------------------------
+[  1] local 0.0.0.0 port 0 connected with 10.0.0.100 port 5001
+
+Throughput Result d5 -> edge:
+tcp connect failed: Connection timed out
+------------------------------------------------------------
+Client connecting to 10.0.0.100, TCP port 5001
+TCP window size: -1.00 Byte (default)
+------------------------------------------------------------
+[  1] local 0.0.0.0 port 0 connected with 10.0.0.100 port 5001
+
+Throughput Result d6 -> edge:
+tcp connect failed: Connection timed out
+------------------------------------------------------------
+Client connecting to 10.0.0.100, TCP port 5001
+TCP window size: -1.00 Byte (default)
+------------------------------------------------------------
+[  1] local 0.0.0.0 port 0 connected with 10.0.0.100 port 5001
+
+Latency Result d4 -> edge:
+PING 10.0.0.100 (10.0.0.100) 56(84) bytes of data.
+64 bytes from 10.0.0.100: icmp_seq=1 ttl=64 time=30.1 ms
+64 bytes from 10.0.0.100: icmp_seq=2 ttl=64 time=29.8 ms
+64 bytes from 10.0.0.100: icmp_seq=3 ttl=64 time=29.9 ms
+64 bytes from 10.0.0.100: icmp_seq=4 ttl=64 time=29.8 ms
+64 bytes from 10.0.0.100: icmp_seq=5 ttl=64 time=29.8 ms
+64 bytes from 10.0.0.100: icmp_seq=6 ttl=64 time=29.8 ms
+64 bytes from 10.0.0.100: icmp_seq=7 ttl=64 time=29.9 ms
+64 bytes from 10.0.0.100: icmp_seq=8 ttl=64 time=29.8 ms
+64 bytes from 10.0.0.100: icmp_seq=9 ttl=64 time=29.8 ms
+64 bytes from 10.0.0.100: icmp_seq=10 ttl=64 time=29.8 ms
+
+--- 10.0.0.100 ping statistics ---
+10 packets transmitted, 10 received, 0% packet loss, time 9016ms
+rtt min/avg/max/mdev = 29.805/29.864/30.129/0.090 ms
+
+Latency Result d5 -> edge:
+PING 10.0.0.100 (10.0.0.100) 56(84) bytes of data.
+64 bytes from 10.0.0.100: icmp_seq=1 ttl=64 time=29.9 ms
+64 bytes from 10.0.0.100: icmp_seq=2 ttl=64 time=29.9 ms
+64 bytes from 10.0.0.100: icmp_seq=3 ttl=64 time=29.8 ms
+64 bytes from 10.0.0.100: icmp_seq=4 ttl=64 time=29.8 ms
+64 bytes from 10.0.0.100: icmp_seq=5 ttl=64 time=29.8 ms
+64 bytes from 10.0.0.100: icmp_seq=6 ttl=64 time=29.8 ms
+64 bytes from 10.0.0.100: icmp_seq=7 ttl=64 time=29.8 ms
+64 bytes from 10.0.0.100: icmp_seq=8 ttl=64 time=29.8 ms
+64 bytes from 10.0.0.100: icmp_seq=9 ttl=64 time=29.8 ms
+64 bytes from 10.0.0.100: icmp_seq=10 ttl=64 time=29.8 ms
+
+--- 10.0.0.100 ping statistics ---
+10 packets transmitted, 10 received, 0% packet loss, time 9017ms
+rtt min/avg/max/mdev = 29.805/29.832/29.896/0.027 ms
+
+Latency Result d6 -> edge:
+PING 10.0.0.100 (10.0.0.100) 56(84) bytes of data.
+64 bytes from 10.0.0.100: icmp_seq=1 ttl=64 time=29.9 ms
+64 bytes from 10.0.0.100: icmp_seq=2 ttl=64 time=29.8 ms
+64 bytes from 10.0.0.100: icmp_seq=3 ttl=64 time=29.8 ms
+64 bytes from 10.0.0.100: icmp_seq=4 ttl=64 time=29.8 ms
+64 bytes from 10.0.0.100: icmp_seq=5 ttl=64 time=29.8 ms
+64 bytes from 10.0.0.100: icmp_seq=6 ttl=64 time=29.8 ms
+64 bytes from 10.0.0.100: icmp_seq=7 ttl=64 time=29.8 ms
+64 bytes from 10.0.0.100: icmp_seq=8 ttl=64 time=29.8 ms
+64 bytes from 10.0.0.100: icmp_seq=9 ttl=64 time=29.8 ms
+64 bytes from 10.0.0.100: icmp_seq=10 ttl=64 time=29.8 ms
+
+--- 10.0.0.100 ping statistics ---
+10 packets transmitted, 10 received, 0% packet loss, time 9017ms
+rtt min/avg/max/mdev = 29.798/29.822/29.851/0.017 ms

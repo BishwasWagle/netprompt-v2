@@ -37,3 +37,13 @@ KNOB_STEPS = {
     "tbf_rate_mbit": 10,
     "pfifo_limit": 10,
 }
+
+# --- knob -> tc command templates (design §10.2; defaults from
+#     apply_sfc_queue_policy in the milestone-II experiment) ---
+TC_TEMPLATES = {
+    "tbf_rate_mbit": "tc qdisc replace dev {dev} root tbf rate {value}mbit burst 32kbit latency 50ms",
+    "pfifo_limit": "tc qdisc replace dev {dev} root pfifo limit {value}",
+}
+
+# Which binding key carries each switch's rule file (design §10.4).
+SWITCH_RULES_KEYS = {"s1": "access_rules", "s2": "relay_rules", "s3": "backup_rules"}

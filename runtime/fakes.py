@@ -41,6 +41,25 @@ class FakeDeployer:
         self.state = {"path": snapshot["path"], "knobs": dict(snapshot["knobs"])}
 
 
+class ScriptedRunner:
+    """Runner test double for the real Deployer (deployer.py): records every
+    command and answers CLI calls via an injectable handler that returns
+    canned BMv2 output."""
+
+    def __init__(self, cli_handler=None):
+        self.cli_calls: list = []      # (switch, commands_text)
+        self.host_calls: list = []     # (host, command)
+        self.cli_handler = cli_handler or (lambda switch, text: "")
+
+    def run_cli(self, switch: str, text: str) -> str:
+        self.cli_calls.append((switch, text))
+        return self.cli_handler(switch, text)
+
+    def run_host(self, host: str, command: str) -> str:
+        self.host_calls.append((host, command))
+        return ""
+
+
 class FakeMonitor:
     """observe_window() = ask the scenario model what the current deployer
     state looks like. Deterministic: same state -> same report."""

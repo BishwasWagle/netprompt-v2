@@ -217,7 +217,9 @@ class EscalationTicket:
 #       REROUTE: flip the s1 edge-MAC entry; REGEN: install rules text.
 #   rollback(snapshot) -> None        deterministic restore of a capture().
 #   re_push(snapshot) -> None         same revision, fresh install (rung 1).
-#   deploy(spec) -> (ConfigSnapshot, BaselineSnapshot)   episode start.
+#   deploy(spec) -> ConfigSnapshot    episode start; the BaselineSnapshot is
+#       captured by the MONITOR pre-cutover (RM orchestrates) — the deployer
+#       owns config state only.
 #   table_state() -> {switch: [TableEntry]}   OPTIONAL but required once
 #       regen is live: fresh installed-entry state for gate L2; the engine
 #       prefers it over any static snapshot.

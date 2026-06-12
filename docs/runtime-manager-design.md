@@ -312,7 +312,7 @@ def adapt(spec, report, budget):              # budget is EPISODE-scoped, shared
 
 - **Tier 0 (tune):** target violation → step the knob whose effect helps `diag.metric` (latency→pfifo↓; throughput→rate↑; loss→pfifo↑) within `knob_ranges`. Harm → reduce the **target's own** share one step. Quantized steps → finite `tried` set → the tier provably terminates.
 - **Tier 1 (reroute):** single candidate — flip the s1 edge-MAC egress to the other legal path, iff `backup ∈ legal_paths`, untried, and the active capacity check passes. Else `None`. **Note: reroute is fabric-global (§10.1)** — it moves *all* upstream flows together, so it addresses path-quality problems, not shared-bandwidth contention.
-- **Tier 2 (regen):** LLM gets {violation, current table dump, envelope bounds, grammar = the two tables × existing actions, prior failed attempts}; constrained greedy decode → `table_modify/add` → gate. K failures → `None` → escalate.
+- **Tier 2 (regen):** implemented as `RegenProposer` (`runtime/regen/`) plugged into the engine's injectable `regen_proposer` seam (default `None` = stubbed). The LLM gets {violation, current table dump, envelope bounds, prior failed attempts} via a **verbatim prompt TEMPLATE** (reproducible by construction); decoding is grammar-constrained — the GBNF is **generated from the gate's table/action constants** so grammar and gate cannot drift, and it is deliberately **narrower than the gate** (no `table_delete`: entry removal is never a recovery action). The K-cap is computed statelessly from the engine's `tried` set; K invalid/gate-rejected generations → `None` → escalate. An unavailable model degrades to escalate-sooner with the network untouched (fail-safe, §7.4).
 
 **Harm relief acts only on the target.** The lever is SFC-specific and the domination guard rejects any step that drops the target below SLA. For **contention harm** (target's grab starves a neighbor on a shared link) the only real lever is the target's own shaping knob (tbf rate ↓); reroute cannot fix contention since it moves all flows together (§10.1). For **path-quality harm**, a global reroute may relieve everyone at once — the guard verifies empirically. The runtime **never** retunes or reroutes a non-target flow; that flow belongs to another deployment (ownership boundary). Consequence: an SFC with no shaping knob facing contention harm exhausts quickly and escalates — which is the *correct* outcome (rebalancing priorities is a planning decision).
 
@@ -353,6 +353,10 @@ Reads strategic state, writes **runtime** state. Never writes the SFC library.
 - `Verdict` + `AttributionTrace` — one per terminal evaluator outcome (healthy / marginal / rollback / escalate), with the tier reached and the adapt trace. `Results + analytics` aggregates these.
 - `EscalationTicket` — the wrong-SFC hand-off.
 
+**Persistence note:** nested payloads (traces, envelopes, snapshots) are stored as
+**JSON-string properties** via `contracts.jsonable` — Neo4j properties cannot hold
+nested maps. All runtime writes carry `updated_by: 'runtime-manager'`.
+
 ---
 
 ## 9. Interfaces & Contracts
@@ -376,6 +380,13 @@ class Envelope:
     legal_paths: set                  # {"primary"} or {"primary","backup"}
     knob_ranges: dict                 # tune knobs + bounds, e.g. {"tbf_rate_mbit": (5,80), "pfifo_limit": (10,50)}
 
+# Composition (kg_client.build_envelope): BOUNDS = strictest of the
+# SFCTemplate's and the target field's KG values, plus DEFAULT_MAX_LOSS_PERCENT
+# (fields carry no loss bound in the KG). ACTION SPACE = config.SFC_ACTION_SPACE,
+# a runtime-owned registry (LowLatency may not reroute to backup; ReliableRelay
+# may; impairments never appear as knobs). The planner never authors the
+# action space.
+
 @dataclass
 class EscalationTicket:               # runtime → planner (via Results+analytics)
     correlation_id: str; sfc: str
@@ -385,7 +396,9 @@ class EscalationTicket:               # runtime → planner (via Results+analyti
 
 class Deployer:                       # backend-agnostic; thrift today, P4Runtime later
     state: dict                       # {"path": ..., "knobs": {...}} — read by propose()
-    def deploy(self, spec) -> (ConfigSnapshot, BaselineSnapshot): ...
+    def deploy(self, spec) -> ConfigSnapshot: ...   # the BaselineSnapshot is captured
+                                                #   by the MONITOR pre-cutover (RM
+                                                #   orchestrates) — deployer owns config only
     def capture(self) -> "snapshot": ...        # opaque; accepted back by rollback()
     def apply(self, candidate) -> None: ...     # live re-install, no teardown (§10);
                                                 #   TUNE resolves target hosts from the
@@ -514,7 +527,7 @@ Each phase is testable against the existing BMv2 setup; `DeploymentSpec` is stub
 
 1. **Live re-install mechanics — documented in §10.** Remaining work is the on-node verification checklist (§10.7), not design.
 2. **DeploymentSpec / EscalationTicket schema sign-off** with Kiran — the only cross-boundary contracts.
-3. **Tier-2 regen prompt + grammar spec** — the deterministic Tier-0/1 `propose` policy is now in §7.3; what remains is the exact constrained-decoding grammar and prompt template for regen (Phase 5 territory).
+3. **Tier-2 regen prompt + grammar — resolved.** Implemented in `runtime/regen/`: GBNF generated from the gate's constants, verbatim prompt TEMPLATE, stub client, stateless K-cap. What remains for M7 is only the real serving endpoint (vLLM/llama.cpp + pinned Qwen-Coder revision, with `gbnf()` as the guided-decoding constraint) and the multi-model comparison harness.
 4. **Deploy backend** — keep BMv2 thrift for Milestone III, or invest in true P4Runtime gRPC? (Isolated to `deployer.py`.)
 5. **Persistent network** — confirm the demo environment can keep Mininet/BMv2 up across loop iterations.
 

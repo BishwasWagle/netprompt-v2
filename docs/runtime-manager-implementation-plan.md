@@ -3,6 +3,14 @@
 **Companion to:** [runtime-manager-design.md](runtime-manager-design.md) (v2). Section references (§) point there.
 **Owner:** Kevin. **Planner boundary:** unchanged — nothing here touches Kiran's files or responsibilities.
 
+> **Status (2026-06-12, branch `Run-time-Manager`, 129 unit tests green).**
+> The **local track is complete**: M1 ✅ · M2 ✅ · M3 ✅ · M4 ◐ (command/parse
+> layer + Deployer protocol done; real Runner remains) · M5 ◐ (computation
+> pipeline + kg_client done; sampler wiring remains) · M0 ✅ kit built, not yet
+> run · M7 ◐ (regen grammar/prompt/proposer + stub model done; real serving
+> remains) · M6 ☐ node-bound · M-K ☐ drafted, awaiting Kiran's sign-off.
+> Everything remaining requires the Chameleon nodes.
+
 ---
 
 ## 1. Guiding constraints (these shape the whole plan)
@@ -19,33 +27,36 @@
 
 New top-level package (deployed to `network-node` via git; KG reachable at `bolt://controller-node:7687` per existing scripts). Branch: `milestone-III-runtime` off `milestone-II`.
 
+As built (✅ = exists and tested; ◇ = node-half still to be written):
+
 ```
 runtime/
-├── contracts.py            # DeploymentSpec, Envelope, ConfigSnapshot, BaselineSnapshot,
-│                           #   FlowMetrics, MonitorReport, Diagnosis, GateResult,
-│                           #   AdaptResult, Verdict, EscalationTicket   (§5.3/§5.4/§9)
-├── config.py               # thrift ports, hysteresis K-of-M, budget N, headroom τ,
-│                           #   knob quantization steps, KG endpoint
-├── kg_client.py            # reads: SFCTemplate/fields/baselines/LKG;
-│                           #   writes: switch status, snapshots, Verdicts, tickets (§8)
-├── gate.py                 # ValidationGate L0–L2 (+ L3 hook)              (§11)
-├── deployer.py             # deploy/apply/rollback/re_push; handle tracking (§10)
+├── contracts.py            ✅ all dataclasses + goal() + jsonable() + Deployer protocol
+├── config.py               ✅ ports/MACs, hysteresis, budget, knob steps + TC templates,
+│                           #   SFC_ACTION_SPACE registry, KG endpoint
+├── kg_client.py            ✅ injectable driver; envelope composition (strictest bounds
+│                           #   + runtime action space); JSON-payload writes      (§8)
+├── gate.py                 ✅ ValidationGate L0–L2 (+ L3 on-node)                 (§11)
+├── deployer.py             ✅ command/parse layer over an injectable Runner;
+│                           #   ◇ real Runner (subprocess/SSH + mnexec) at M4-node (§10)
 ├── monitors/
-│   ├── system_monitor.py   # PID/thrift/rules → switch_status, system_sound (§5.5)
-│   └── network_monitor.py  # counters+ping → FlowMetrics, hysteresis, harm,
-│                           #   headroom, exogenous_shift                   (§5.2–5.7)
-├── evaluator.py            # the 6-stage ladder                            (§6)
-├── adapt.py                # diagnose / propose / adapt engine             (§7)
-├── regen/                  # Tier-2 (M6): grammar.py, prompt.py, llm_client.py
-├── runtime_manager.py      # episode loop orchestration                    (§7.6)
-├── fakes.py                # FakeDeployer, FakeMonitor (local dev/test)
+│   ├── pipeline.py         ✅ hysteresis, counter math, parsers, exogenous shift,
+│   │                       #   status derivation, assemble_report          (§5.2–5.7)
+│   └── network_monitor.py  ◇ M5-node: sampler wiring over pipeline.py
+├── evaluator.py            ✅ the 6-stage ladder + EvalContext              (§6)
+├── adapt.py                ✅ diagnose/propose/engine + regen_proposer seam (§7)
+├── regen/                  ✅ grammar.py (GBNF from gate constants), prompt.py
+│                           #   (verbatim TEMPLATE), llm_client.py (stub),
+│                           #   proposer.py; ◇ real serving client at M7
+├── runtime_manager.py      ✅ episode loop (§7.6)
+├── fakes.py                ✅ FakeDeployer, FakeMonitor, ScriptedRunner
 └── tools/
-    ├── launch_network.py   # long-lived topology holder (node)            (§10.6)
-    ├── spike_s0.md         # M0 spike protocol + results
-    └── inject.py           # scenario/fault injection for tests
+    ├── launch_network.py   ✅ persistent topology holder (runs on node)    (§10.6)
+    ├── spike_s0.sh         ✅ scripted M0 checks
+    └── spike_s0.md         ✅ protocol + results table (to fill on node)
 tests/
-├── unit/                   # local — no testbed required
-└── integration/            # node — runs against live BMv2
+├── unit/                   ✅ 129 tests across 9 files — local, no testbed
+└── integration/            ◇ node — against live BMv2 (M4-node onward)
 ```
 
 ---
@@ -56,6 +67,7 @@ Effort tags: **S** ≈ a focused session, **M** ≈ a few sessions, **L** ≈ a 
 
 ### M-K · Contract sign-off with Kiran (parallel track) — S
 Extract §9 (`DeploymentSpec`, `EscalationTicket`, `Envelope`) + the §8 KG read/write split into a short contracts note; agree on field names, KG node labels, and who creates `DeploymentSpec`. **Exit:** both sides agree; `contracts.py` reflects the agreed schema.
+*Status: note drafted ([runtime-planner-contracts.md](runtime-planner-contracts.md)); awaiting Kiran's answers to its §4 questions.*
 
 ### M0 · On-node spike — S (needs node access; everything in §10.7)
 Bring up the existing multihop topology, pause before teardown, and verify by hand:
@@ -66,14 +78,17 @@ Bring up the existing multihop topology, pause before teardown, and verify by ha
 5. Port map confirm (s1 port 11→s2, 12→s3); BMv2 stability over ~1h idle + repeated CLI sessions.
 
 **Exit:** `tools/spike_s0.md` records answers; deployer + monitor APIs are unblocked. *If any item fails (e.g., `table_modify` semantics differ), the fallback is `table_delete`+`table_add` — same API, noted in the spike doc.*
+*Status: kit built and syntax-checked (`launch_network.py`, `spike_s0.sh`, `spike_s0.md` with a decision-to-code mapping per check); not yet run on the node.*
 
 ### M1 · Contracts + fakes + test harness (local) — M
 `contracts.py`, `config.py`, `fakes.py`, and **scenario fixtures**: a small library of synthetic `MonitorReport` sequences encoding each scenario (healthy, causal regression, environment regression, contention harm, path-quality fault, ddil-everything-degraded). `FakeDeployer` tracks applied candidates and supports rollback; `FakeMonitor` replays fixture sequences with candidate-dependent branches (e.g., "if rerouted, backup metrics apply").
 **Exit:** fixtures replay deterministically under pytest on Windows.
+*Status: done. Fixtures also carry per-scenario deployment envelopes + `spec()` builders, and delegate report assembly to the shared `monitors/pipeline.assemble_report` so fixture and production semantics cannot drift.*
 
 ### M2 · Gate L0–L2 (local) — S
 `gate.py` against `contracts.py`: CLI-syntax parse (L0), envelope bounds (L1), the blackhole/reachability invariant (L2 — edge MAC routable, no orphaned drone MAC, valid ports).
 **Exit (unit):** valid binding passes; out-of-range knob, illegal path, entry-deleting regen, and unknown-table candidates each rejected with the right `reason`.
+*Status: done (22 tests incl. the L0-passes/L2-catches layering case).*
 
 ### M3 · Evaluator + adapt engine (local — the algorithmic core) — L
 `evaluator.py` (6-stage ladder incl. rung-1 fix order, rung-3 `AND NOT exogenous_shift`, stage-5 → adapt, stage-6 headroom) and `adapt.py` (diagnose, propose Tiers 0–1, domination guard, hill-climb, shared budget, `tried` set; Tier-2 = stub returning `None`). `runtime_manager.py` episode loop with §7.6 boundary (any commit → re-baseline + budget reset).
@@ -85,21 +100,27 @@ Bring up the existing multihop topology, pause before teardown, and verify by ha
 - *environment regression*: `exogenous_shift=True` → **no rollback**, goes to rung 4;
 - oscillation: a candidate that regresses is rolled back and never retried; budget resets only on commit.
 
+*Status: done — all traces pass with exact budget/rollback counts. Engine additionally gained the injectable `regen_proposer` seam and prefers a live `deployer.table_state()` for gate L2.*
+
 ### M4 · Node track: topology holder + real deployer — M (needs M0)
 `tools/launch_network.py` (extract topology from the experiment script; runs resident, never tears down; cleans `/tmp/bmv2-*.ipc` on start) and `deployer.py` (rules via `simple_switch_CLI` to 9090–92 with handle tracking per M0; `tc` via the M0-verified namespace mechanism; `ConfigSnapshot` capture; deterministic rollback).
 **Exit (integration):** deploy LowLatency binding → live-flip to backup → rollback → re_push, all on one uninterrupted network, verified by ping continuity.
+*Status: local half done — `deployer.py` (builders, parsers, handle tracking, semantic-diff rollback, `table_state()`) over an injectable Runner, with `ScriptedRunner` tests; `launch_network.py` written. Remaining: the real Runner (subprocess/SSH + the C3-verified namespace mechanism) and the integration exit above.*
 
 ### M5 · Node track: real monitors + KG client — M
 `network_monitor.py` (per-field metrics from the M0 counter channel + namespace pings; hysteresis; baseline capture; harm/headroom/exogenous-shift computation — on the testbed, exogenous shift can be read from `tc qdisc show` on link interfaces we don't manage), `system_monitor.py` (PID/thrift/table checks → status table §5.5), `kg_client.py` (all §8 reads/writes; **replaces `update_topology_state.py`'s hardcoded writes** — that script stops being called by our loop; the file itself is untouched).
 **Exit (integration):** live `MonitorReport` matches induced conditions (kill s2 → `Failed`; congest primary → `Degraded`; harm list populates when a field is squeezed); baseline + status visible in Neo4j.
+*Status: local half done — `monitors/pipeline.py` (hysteresis, counter math, parsers, exogenous shift, status derivation, the shared `assemble_report`) and `kg_client.py` (injectable driver, envelope composition, JSON-payload writes). Remaining: sampler wiring (real sysfs paths, namespace ping, thrift liveness) + the integration exit above.*
 
 ### M6 · End-to-end deterministic system (node) — M
 Wire `runtime_manager.py` over real deployer + monitors + KG. Run the three acceptance scenarios from M3 **live**, plus a soak run (repeated episodes over hours — BMv2 stability per M0 item 5).
 **Exit:** design-doc Phase-3/4 exit criteria pass on the live testbed **with Tier-2 still stubbed**. This is the paper's deterministic baseline system.
+*Status: not started (node-bound; everything it wires is built and unit-tested).*
 
 ### M7 · Tier-2 regen + reproducibility (node + GPU) — L
 `regen/`: grammar (the two tables × existing actions — resolves open question §13.3), prompt template (violation, table dump, bounds, prior failures), `llm_client.py` against vLLM/llama.cpp serving Qwen-Coder (pinned revision, greedy, constrained). Gate L3 dry-install if M0 showed it's needed. Phase-5 hardening: structured logging of episodes/verdicts, multi-model comparison harness (Qwen vs DeepSeek-Coder vs Granite/StarCoder baseline) for the paper.
 **Exit:** a regen candidate flows propose → gate → apply → observe end-to-end; LLM-down test degrades to escalate-sooner (fail-safe §7.4); comparison table generated.
+*Status: plumbing done with a stub model — both exit behaviors above already pass locally (`runtime/regen/`: GBNF generated from gate constants and narrower than the gate, verbatim prompt TEMPLATE, stateless K-cap proposer, `StubLLMClient`). Remaining: the real serving client (vLLM/llama.cpp + pinned Qwen-Coder, `gbnf()` as the guided-decoding constraint), gate L3 if the spike shows it's needed, and the multi-model comparison harness.*
 
 ---
 

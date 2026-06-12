@@ -58,7 +58,9 @@ The `trace` is the payload that matters: it shows the planner exactly what the r
 @dataclass
 class Verdict:
     correlation_id: str
-    outcome: str            # "healthy" | "marginal" | "rollback" | "escalated" | "system_fault"
+    outcome: str            # "healthy" | "marginal" | "rollback" | "escalated"
+                            #   | "system_fault" | "rejected" (gate-refused binding,
+                            #     never deployed)
     tier_reached: int       # 0 none/tune, 1 reroute, 2 LLM-regen — how hard the runtime worked
     headroom: float         # margin at commit (thin margin ⇒ "marginal")
     trace: list
@@ -77,7 +79,26 @@ class Verdict:
 
 Note: the runtime **replaces** the hardcoded switch-status writes currently in `update_topology_state.py` with monitor-computed status — `kg_path_selector.py`-style status→path reads keep working unchanged.
 
-## 4. Questions needing your answer
+## 4. Implementation status (runtime side — already built)
+
+So you can see the shapes are real, not proposals: all types in this note exist in
+[`runtime/contracts.py`](../runtime/contracts.py) and are exercised by 129 unit
+tests on branch `Run-time-Manager`. Facts that affect your side:
+
+- **KG persistence format:** Verdicts, tickets, and snapshots are written with
+  nested payloads (traces, envelopes) as **JSON-string properties** (Neo4j can't
+  nest maps). Your aggregation/consumption side should `json.loads` the `trace`,
+  `observed`, `envelope`, and `payload` properties. Every runtime write carries
+  `updated_by: 'runtime-manager'`.
+- **Envelope composition (runtime-side, no planner action needed):** bounds =
+  strictest of `SFCTemplate` and the target field's KG values; the action space
+  (legal tiers/paths/knobs) comes from a runtime-owned registry — consistent
+  with §3's rule that the planner never authors it.
+- **EscalationTicket nodes** are created with `status: 'open'`; we suggest the
+  planner sets it to `'consumed'` (or similar) when re-planning — open to
+  whatever convention you prefer (relates to question 3 below).
+
+## 5. Questions needing your answer
 
 1. **Option 1 (thin) or Option 2 (full) for the handoff?** We recommend 1.
 2. **Transport:** KG node + poll, or direct invocation?

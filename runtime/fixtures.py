@@ -14,6 +14,7 @@ from runtime.contracts import (
     BACKUP, PRIMARY, REGEN, REROUTE, TUNE,
     DeploymentSpec, Envelope, MonitorReport, compute_flow_metrics,
 )
+from runtime.monitors.pipeline import assemble_report
 
 # Field requirements (mirrors generate_kg.py: F1 high/low-latency, F2 medium).
 F1_REQ = Envelope(max_latency_ms=20, min_bandwidth_mbps=40, max_loss_percent=2)
@@ -66,25 +67,18 @@ class ScenarioModel:
         return out
 
     def report(self, state: dict) -> MonitorReport:
-        flows = self._flows(state)
-        target = flows[self.target_field]
-        non_target = [f for k, f in flows.items() if k != self.target_field]
-        harm = [f.field_id for f in non_target
-                if not f.met and self.baseline[f.field_id].met]
-        satisfied = [f for f in flows.values() if f.met]
-        headroom = min((f.margin for f in satisfied), default=0.0)
-        return MonitorReport(
+        # Same assembler as the real monitor (monitors/pipeline.py) — fixture
+        # behavior cannot drift from production report semantics.
+        return assemble_report(
             correlation_id=self.correlation_id,
-            switch_status=dict(self.switch_status),
+            target_field=self.target_field,
+            raw=self.metrics(state),
+            requirements=self.fields,
+            baseline=self.baseline,
+            switch_status=self.switch_status,
             system_sound=self.system_sound,
-            target=target,
-            non_target=non_target,
-            target_sla_met=target.met,
-            vs_baseline={k: flows[k].margin - self.baseline[k].margin for k in flows},
             exogenous_shift=self.exogenous_shift,
-            displaced_harm=harm,
-            headroom=headroom,
-            path_confidence=dict(self.path_confidence),
+            path_confidence=self.path_confidence,
         )
 
 

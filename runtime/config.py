@@ -47,3 +47,24 @@ TC_TEMPLATES = {
 
 # Which binding key carries each switch's rule file (design §10.4).
 SWITCH_RULES_KEYS = {"s1": "access_rules", "s2": "relay_rules", "s3": "backup_rules"}
+
+# --- per-SFC action space (design §9: runtime-owned, NOT from the planner).
+#     Bounds come from the KG; what we are allowed to TURN is ours. netem
+#     impairments are never knobs (§7.3). Defaults follow the design's
+#     reasoning: LowLatency cannot meet its bound on the backup path, so
+#     reroute is not legal for it; ReliableRelay's whole point is the backup. ---
+DEFAULT_MAX_LOSS_PERCENT = 2.0          # fields carry no loss bound in the KG
+SFC_ACTION_SPACE = {
+    "LowLatencyVideoSFC":   {"legal_tiers": frozenset(("tune", "regen")),
+                             "legal_paths": frozenset(("primary",)),
+                             "knob_ranges": {"pfifo_limit": (10, 50)}},
+    "ReliableRelaySFC":     {"legal_tiers": frozenset(("tune", "reroute", "regen")),
+                             "legal_paths": frozenset(("primary", "backup")),
+                             "knob_ranges": {}},
+    "BandwidthOptimizedSFC": {"legal_tiers": frozenset(("tune", "regen")),
+                              "legal_paths": frozenset(("primary",)),
+                              "knob_ranges": {"tbf_rate_mbit": (5, 80)}},
+    "EnergyAwareSFC":       {"legal_tiers": frozenset(("tune",)),
+                             "legal_paths": frozenset(("primary",)),
+                             "knob_ranges": {"tbf_rate_mbit": (5, 40)}},
+}

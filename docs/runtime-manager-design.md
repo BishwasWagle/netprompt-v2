@@ -384,10 +384,15 @@ class EscalationTicket:               # runtime → planner (via Results+analyti
     reason: str                       # "all tiers exhausted" | "budget spent" | "no harm-free config"
 
 class Deployer:                       # backend-agnostic; thrift today, P4Runtime later
+    state: dict                       # {"path": ..., "knobs": {...}} — read by propose()
     def deploy(self, spec) -> (ConfigSnapshot, BaselineSnapshot): ...
-    def apply(self, candidate) -> None: ...     # live re-install, no teardown (§10)
+    def capture(self) -> "snapshot": ...        # opaque; accepted back by rollback()
+    def apply(self, candidate) -> None: ...     # live re-install, no teardown (§10);
+                                                #   TUNE resolves target hosts from the
+                                                #   active spec (candidates are host-agnostic)
     def rollback(self, snapshot) -> None: ...
     def re_push(self, snapshot) -> None: ...
+    def table_state(self) -> dict: ...          # {switch: [TableEntry]} — fresh, for gate L2
 ```
 
 ---

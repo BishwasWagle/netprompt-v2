@@ -183,7 +183,12 @@ def adapt(spec: DeploymentSpec, report: MonitorReport, budget: Budget,
                                        note="capacity check failed"))
             continue
 
-        verdict = gate.check(cand, env, current_tables)
+        # Gate L2 needs the LIVE table state — a prior applied candidate may
+        # have changed it. Prefer the deployer's fresh view (real deployer,
+        # M4) over any static snapshot passed in.
+        tables = (deployer.table_state() if hasattr(deployer, "table_state")
+                  else current_tables)
+        verdict = gate.check(cand, env, tables)
         if not verdict.ok:
             tried.add(cand)
             trace.append(AttemptRecord(cand, gate_ok=False, applied=False,

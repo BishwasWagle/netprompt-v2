@@ -199,3 +199,26 @@ class EscalationTicket:
     envelope: Envelope
     trace: list
     reason: str                   # "all tiers exhausted" | "budget spent" | "no harm-free config"
+
+
+# ---------------------------------------------------------------------------
+# Deployer protocol (design §9/§10) — the surface the engine, evaluator, and
+# RuntimeManager actually consume. FakeDeployer implements it; the real
+# deployer (M4) must too:
+#
+#   state -> {"path": PRIMARY|BACKUP, "knobs": {knob: value}}
+#       current applied config; propose() reads it to step knobs / skip
+#       no-op reroutes.
+#   capture() -> opaque snapshot      accepted back by rollback(); the real
+#       deployer returns a ConfigSnapshot, the fake a dict — the engine
+#       never looks inside.
+#   apply(Candidate) -> None          TUNE: resolve which hosts to `tc` from
+#       the ACTIVE DEPLOYMENT's target field (candidates are host-agnostic);
+#       REROUTE: flip the s1 edge-MAC entry; REGEN: install rules text.
+#   rollback(snapshot) -> None        deterministic restore of a capture().
+#   re_push(snapshot) -> None         same revision, fresh install (rung 1).
+#   deploy(spec) -> (ConfigSnapshot, BaselineSnapshot)   episode start.
+#   table_state() -> {switch: [TableEntry]}   OPTIONAL but required once
+#       regen is live: fresh installed-entry state for gate L2; the engine
+#       prefers it over any static snapshot.
+# ---------------------------------------------------------------------------

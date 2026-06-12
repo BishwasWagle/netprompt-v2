@@ -6,12 +6,17 @@ fill in the Results column and apply the listed fix if a check fails.
 
 ## Setup (terminal 1)
 
+The repo lives at `/home/cc/Run-time-Manager-2` on network-node; the canonical
+milestone-II tree is `network/milestone-II-latest/netprompt-milestone-II`
+(`network/newcodes/` is a leftover duplicate — do not use it).
+
 ```bash
-cd ~/netprompt-v2 && git checkout Run-time-Manager
+cd /home/cc/Run-time-Manager-2 && git checkout Run-time-Manager && git pull
+TREE=/home/cc/Run-time-Manager-2/network/milestone-II-latest/netprompt-milestone-II
 sudo mn -c
 sudo python3 runtime/tools/launch_network.py \
-    --p4-json  /home/cc/netprompt-milestone-II/compiled_p4/low_latency.json \
-    --rules-dir /home/cc/netprompt-milestone-II/p4_multihop_rules \
+    --p4-json  $TREE/compiled_p4/low_latency.json \
+    --rules-dir $TREE/p4_multihop_rules \
     --sfc low_latency --scenario baseline
 ```
 

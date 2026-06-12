@@ -27,6 +27,13 @@ SWITCH_PORTS = {"s1": set(range(1, 13)), "s2": {1, 2}, "s3": {1, 2}}
 # edge must stay reachable on AT LEAST ONE of its identities.
 DRONE_MACS = tuple(f"00:00:00:00:00:{i:02x}" for i in range(1, 11))
 
+# --- canonical milestone-II tree on network-node (per Bishwas: the
+#     milestone-II-latest copy is authoritative; network/newcodes/ is a
+#     leftover duplicate). Binding rule/P4 paths resolve against this root. ---
+NODE_TREE_ROOT = os.environ.get(
+    "NETPROMPT_TREE_ROOT",
+    "/home/cc/Run-time-Manager-2/network/milestone-II-latest/netprompt-milestone-II")
+
 # --- KG (controller-node hosts Neo4j; existing scripts use the same endpoint) ---
 KG_URI = os.environ.get("NETPROMPT_KG_URI", "bolt://controller-node:7687")
 KG_USER = os.environ.get("NETPROMPT_KG_USER", "neo4j")

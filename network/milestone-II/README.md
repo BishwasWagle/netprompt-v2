@@ -1,4 +1,5 @@
 # NetPrompt Milestone II
+<img width="1536" height="1024" alt="ChatGPT Image Jun 8, 2026, 10_25_50 PM" src="https://github.com/user-attachments/assets/fc12dc8b-f6fa-4293-9443-2a92d7646d29" />
 
 ## Repository Structure
 

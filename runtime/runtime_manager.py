@@ -17,13 +17,15 @@ class RuntimeManager:
 
     def __init__(self, deployer, monitor, gate,
                  budget_n: int = config.BUDGET_N,
-                 active_capacity_ok=None, current_tables: dict | None = None):
+                 active_capacity_ok=None, current_tables: dict | None = None,
+                 regen_proposer=None):
         self.deployer = deployer
         self.monitor = monitor
         self.gate = gate
         self.budget_n = budget_n
         self.active_capacity_ok = active_capacity_ok
         self.current_tables = current_tables
+        self.regen_proposer = regen_proposer
         # Pre-deploy state is the first last-known-good (rung-3 rollback target).
         self.last_good = deployer.capture()
 
@@ -40,6 +42,7 @@ class RuntimeManager:
             last_good=self.last_good,
             active_capacity_ok=self.active_capacity_ok,
             current_tables=self.current_tables,
+            regen_proposer=self.regen_proposer,
             timestamp=timestamp,
         )
         result = evaluate(spec, self.monitor.observe_window(), ctx)

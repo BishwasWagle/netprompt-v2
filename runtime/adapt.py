@@ -117,15 +117,23 @@ def _propose_reroute(env: Envelope, state: dict, exclude: set):
     return None if cand in exclude else cand
 
 
-def propose(diag: Diagnosis, tier: int, env: Envelope, state: dict, exclude: set):
+def propose(diag: Diagnosis, tier: int, env: Envelope, state: dict, exclude: set,
+            regen_proposer=None):
     """One candidate at the given tier, or None when the tier is exhausted.
     `state` is the deployer's current applied config (path + knob values) —
-    see the §7.3 implementation note."""
+    see the §7.3 implementation note.
+
+    regen_proposer: optional callable(diag, env, state, exclude) ->
+    Candidate(REGEN, (switch, rules_text)) | None — the Tier-2 seam the LLM
+    plumbing (M7) plugs into. The gate remains the authority on whatever it
+    returns; None (the default) keeps Tier 2 stubbed (fail-safe, §7.4)."""
     if tier == 0:
         return _propose_tune(diag, env, state, exclude)
     if tier == 1:
         return _propose_reroute(env, state, exclude)
-    return None                          # Tier 2 regen: stubbed until M7
+    if regen_proposer is not None:
+        return regen_proposer(diag, env, state, exclude)
+    return None
 
 
 # ---------------- guards ----------------
@@ -150,7 +158,8 @@ def improves(post: MonitorReport, pre: MonitorReport) -> bool:
 
 def adapt(spec: DeploymentSpec, report: MonitorReport, budget: Budget,
           deployer, monitor, gate,
-          active_capacity_ok=None, current_tables=None) -> AdaptResult:
+          active_capacity_ok=None, current_tables=None,
+          regen_proposer=None) -> AdaptResult:
     """The §7.2 engine. Success hands a goal report to the evaluator's commit
     path; failure leaves the best-achieved dominating config applied (§7.5)."""
     capacity_ok = active_capacity_ok or (lambda cand: True)
@@ -165,7 +174,7 @@ def adapt(spec: DeploymentSpec, report: MonitorReport, budget: Budget,
         if diag is None:                              # already at goal
             return AdaptResult(True, tier, trace, final_report=cur)
 
-        cand = propose(diag, tier, env, deployer.state, tried)
+        cand = propose(diag, tier, env, deployer.state, tried, regen_proposer)
         if cand is None:
             if tier < 2:
                 tier += 1                             # escalate cost tier

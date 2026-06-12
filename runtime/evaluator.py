@@ -33,6 +33,7 @@ class EvalContext:
     last_good: dict | None = None         # config snapshot to roll back to
     active_capacity_ok: object = None     # callable(Candidate) -> bool, or None
     current_tables: dict | None = None    # for gate L2 on regen candidates
+    regen_proposer: object = None         # Tier-2 seam (M7); None = stubbed
     timestamp: str = ""
 
 
@@ -92,7 +93,7 @@ def evaluate(spec: DeploymentSpec, report: MonitorReport, ctx: EvalContext) -> E
                                       r.headroom, trace, ctx.timestamp))
         # 4 · in-envelope fix left?
         res = adapt(spec, r, ctx.budget, ctx.deployer, ctx.monitor, ctx.gate,
-                    ctx.active_capacity_ok, ctx.current_tables)
+                    ctx.active_capacity_ok, ctx.current_tables, ctx.regen_proposer)
         trace = list(res.trace)
         tier_reached = res.tier_reached
         if not res.success:
@@ -103,7 +104,7 @@ def evaluate(spec: DeploymentSpec, report: MonitorReport, ctx: EvalContext) -> E
     # 5 · no displaced harm? (Option B: adapt to relieve before escalating)
     if r.displaced_harm:
         res = adapt(spec, r, ctx.budget, ctx.deployer, ctx.monitor, ctx.gate,
-                    ctx.active_capacity_ok, ctx.current_tables)
+                    ctx.active_capacity_ok, ctx.current_tables, ctx.regen_proposer)
         trace = trace + list(res.trace)
         tier_reached = max(tier_reached, res.tier_reached)
         if not res.success:

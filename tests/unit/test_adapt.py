@@ -68,6 +68,34 @@ def test_propose_tier2_is_stubbed():
     assert propose(d, 2, model.envelope, {"path": PRIMARY, "knobs": {}}, set()) is None
 
 
+def test_propose_tier2_consults_injected_regen_proposer():
+    """The M7 seam: a regen proposer plugs in without touching the engine."""
+    model = Ddil()
+    d = diagnose(FakeMonitor(model, FakeDeployer()).observe_window())
+    sentinel = Candidate("regen", ("s1", "table_modify forward_table forward 2 => 12"))
+    seen = []
+    def proposer(diag, env, state, exclude):
+        seen.append((diag.who, state["path"]))
+        return sentinel
+    got = propose(d, 2, model.envelope, {"path": PRIMARY, "knobs": {}}, set(),
+                  regen_proposer=proposer)
+    assert got is sentinel and seen == [("target", PRIMARY)]
+
+
+def test_engine_reaches_injected_regen_proposer_at_tier2():
+    model, deployer, monitor = rig(Ddil)
+    calls = []
+    def proposer(diag, env, state, exclude):
+        calls.append(diag.who)
+        return None                                   # nothing to offer
+    budget = Budget(6)
+    res = adapt(model.spec(), monitor.observe_window(), budget,
+                deployer, monitor, ValidationGate(),
+                active_capacity_ok=lambda c: True, regen_proposer=proposer)
+    assert calls == ["target"]                        # tier 2 was consulted
+    assert not res.success and res.reason == "all tiers exhausted"
+
+
 # ---------------- acceptance traces ----------------
 
 def test_path_quality_fault_recovers_via_tier1_reroute():

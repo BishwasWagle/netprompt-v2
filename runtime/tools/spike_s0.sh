@@ -69,29 +69,38 @@ ls /sys/class/net/s1-eth11 >/dev/null 2>&1 && ls /sys/class/net/s1-eth12 >/dev/n
 
 echo ""
 echo "=== C6: passive veth counters (granularity + liveness) ==="
-for IF in s1-eth1 s1-eth11 s1-eth12; do
+IF_LIST="s1-eth1 s1-eth11 s1-eth12"
+declare -A RX1 TX1
+READABLE=1
+for IF in $IF_LIST; do
     if [ -r "/sys/class/net/$IF/statistics/rx_bytes" ]; then
-        A=$(cat /sys/class/net/$IF/statistics/rx_bytes)
-        T=$(cat /sys/class/net/$IF/statistics/tx_bytes)
-        echo "    $IF rx_bytes=$A tx_bytes=$T"
+        READABLE=0
+        RX1[$IF]=$(cat "/sys/class/net/$IF/statistics/rx_bytes")
+        TX1[$IF]=$(cat "/sys/class/net/$IF/statistics/tx_bytes")
     else
         echo "    $IF: statistics NOT readable"
     fi
 done
 sleep 2
-DELTA_SEEN=1
-for IF in s1-eth1 s1-eth11 s1-eth12; do
-    [ -r "/sys/class/net/$IF/statistics/rx_bytes" ] && DELTA_SEEN=0
+for IF in $IF_LIST; do
+    if [ -n "${RX1[$IF]:-}" ]; then
+        RX2=$(cat "/sys/class/net/$IF/statistics/rx_bytes")
+        TX2=$(cat "/sys/class/net/$IF/statistics/tx_bytes")
+        echo "    $IF over 2s: rx ${RX1[$IF]} -> $RX2 (delta $((RX2 - RX1[$IF])))  tx ${TX1[$IF]} -> $TX2 (delta $((TX2 - TX1[$IF])))"
+    fi
 done
-check "C6-readable" $DELTA_SEEN "veth /sys counters readable (zero-P4-change channel, design 5.2)"
-echo "[INFO] for a real delta: run a ping (C2) and re-read; record update granularity in spike_s0.md"
+check "C6-readable" $READABLE "veth /sys counters readable (zero-P4-change channel, design 5.2)"
+echo "[INFO] idle deltas above = noise floor; re-read during C2's ping for traffic deltas + granularity"
 
 echo ""
 echo "=== C3: host-namespace access out-of-process (mnexec / ip netns) ==="
 D4PID=$(pgrep -f "mininet:d4" | head -1)
 if [ -n "${D4PID:-}" ]; then
     echo "[INFO] d4 namespace pid=$D4PID"
-    if mnexec -a "$D4PID" tc qdisc show dev d4-eth0 2>/dev/null | sed 's/^/    /'; then
+    # Capture first: `if cmd | sed; then` would test sed's status, not mnexec's.
+    NSOUT=$(mnexec -a "$D4PID" tc qdisc show dev d4-eth0 2>/dev/null)
+    if [ -n "$NSOUT" ]; then
+        echo "$NSOUT" | sed 's/^/    /'
         check "C3-mnexec" 0 "mnexec reaches d4 namespace (M5 sampler + tune mechanism confirmed)"
     else
         check "C3-mnexec" 1 "mnexec failed - try: nsenter -t $D4PID -n tc qdisc show dev d4-eth0"

@@ -9,6 +9,7 @@ is deterministic under test.
 """
 from __future__ import annotations
 
+import dataclasses
 from dataclasses import dataclass, field
 
 PRIMARY = "primary"
@@ -199,6 +200,23 @@ class EscalationTicket:
     envelope: Envelope
     trace: list
     reason: str                   # "all tiers exhausted" | "budget spent" | "no harm-free config"
+
+
+def jsonable(obj):
+    """Recursively convert any contracts object to JSON-serializable
+    structures — dataclasses to dicts, sets/frozensets to sorted lists,
+    tuples to lists. The kg_client persists Verdicts/tickets/snapshots as
+    JSON properties; raw dataclasses with frozensets are not dumpable."""
+    if dataclasses.is_dataclass(obj) and not isinstance(obj, type):
+        return {f.name: jsonable(getattr(obj, f.name))
+                for f in dataclasses.fields(obj)}
+    if isinstance(obj, dict):
+        return {str(k): jsonable(v) for k, v in obj.items()}
+    if isinstance(obj, (set, frozenset)):
+        return sorted(jsonable(v) for v in obj)
+    if isinstance(obj, (list, tuple)):
+        return [jsonable(v) for v in obj]
+    return obj
 
 
 # ---------------------------------------------------------------------------

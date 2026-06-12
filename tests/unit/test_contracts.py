@@ -54,3 +54,28 @@ def test_goal_requires_target_met_and_no_harm():
     assert not goal(_report(False, []))
     assert not goal(_report(True, ["F2"]))
     assert not goal(_report(False, ["F2"]))
+
+
+def test_jsonable_makes_contracts_dumpable():
+    """kg_client (M5) persists these as JSON — frozensets/tuples/nesting
+    must all flatten cleanly."""
+    import json
+    from runtime.contracts import (
+        AttemptRecord, BACKUP, EscalationTicket, PRIMARY, REROUTE, jsonable,
+    )
+    env = Envelope(max_latency_ms=20, min_bandwidth_mbps=40, max_loss_percent=2,
+                   legal_tiers=frozenset(("tune", "reroute")),
+                   legal_paths=frozenset((PRIMARY, BACKUP)),
+                   knob_ranges={"tbf_rate_mbit": (5, 80)})
+    ticket = EscalationTicket(
+        correlation_id="ep1", sfc="ReliableRelaySFC",
+        observed={"F1": {"met": False, "margin": -0.5}},
+        envelope=env,
+        trace=[AttemptRecord(Candidate(REROUTE, (BACKUP,)), True, True,
+                             False, kept=False, note="dominated")],
+        reason="all tiers exhausted")
+
+    data = json.loads(json.dumps(jsonable(ticket)))   # round-trip
+    assert data["envelope"]["legal_tiers"] == ["reroute", "tune"]   # sorted
+    assert data["trace"][0]["candidate"]["params"] == ["backup"]
+    assert data["observed"]["F1"]["margin"] == -0.5

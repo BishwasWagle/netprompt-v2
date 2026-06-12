@@ -24,6 +24,7 @@ import argparse
 import os
 import signal
 import subprocess
+import threading
 import time
 
 from mininet.cli import CLI
@@ -135,24 +136,31 @@ def main():
 
     net = build_net(args.p4_json, args.scenario)
     net.start()
-    time.sleep(2)
+    try:
+        time.sleep(2)
+        for switch, suffix in [("s1", "s1"), ("s2", "s2"), ("s3", "s3")]:
+            rules = os.path.join(args.rules_dir, f"{args.sfc}_{suffix}_rules.txt")
+            print(f"Installing {rules} on {switch} (thrift {THRIFT[switch]})")
+            install_rules(rules, THRIFT[switch])
 
-    for switch, suffix in [("s1", "s1"), ("s2", "s2"), ("s3", "s3")]:
-        rules = os.path.join(args.rules_dir, f"{args.sfc}_{suffix}_rules.txt")
-        print(f"Installing {rules} on {switch} (thrift {THRIFT[switch]})")
-        install_rules(rules, THRIFT[switch])
+        print("\nNetwork is up and PERSISTENT.")
+        print("  thrift: s1=9090 s2=9091 s3=9092")
+        print("  host namespaces: pgrep -f 'mininet:d4' -> mnexec -a <pid> <cmd>")
+        print("  stop: Ctrl-C (or SIGTERM) stops the net cleanly\n")
 
-    print("\nNetwork is up and PERSISTENT.")
-    print("  thrift: s1=9090 s2=9091 s3=9092")
-    print("  host namespaces: pgrep -f 'mininet:d4' -> mnexec -a <pid> <cmd>")
-    print("  stop: Ctrl-C (or SIGTERM) stops the net cleanly\n")
-
-    if args.cli:
-        CLI(net)
-    else:
-        stop = signal.sigwait([signal.SIGINT, signal.SIGTERM])
-        print(f"signal {stop} received, stopping network")
-    net.stop()
+        if args.cli:
+            CLI(net)
+        else:
+            # Handler-based wait: signal.sigwait() without pre-blocking races
+            # with Python's default SIGINT handling (KeyboardInterrupt would
+            # bypass cleanup and orphan switches/namespaces).
+            stop_evt = threading.Event()
+            for sig in (signal.SIGINT, signal.SIGTERM):
+                signal.signal(sig, lambda *_: stop_evt.set())
+            stop_evt.wait()
+            print("stop signal received, stopping network")
+    finally:
+        net.stop()
 
 
 if __name__ == "__main__":

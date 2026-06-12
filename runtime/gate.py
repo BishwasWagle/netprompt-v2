@@ -221,10 +221,11 @@ class ValidationGate:
                     return _reject(f"L2: no entry with handle {handle} in {table}")
                 del by_handle[handle]
 
+        # str() tolerance: real table dumps (M4) may carry ports as ints.
         routable = {e.key for e in by_handle.values()
                     if e.table == "forward_table" and e.action == "forward"
-                    and e.args and e.args[0].isdigit()
-                    and int(e.args[0]) in SWITCH_PORTS[switch]}
+                    and e.args and str(e.args[0]).isdigit()
+                    and int(str(e.args[0])) in SWITCH_PORTS[switch]}
         for mac in self.required_macs:
             if mac not in routable:
                 return _reject(f"L2: {mac} not routable after regen (blackhole)")

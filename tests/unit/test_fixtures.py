@@ -1,12 +1,16 @@
 """M1 — scenario fixtures behave per their docstrings. These assertions are
 the precondition for the M3 evaluator/engine tests: each scenario must present
 exactly the conditions its design-doc rung expects."""
+import pytest
+
 from runtime.config import HEADROOM_TAU
-from runtime.contracts import BACKUP, PRIMARY, goal
+from runtime.contracts import BACKUP, PRIMARY, REROUTE, TUNE, Candidate, goal
 from runtime.fixtures import (
+    ALL_SCENARIOS,
     CausalRegression, ContentionHarmNoKnob, ContentionHarmWithKnob,
     Ddil, Healthy, PathQualityFault,
 )
+from runtime.gate import ValidationGate
 
 ON_PRIMARY = {"path": PRIMARY, "knobs": {}}
 ON_BACKUP = {"path": BACKUP, "knobs": {}}
@@ -64,6 +68,44 @@ def test_contention_without_knob_has_no_feasible_config():
     assert base.target_sla_met and base.displaced_harm == ["F2"]
     rerouted = m.report(ON_BACKUP)                # global reroute: contention follows
     assert not rerouted.target_sla_met            # dominated -> rolled back -> escalate
+
+
+# ---------------- M3 readiness: fixtures x gate cross-checks ----------------
+
+@pytest.mark.parametrize("name", sorted(ALL_SCENARIOS))
+def test_every_scenario_spec_is_gate_valid(name):
+    """The adapt engine gate-checks candidates against the fixture's envelope;
+    a gate-invalid fixture would make M3 failures unattributable."""
+    spec = ALL_SCENARIOS[name]().spec()
+    assert ValidationGate().check_binding(spec).ok
+    # bounds of the deployment envelope must match the target's requirement
+    target_req = ALL_SCENARIOS[name]().fields[spec.target_field]
+    assert (target_req.max_latency_ms, target_req.min_bandwidth_mbps,
+            target_req.max_loss_percent) == (spec.envelope.max_latency_ms,
+                                             spec.envelope.min_bandwidth_mbps,
+                                             spec.envelope.max_loss_percent)
+
+
+def test_path_fault_envelope_permits_the_fixing_reroute():
+    m = PathQualityFault()
+    assert ValidationGate().check(Candidate(REROUTE, (BACKUP,)), m.envelope).ok
+    assert m.envelope.knob_ranges == {}        # Tier 0 exhausts instantly
+
+
+def test_harm_envelope_permits_the_relieving_tune():
+    m = ContentionHarmWithKnob()
+    # rate 45 is on the lo-anchored grid (5 + 4*10) and inside the range
+    assert ValidationGate().check(Candidate(TUNE, ("tbf_rate_mbit", 45)), m.envelope).ok
+    lo, step = m.envelope.knob_ranges["tbf_rate_mbit"][0], 10
+    assert (45 - lo) % step == 0
+
+
+def test_no_knob_envelope_offers_only_the_doomed_reroute():
+    m = ContentionHarmNoKnob()
+    assert m.envelope.legal_tiers == frozenset((REROUTE,))
+    assert ValidationGate().check(Candidate(REROUTE, (BACKUP,)), m.envelope).ok
+    r = ValidationGate().check(Candidate(TUNE, ("tbf_rate_mbit", 45)), m.envelope)
+    assert not r.ok                            # no shaping lever exists
 
 
 def test_ddil_unrecoverable_on_both_paths():

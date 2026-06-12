@@ -12,7 +12,7 @@ from __future__ import annotations
 
 from runtime.contracts import (
     BACKUP, PRIMARY, REGEN, REROUTE, TUNE,
-    Envelope, MonitorReport, compute_flow_metrics,
+    DeploymentSpec, Envelope, MonitorReport, compute_flow_metrics,
 )
 
 # Field requirements (mirrors generate_kg.py: F1 high/low-latency, F2 medium).
@@ -21,6 +21,12 @@ F2_REQ = Envelope(max_latency_ms=50, min_bandwidth_mbps=20, max_loss_percent=3)
 
 OK_STATUS = {"s1": "Active", "s2": "Active", "s3": "Standby"}
 
+# Structurally valid binding (gate.check_binding shape). File existence is a
+# node-side concern (L3/M4); these are placeholders.
+VALID_BINDING = {"p4_json": "low_latency.json", "access_rules": "s1.txt",
+                 "relay_rules": "s2.txt", "backup_rules": "s3.txt",
+                 "policy_type": "fixture"}
+
 
 class ScenarioModel:
     """Subclasses define metrics(state) -> {field_id: (rtt, tput, loss)} and
@@ -28,12 +34,22 @@ class ScenarioModel:
     pre-cutover state (design §5.3)."""
 
     correlation_id = "fixture"
+    sfc = "LowLatencyVideoSFC"
     target_field = "F1"
     fields = {"F1": F1_REQ, "F2": F2_REQ}
+    # The deployment envelope (bounds + action space) — what the adapt engine
+    # and gate consume. Bounds MUST match fields[target_field]'s bounds.
+    envelope = F1_REQ
     exogenous_shift = False
     system_sound = True
     switch_status = OK_STATUS
     path_confidence = {PRIMARY: "observed", BACKUP: "inferred"}
+
+    def spec(self) -> DeploymentSpec:
+        return DeploymentSpec(sfc=self.sfc, binding=dict(VALID_BINDING),
+                              envelope=self.envelope,
+                              correlation_id=self.correlation_id,
+                              target_field=self.target_field)
 
     def __init__(self, baseline_state: dict | None = None):
         self.baseline_state = baseline_state or {"path": PRIMARY, "knobs": {}}
@@ -76,6 +92,11 @@ class Healthy(ScenarioModel):
     """Deploy lands cleanly: everyone comfortably inside bounds.
     Expected (M3): rung 2 yes -> stage 5 clean -> stage 6 margin ok -> Commit-healthy."""
 
+    envelope = Envelope(max_latency_ms=20, min_bandwidth_mbps=40, max_loss_percent=2,
+                        legal_tiers=frozenset((TUNE,)),
+                        legal_paths=frozenset((PRIMARY,)),
+                        knob_ranges={"pfifo_limit": (10, 50)})
+
     def metrics(self, state):
         return {"F1": (10, 55, 0.5), "F2": (25, 30, 1.0)}
 
@@ -83,6 +104,11 @@ class Healthy(ScenarioModel):
 class CausalRegression(ScenarioModel):
     """Our own binding shipped a bad queue tune (pfifo too shallow -> loss).
     Environment unchanged. Expected: rung 3 yes -> rollback to last-good."""
+
+    envelope = Envelope(max_latency_ms=20, min_bandwidth_mbps=40, max_loss_percent=2,
+                        legal_tiers=frozenset((TUNE,)),
+                        legal_paths=frozenset((PRIMARY,)),
+                        knob_ranges={"pfifo_limit": (10, 50)})
 
     def metrics(self, state):
         shallow = state["knobs"].get("pfifo_limit", 20) < 10
@@ -98,6 +124,12 @@ class PathQualityFault(ScenarioModel):
 
     exogenous_shift = True
     switch_status = {"s1": "Active", "s2": "Degraded", "s3": "Active"}
+    # tune is legal but has no levers (empty knob_ranges) -> the engine must
+    # exhaust Tier 0 instantly and escalate to Tier-1 reroute.
+    envelope = Envelope(max_latency_ms=20, min_bandwidth_mbps=40, max_loss_percent=2,
+                        legal_tiers=frozenset((TUNE, REROUTE)),
+                        legal_paths=frozenset((PRIMARY, BACKUP)),
+                        knob_ranges={})
 
     def __init__(self):
         # Baseline was captured BEFORE the relay degraded (design §5.7) —
@@ -118,9 +150,13 @@ class ContentionHarmWithKnob(ScenarioModel):
     (demand 25, requirement 20). Feasible window exists around rate ~45.
     Expected: rung 2 yes -> stage 5 harm -> Tier-0 rate-down steps -> harm-free commit."""
 
+    sfc = "BandwidthOptimizedSFC"
     target_field = "F1"
-    fields = {"F1": Envelope(max_latency_ms=60, min_bandwidth_mbps=40, max_loss_percent=2),
-              "F2": F2_REQ}
+    envelope = Envelope(max_latency_ms=60, min_bandwidth_mbps=40, max_loss_percent=2,
+                        legal_tiers=frozenset((TUNE,)),
+                        legal_paths=frozenset((PRIMARY,)),
+                        knob_ranges={"tbf_rate_mbit": (5, 80)})
+    fields = {"F1": envelope, "F2": F2_REQ}
 
     def __init__(self):
         # Baseline: before our deploy the target wasn't grabbing (rate modest).
@@ -137,13 +173,15 @@ class ContentionHarmNoKnob(ScenarioModel):
     """Target has no shaping knob (grab is fixed at 70) and harms F2.
     Reroute moves BOTH flows to the 40-capacity backup, where the target
     itself violates — dominated, rolled back. No harm-free config exists.
-    Expected: stage 5 harm -> adapt exhausts -> escalate 'no harm-free config'."""
+    Expected: stage 5 harm -> adapt exhausts -> escalate (reason depends on
+    whether tiers or budget run out first)."""
 
+    sfc = "BandwidthOptimizedSFC"
     target_field = "F1"
-    fields = {"F1": Envelope(max_latency_ms=60, min_bandwidth_mbps=40, max_loss_percent=2,
-                             legal_tiers=frozenset((REROUTE,)),
-                             legal_paths=frozenset((PRIMARY, BACKUP))),
-              "F2": F2_REQ}
+    envelope = Envelope(max_latency_ms=60, min_bandwidth_mbps=40, max_loss_percent=2,
+                        legal_tiers=frozenset((REROUTE,)),
+                        legal_paths=frozenset((PRIMARY, BACKUP)))
+    fields = {"F1": envelope, "F2": F2_REQ}
 
     def __init__(self):
         super().__init__(baseline_state={"path": PRIMARY, "knobs": {"grab": 30}})
@@ -159,10 +197,15 @@ class ContentionHarmNoKnob(ScenarioModel):
 class Ddil(ScenarioModel):
     """Everything degraded, both paths, exogenous. Nothing in-envelope helps.
     Expected: rung 3 no (exogenous) -> rung 4 adapt -> all tiers fail ->
-    escalate 'budget spent' with full trace."""
+    escalate with full trace (reason: tiers exhausted or budget spent,
+    whichever first — with Tier-2 stubbed it's tiers exhausted)."""
 
     exogenous_shift = True
     switch_status = {"s1": "Active", "s2": "Degraded", "s3": "Degraded"}
+    envelope = Envelope(max_latency_ms=20, min_bandwidth_mbps=40, max_loss_percent=2,
+                        legal_tiers=frozenset((TUNE, REROUTE)),
+                        legal_paths=frozenset((PRIMARY, BACKUP)),
+                        knob_ranges={})
 
     def __init__(self):
         super().__init__(baseline_state={"path": PRIMARY, "knobs": {}, "env": "pre"})

@@ -318,6 +318,8 @@ def adapt(spec, report, budget):              # budget is EPISODE-scoped, shared
 
 Tiers 0–1 are deterministic (reproducible); only Tier 2 invokes the model, greedy-decoded.
 
+**Implementation note:** `propose()` additionally receives the **current applied config** (active path + knob values) from the deployer — `MonitorReport` deliberately carries no config state, but stepping a knob or skipping a no-op reroute requires knowing where you are. The §7.2 pseudocode elides this; the real and fake deployers both expose it. Knob grids are anchored at the range's `lo` (values `lo, lo+step, …`), avoiding knife-edge boundary candidates.
+
 ### 7.4 Why it's safe (Option B, no thrash, boundary-clean)
 
 - **Domination guard:** every accepted step must strictly improve and never regress (target can't go healthy→failing; harm count can't rise). Kills the two-flow tug-of-war.
@@ -328,7 +330,7 @@ Tiers 0–1 are deterministic (reproducible); only Tier 2 invokes the model, gre
 ### 7.5 On exit
 
 - **Success** → evaluator commit path. The goal already guarantees `not displaced_harm`, so stage 5 passes by construction; stage 6 sets healthy/marginal by headroom. **If the goal was reached only at Tier 2, tag `marginal` regardless** and flag the planner — LLM-rule-synthesis to hold SLA is inherently precarious.
-- **Escalation** → write the full `trace` (each attempt: tier, candidate, pre/post state, reason) to the KG so the planner re-plans informed.
+- **Escalation** → write the full `trace` (each attempt: tier, candidate, pre/post state, reason) to the KG so the planner re-plans informed. **End-state:** kept-but-not-goal steps remain applied — the network is left in the episode's *best-achieved dominating* config, which by the guard is never worse than where the episode started. The planner decides the next move from there.
 
 ### 7.6 Episode + budget boundary
 

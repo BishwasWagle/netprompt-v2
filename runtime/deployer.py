@@ -143,12 +143,13 @@ class Deployer:
         self.spec: DeploymentSpec | None = None
         self._tables: dict = {}            # switch -> [TableEntry]
         self._qos: dict = {}               # host -> {knob: value}
+        self._path: str = PRIMARY          # active path (host-side fact, §10.1)
 
     # ---- protocol: state / table_state / capture ----
 
     @property
     def state(self) -> dict:
-        return {"path": self._active_path(), "knobs": self._target_knobs()}
+        return {"path": self._path, "knobs": self._target_knobs()}
 
     def table_state(self) -> dict:
         return {sw: [TableEntry(e.table, e.key, e.action, tuple(e.args), e.handle)
@@ -162,7 +163,7 @@ class Deployer:
             binding=dict(self.spec.binding) if self.spec else {},
             switch_table_dumps=self.table_state(),
             qos_state={h: dict(k) for h, k in self._qos.items()},
-            active_path=self._active_path(),
+            active_path=self._path,
         )
 
     # ---- protocol: deploy / apply / rollback / re_push ----
@@ -179,6 +180,12 @@ class Deployer:
             self._qos[host] = {}
             for knob, value in initial_qos.items():
                 self._set_knob(host, knob, value)
+        # Active path: backup-flavored bindings install the 0c identity
+        # (milestone-II-latest); align the host side with the rules.
+        backup = ("backup" in str(spec.binding.get("policy_type", "")).lower()
+                  or (self._find_s1_forward(config.EDGE_MAC_BACKUP) is not None
+                      and self._find_s1_forward(config.EDGE_MAC) is None))
+        self._set_path(BACKUP if backup else PRIMARY, force=True)
         return self.capture()
 
     def apply(self, cand: Candidate) -> None:
@@ -187,12 +194,26 @@ class Deployer:
             for host in self.host_map[self.spec.target_field]:
                 self._set_knob(host, knob, value)
         elif cand.kind == REROUTE:
+            # Three-part action (design §10.1, milestone-II-latest mechanics):
+            # (1) ensure s1 forwards the target path's edge MAC to its relay
+            # port; (2) bind 10.0.0.100 to that path's edge interface;
+            # (3) repoint every drone's static ARP at that MAC.
             (path,) = cand.params
-            port = config.PORT_PRIMARY if path == PRIMARY else config.PORT_BACKUP
-            entry = self._edge_entry()
-            self.runner.run_cli("s1", modify_command(
-                entry.table, entry.action, entry.handle, (str(port),)))
-            entry.args = (str(port),)
+            mac, port = config.EDGE_MACS[path], config.EDGE_PORTS[path]
+            entry = self._find_s1_forward(mac)
+            if entry is None:
+                out = self.runner.run_cli("s1", add_command(
+                    "forward_table", "forward", mac, (str(port),)))
+                handles = parse_handles(out)
+                if len(handles) != 1:
+                    raise DeployError("reroute: could not parse new entry handle")
+                self._tables.setdefault("s1", []).append(TableEntry(
+                    "forward_table", mac, "forward", (str(port),), handles[0]))
+            elif entry.args != (str(port),):
+                self.runner.run_cli("s1", modify_command(
+                    entry.table, entry.action, entry.handle, (str(port),)))
+                entry.args = (str(port),)
+            self._set_path(path)
         elif cand.kind == REGEN:
             switch, rules_text = cand.params
             self.runner.run_cli(switch, rules_text)
@@ -208,6 +229,8 @@ class Deployer:
                     self._set_knob(host, knob, value)
         for switch, want_entries in snapshot.switch_table_dumps.items():
             self._restore_tables(switch, want_entries)
+        if snapshot.active_path != self._path:
+            self._set_path(snapshot.active_path)     # host side back too
 
     def re_push(self, snapshot: ConfigSnapshot) -> None:
         """Same revision, fresh full install (rung-1 system fix)."""
@@ -217,6 +240,7 @@ class Deployer:
         for host, knobs in snapshot.qos_state.items():
             for knob, value in knobs.items():
                 self._set_knob(host, knob, value)
+        self._set_path(snapshot.active_path, force=True)
 
     # ---- internals ----
 
@@ -236,18 +260,35 @@ class Deployer:
         self.runner.run_host(host, tc_command(knob, value, _host_dev(host)))
         self._qos.setdefault(host, {})[knob] = value
 
-    def _edge_entry(self) -> TableEntry:
+    def _find_s1_forward(self, mac: str) -> TableEntry | None:
         for e in self._tables.get("s1", []):
-            if e.table == "forward_table" and e.key == config.EDGE_MAC:
+            if e.table == "forward_table" and e.key == mac:
                 return e
-        raise DeployError("no edge-MAC forward entry on s1 (blackhole?)")
+        return None
 
-    def _active_path(self) -> str:
-        try:
-            port = int(self._edge_entry().args[0])
-        except DeployError:
-            return PRIMARY
-        return PRIMARY if port == config.PORT_PRIMARY else BACKUP
+    def _set_path(self, path: str, force: bool = False) -> None:
+        """Bind the edge identity + drone ARP to `path` (mirrors the
+        milestone-II-latest configure_edge_interface_for_path /
+        configure_static_arp_for_path mechanics)."""
+        if not force and path == self._path:
+            return
+        mac, iface = config.EDGE_MACS[path], config.EDGE_IFACES[path]
+        edge = config.EDGE_HOST
+        for cmd in (
+            "ip addr flush dev edge-eth0 || true",
+            "ip addr flush dev edge-eth1 || true",
+            "ip link set dev edge-eth0 up || true",
+            "ip link set dev edge-eth1 up || true",
+            f"ip link set dev {iface} address {mac} || true",
+            f"ip addr add {config.EDGE_IP}/24 dev {iface}",
+            f"ip route replace {config.SUBNET} dev {iface} src {config.EDGE_IP}",
+        ):
+            self.runner.run_host(edge, cmd)
+        for i, drone in enumerate(config.DRONE_HOSTS, start=1):
+            self.runner.run_host(drone, "arp -d 10.0.0.100 2>/dev/null || true")
+            self.runner.run_host(drone, f"arp -s {config.EDGE_IP} {mac}")
+            self.runner.run_host(edge, f"arp -s 10.0.0.{i} 00:00:00:00:00:{i:02x}")
+        self._path = path
 
     def _target_knobs(self) -> dict:
         if not self.spec:

@@ -2,18 +2,30 @@
 empirically on the testbed (design §5.6, §7.6)."""
 import os
 
-# --- testbed topology (design §10.1) ---
+# --- testbed topology (design §10.1; milestone-II-latest mechanics) ---
 THRIFT_PORTS = {"s1": 9090, "s2": 9091, "s3": 9092}
-EDGE_MAC = "00:00:00:00:00:0b"
 PORT_PRIMARY = 11      # s1 -> s2
 PORT_BACKUP = 12       # s1 -> s3
+
+# The edge host has TWO identities (milestone-II-latest fix): the active path
+# is selected by which interface owns 10.0.0.100 + the drones' static ARP,
+# not by switch tables alone.
+EDGE_MAC = "00:00:00:00:00:0b"           # primary identity (edge-eth0 -> s2)
+EDGE_MAC_BACKUP = "00:00:00:00:00:0c"    # backup identity (edge-eth1 -> s3)
+EDGE_MACS = {"primary": EDGE_MAC, "backup": EDGE_MAC_BACKUP}
+EDGE_IFACES = {"primary": "edge-eth0", "backup": "edge-eth1"}
+EDGE_PORTS = {"primary": PORT_PRIMARY, "backup": PORT_BACKUP}
+EDGE_IP = "10.0.0.100"
+SUBNET = "10.0.0.0/24"
+EDGE_HOST = "edge"
+DRONE_HOSTS = tuple(f"d{i}" for i in range(1, 11))
 
 # Per-switch valid egress ports (s1: 10 drones + 2 relays; s2/s3: s1-side + edge-side)
 SWITCH_PORTS = {"s1": set(range(1, 13)), "s2": {1, 2}, "s3": {1, 2}}
 
-# Every switch must keep all flows routable (design §11 L2): 10 drones + edge.
+# Gate L2 invariants (design §11): every drone MAC must stay routable, and the
+# edge must stay reachable on AT LEAST ONE of its identities.
 DRONE_MACS = tuple(f"00:00:00:00:00:{i:02x}" for i in range(1, 11))
-REQUIRED_MACS = DRONE_MACS + (EDGE_MAC,)
 
 # --- KG (controller-node hosts Neo4j; existing scripts use the same endpoint) ---
 KG_URI = os.environ.get("NETPROMPT_KG_URI", "bolt://controller-node:7687")

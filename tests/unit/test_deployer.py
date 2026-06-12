@@ -136,7 +136,12 @@ def test_deploy_tracks_handles_and_active_path(tmp_path):
     assert [e.handle for e in d.table_state()["s1"]] == [0, 1, 2]
     assert d.state == {"path": PRIMARY, "knobs": {"tbf_rate_mbit": 80}}
     assert snap.active_path == PRIMARY
-    assert len(runner.host_calls) == 2                # initial qos on d4, d5
+    tc_calls = [c for _, c in runner.host_calls if c.startswith("tc ")]
+    assert len(tc_calls) == 2                         # initial qos on d4, d5
+    # deploy also binds the edge identity + drone ARP to the active path
+    assert ("edge", "ip route replace 10.0.0.0/24 dev edge-eth0 src 10.0.0.100") \
+        in runner.host_calls
+    assert ("d7", "arp -s 10.0.0.100 00:00:00:00:00:0b") in runner.host_calls
     assert {sw for sw, _ in runner.cli_calls} == {"s1", "s2", "s3"}
 
 
@@ -159,12 +164,22 @@ def test_apply_tune_targets_the_specs_hosts(tmp_path):
     assert d.state["knobs"]["tbf_rate_mbit"] == 45
 
 
-def test_apply_reroute_modifies_the_edge_entry(tmp_path):
+def test_apply_reroute_is_the_three_part_action(tmp_path):
+    """milestone-II-latest mechanics (§10.1): switch entry for the backup
+    edge identity + edge interface rebind + drone ARP repoint."""
     d, runner, _ = rig(tmp_path)
+    n_host = len(runner.host_calls)
     d.apply(Candidate(REROUTE, (BACKUP,)))
+    # (1) the 0c identity gets its s1 entry (low_latency rules lack it)
     switch, cmd = runner.cli_calls[-1]
-    assert switch == "s1"
-    assert cmd == "table_modify forward_table forward 2 => 12"
+    assert (switch, cmd) == ("s1", "table_add forward_table forward 00:00:00:00:00:0c => 12")
+    assert any(e.key == "00:00:00:00:00:0c" and e.args == ("12",)
+               for e in d.table_state()["s1"])
+    # (2) edge binds 10.0.0.100 to edge-eth1; (3) drones repoint ARP at 0c
+    swap = runner.host_calls[n_host:]
+    assert ("edge", "ip route replace 10.0.0.0/24 dev edge-eth1 src 10.0.0.100") in swap
+    assert ("d1", "arp -s 10.0.0.100 00:00:00:00:00:0c") in swap
+    assert ("d10", "arp -s 10.0.0.100 00:00:00:00:00:0c") in swap
     assert d.state["path"] == BACKUP
 
 
@@ -199,9 +214,13 @@ def test_rollback_restores_semantics(tmp_path):
     assert d.state == {"path": PRIMARY, "knobs": {"tbf_rate_mbit": 80}}
     assert entry_semantics(d.table_state()["s1"]) \
         == entry_semantics(snap.switch_table_dumps["s1"])
-    restore_cmds = runner.cli_calls[-1][1]
-    assert "table_modify forward_table forward 2 => 11" in restore_cmds
-    assert any("rate 80mbit" in cmd for _, cmd in runner.host_calls[-2:])
+    # the reroute-added 0c entry (handle 3) is deleted again...
+    assert "table_delete forward_table 3" in runner.cli_calls[-1][1]
+    # ...the qos restored, and the edge identity swapped back to primary
+    assert any("rate 80mbit" in cmd for _, cmd in runner.host_calls)
+    assert runner.host_calls[-1] == ("edge", "arp -s 10.0.0.10 00:00:00:00:00:0a")
+    assert ("edge", "ip route replace 10.0.0.0/24 dev edge-eth0 src 10.0.0.100") \
+        in runner.host_calls[-37:]
 
 
 def test_rollback_is_a_noop_when_nothing_changed(tmp_path):
@@ -251,10 +270,12 @@ Action entry: MyIngress.set_low_latency_class -
 
 def test_re_push_reinstalls_everything(tmp_path):
     d, runner, snap = rig(tmp_path, qos={"tbf_rate_mbit": 80})
-    n = len(runner.cli_calls)
+    n_cli, n_host = len(runner.cli_calls), len(runner.host_calls)
     d.re_push(snap)
-    assert len(runner.cli_calls) == n + 3             # all three switches
-    assert any("rate 80mbit" in cmd for _, cmd in runner.host_calls[-1:])
+    assert len(runner.cli_calls) == n_cli + 3         # all three switches
+    after = runner.host_calls[n_host:]
+    assert any("rate 80mbit" in cmd for _, cmd in after)        # qos re-applied
+    assert any("edge-eth0" in cmd for _, cmd in after)          # path re-bound
 
 
 def test_table_state_is_isolated_from_mutation(tmp_path):

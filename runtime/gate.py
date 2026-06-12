@@ -22,7 +22,7 @@ from __future__ import annotations
 
 import re
 
-from runtime.config import REQUIRED_MACS, SWITCH_PORTS
+from runtime.config import DRONE_MACS, EDGE_MACS, SWITCH_PORTS
 from runtime.contracts import (
     BACKUP, PRIMARY, REGEN, REROUTE, TUNE,
     Candidate, DeploymentSpec, Envelope, GateResult, TableEntry,
@@ -56,8 +56,10 @@ def _reject(reason: str) -> GateResult:
 
 class ValidationGate:
 
-    def __init__(self, required_macs: tuple = REQUIRED_MACS):
+    def __init__(self, required_macs: tuple = DRONE_MACS,
+                 edge_macs: tuple = tuple(EDGE_MACS.values())):
         self.required_macs = tuple(m.lower() for m in required_macs)
+        self.edge_macs = tuple(m.lower() for m in edge_macs)
 
     # ---------------- entry point 1: pre-deploy binding ----------------
 
@@ -229,4 +231,9 @@ class ValidationGate:
         for mac in self.required_macs:
             if mac not in routable:
                 return _reject(f"L2: {mac} not routable after regen (blackhole)")
+        # Dual edge identity (milestone-II-latest, design §10.1): the edge must
+        # stay reachable on at least one of its MACs. Which one is ACTIVE is a
+        # host-side fact the post-deploy monitor verifies (sound vs noisy).
+        if not any(m in routable for m in self.edge_macs):
+            return _reject("L2: edge unreachable on every edge MAC (blackhole)")
         return _ok()

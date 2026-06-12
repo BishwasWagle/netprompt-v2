@@ -125,6 +125,16 @@ def test_regen_dropping_edge_traffic_passes_l0_but_fails_l2(gate):
     assert not r.ok and r.reason.startswith("L2:")
 
 
+def test_regen_may_drop_primary_edge_identity_if_backup_remains(gate):
+    """Dual edge identity (milestone-II-latest): deleting the 0b entry is fine
+    when a routable 0c entry exists — the edge is still reachable."""
+    tables = s1_tables()
+    tables["s1"].append(TableEntry("forward_table", "00:00:00:00:00:0c",
+                                   "forward", ("12",), 12))
+    cand = Candidate(REGEN, ("s1", "table_delete forward_table 10"))
+    assert gate.check(cand, ENV, tables).ok
+
+
 def test_regen_delete_with_readd_keeps_routability(gate):
     rules = ("table_delete forward_table 10\n"
              f"table_add forward_table forward {EDGE_MAC} => 12")

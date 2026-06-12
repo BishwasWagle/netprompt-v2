@@ -119,20 +119,31 @@ ps -o pid,etime,cmd -C simple_switch 2>/dev/null | sed 's/^/    /'
 echo "[INFO] long-run stability: re-run this script after >=1h uptime and compare"
 
 echo ""
-echo "=== C2: live egress flip (MANUAL - two terminals) ==="
+echo "=== C2: live path flip (MANUAL - two terminals) ==="
 cat <<'EOF'
+    Reroute is a THREE-PART action (dual edge identity, design 10.1):
+    s1 entry for the target MAC + edge interface rebind + drone ARP repoint.
+    A table flip ALONE is expected to break connectivity (frames to 0b would
+    land on an interface that does not own it) - verify both facts.
+
     1. Terminal A:  D4PID=$(pgrep -f "mininet:d4" | head -1)
                     mnexec -a $D4PID ping 10.0.0.100
-    2. Terminal B:  find the edge-entry handle:
-                      echo "table_dump forward_table" | simple_switch_CLI --thrift-port 9090
-                    flip to backup, watch terminal A for continuity/RTT change:
-                      echo "table_modify forward_table forward <H> => 12" | simple_switch_CLI --thrift-port 9090
-                    revert:
-                      echo "table_modify forward_table forward <H> => 11" | simple_switch_CLI --thrift-port 9090
-    3. While pinging, re-read counters to confirm path attribution:
-                      cat /sys/class/net/s1-eth11/statistics/tx_bytes   (grows on primary)
-                      cat /sys/class/net/s1-eth12/statistics/tx_bytes   (grows on backup)
-    Record in spike_s0.md: flip latency, ping continuity, counter attribution.
+    2. Terminal B - full flip to backup (watch A for continuity/RTT change):
+       a. ensure s1 has the backup identity entry:
+            echo "table_add forward_table forward 00:00:00:00:00:0c => 12" | simple_switch_CLI --thrift-port 9090
+       b. rebind the edge (namespace via EPID=$(pgrep -f "mininet:edge" | head -1)):
+            mnexec -a $EPID ip addr flush dev edge-eth0
+            mnexec -a $EPID ip link set dev edge-eth1 address 00:00:00:00:00:0c
+            mnexec -a $EPID ip addr add 10.0.0.100/24 dev edge-eth1
+            mnexec -a $EPID ip route replace 10.0.0.0/24 dev edge-eth1 src 10.0.0.100
+       c. repoint d4's ARP (all drones in a real reroute):
+            mnexec -a $D4PID arp -d 10.0.0.100; mnexec -a $D4PID arp -s 10.0.0.100 00:00:00:00:00:0c
+    3. While pinging, confirm path attribution via counters:
+            cat /sys/class/net/s1-eth11/statistics/tx_bytes   (grows on primary)
+            cat /sys/class/net/s1-eth12/statistics/tx_bytes   (grows on backup)
+    4. NEGATIVE CHECK: revert ARP+edge to 0b/eth0 but leave the 0c entry -
+       ping must keep working via primary (extra entries are harmless).
+    Record in spike_s0.md: flip gap duration, continuity, counter attribution.
 EOF
 
 echo ""

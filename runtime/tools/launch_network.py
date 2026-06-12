@@ -96,6 +96,32 @@ def install_rules(rules_file, port):
                    shell=True, check=True)
 
 
+def configure_hosts(net, path="primary"):
+    """milestone-II-latest mechanics: the edge has two identities — eth0/MAC
+    :0b toward s2 (primary), eth1/MAC :0c toward s3 (backup). Bind 10.0.0.100
+    to the requested path's interface, repoint drone ARP, and disable NIC
+    offloads (BMv2 mishandles offloaded checksums)."""
+    edge = net.get("edge")
+    drones = [net.get(f"d{i}") for i in range(1, 11)]
+    iface, mac = (("edge-eth0", "00:00:00:00:00:0b") if path == "primary"
+                  else ("edge-eth1", "00:00:00:00:00:0c"))
+    edge.cmd("ip addr flush dev edge-eth0 || true")
+    edge.cmd("ip addr flush dev edge-eth1 || true")
+    edge.cmd("ip link set dev edge-eth0 up || true")
+    edge.cmd("ip link set dev edge-eth1 up || true")
+    edge.cmd(f"ip link set dev {iface} address {mac} || true")
+    edge.cmd(f"ip addr add 10.0.0.100/24 dev {iface}")
+    edge.cmd(f"ip route replace 10.0.0.0/24 dev {iface} src 10.0.0.100")
+    for i, d in enumerate(drones, start=1):
+        d.cmd("arp -d 10.0.0.100 2>/dev/null || true")
+        d.cmd(f"arp -s 10.0.0.100 {mac}")
+        edge.cmd(f"arp -s 10.0.0.{i} 00:00:00:00:00:{i:02x}")
+    for h in drones + [edge]:
+        intf = h.defaultIntf().name
+        h.cmd(f"ethtool -K {intf} tx off rx off sg off tso off gso off gro off lro off 2>/dev/null || true")
+        h.cmd(f"ip link set dev {intf} up")
+
+
 def build_net(p4_json, scenario):
     cfg = SCENARIOS[scenario]
     net = Mininet(switch=P4Switch, link=TCLink, controller=None,
@@ -142,6 +168,9 @@ def main():
             rules = os.path.join(args.rules_dir, f"{args.sfc}_{suffix}_rules.txt")
             print(f"Installing {rules} on {switch} (thrift {THRIFT[switch]})")
             install_rules(rules, THRIFT[switch])
+
+        # reliable_relay bindings pin the backup identity (0c); others primary
+        configure_hosts(net, "backup" if "relay" in args.sfc else "primary")
 
         print("\nNetwork is up and PERSISTENT.")
         print("  thrift: s1=9090 s2=9091 s3=9092")

@@ -31,7 +31,7 @@ Then do **C2** manually (instructions printed at the end of the script).
 |---|---|---|---|
 | C1 | `table_add` prints `Entry has been added with handle N`; dump shows `Dumping entry 0x…` | `deployer._HANDLE_RE`, `parse_table_dump` regexes | ☐ |
 | C1b | `table_modify … <handle> => <args>` vs bare-args form | `deployer.modify_command` (emit the accepted form); `gate._parse_command` already accepts both | ☐ which form: |
-| C2 | Edge-entry flip 11↔12 takes effect immediately for an in-flight ping | design §10.3 (live re-install, no teardown) | ☐ flip latency: · continuity: |
+| C2 | Three-part path flip (s1 entry + edge rebind + drone ARP) works live; table-flip-alone breaks connectivity (negative check) | design §10.1/§10.3 — `Deployer._set_path` mechanics | ☐ flip gap: · continuity: · negative check: |
 | C3 | `mnexec -a <pid>` (or `nsenter`) reaches host namespaces out-of-process | M5 sampler (`ping` from drone ns) + Deployer tune (`tc`) — the real Runner's `run_host` | ☐ mechanism: |
 | C4 | ≥3 `simple_switch` procs; `/tmp/bmv2-*` state; stable after ≥1h | `launch_network.py` watchdog need (M6 soak) | ☐ uptime checked: |
 | C5 | s1 port 11 → s2, port 12 → s3; `s1-eth11/12` veths exist | `config.PORT_PRIMARY/PORT_BACKUP` confirmation | ☐ |

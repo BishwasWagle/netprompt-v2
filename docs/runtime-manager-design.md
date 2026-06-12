@@ -414,19 +414,22 @@ class Deployer:                       # backend-agnostic; thrift today, P4Runtim
 
 Grounded in a read of the actual rule files + P4 sources. This is what `deployer.apply` / `rollback` physically do.
 
-### 10.1 Reroute is a single table entry on s1
+### 10.1 Reroute under the dual edge identity (milestone-II-latest)
 
-Both P4 programs ([low_latency.p4](network/milestone-II/p4_programs/low_latency.p4), [reliable_relay.p4](network/milestone-II/p4_programs/reliable_relay.p4)) forward purely by **destination MAC → egress port** via `forward_table`. The policy tables (`priority_table` / `relay_policy_table`) set a metadata field (`sfc_class` / `relay_mode`) that **nothing in the pipeline reads** — it is decorative. Cross-referencing the rule files with the link-add order (s1 ports 1–10 = drones, **port 11 → s2 primary**, **port 12 → s3 backup**):
+Both P4 programs forward purely by **destination MAC → egress port** via `forward_table`; the policy tables set metadata that **nothing in the pipeline reads** — decorative. s1 ports: 1–10 = drones, **11 → s2 primary**, **12 → s3 backup**.
 
-- `low_latency_s1_rules.txt`: `forward 00:00:00:00:00:0b => 11` → primary (s2)
-- `reliable_relay_s1_rules.txt`: `forward 00:00:00:00:00:0b => 12` → backup (s3)
+**The merged milestone-II-latest tree changed the edge mechanics** (fixing a real delivery bug: backup-path frames addressed to `0b` previously arrived at an interface that didn't own that MAC). The edge host now has **two identities**:
 
-So **path selection = the one `forward_table` entry on s1 keyed on the edge MAC** (`00:00:00:00:00:0b`), and reroute is independent of which P4 program is loaded:
+- **primary:** `edge-eth0`, MAC `00:00:00:00:00:0b`, reached via s2 (s1 entry `0b => 11`)
+- **backup:** `edge-eth1`, MAC `00:00:00:00:00:0c`, reached via s3 (s1 entry `0c => 12`)
 
-```
-table_modify forward_table forward <handle> => 11   # primary (s2)
-table_modify forward_table forward <handle> => 12   # backup  (s3)
-```
+The active path is selected by **which interface owns 10.0.0.100 plus the drones' static ARP** — not by switch tables alone. Reroute is therefore a **three-part action** (`Deployer._set_path`, all through the same Runner):
+
+1. ensure s1 forwards the target identity's MAC to its relay port (`table_add`/`table_modify`, gate-checked);
+2. rebind `10.0.0.100` to the target interface (`ip addr flush/add`, `ip link set address`, `ip route replace` on the edge host);
+3. repoint every drone's static ARP for `10.0.0.100` at the target MAC.
+
+Extra (inactive-identity) entries on s1 are harmless; the gate's L2 invariant requires every drone MAC routable **and the edge reachable on at least one of its identities** (which one is *active* is a host-side fact the post-deploy monitor verifies — sound vs noisy).
 
 > **Scope caveat — reroute is fabric-global.** `forward_table` keys on **destination** MAC only, and all upstream (drone→edge) traffic shares the one edge-MAC entry — so flipping it moves **every field's** upstream traffic, not just the target's. Per-field upstream path-splitting is impossible without changing the P4 key structure (src/IP-based matching) — a planner-adjacent SFC redesign, out of scope. Implications: (1) reroute helps when the problem is **path quality** (primary degraded/lossy), not **shared-bandwidth contention** — everyone moves together, so contention follows; (2) Tier-2 regen's action space in the current thin P4 is correspondingly narrow: per-drone **downstream** entries and the (unread) policy tables. Regen's research value here is demonstrating the constrained-LLM mechanism safely; its power grows as the P4 grows richer.
 
@@ -474,6 +477,7 @@ So: a long-lived launcher brings up Mininet+BMv2 once and stays resident; the De
 4. BMv2 long-run stability across many iterations; `/tmp/bmv2-*.ipc` handling.
 5. Confirm s1 port 11 = →s2, port 12 = →s3.
 6. Passive counter channel: veth `/sys/class/net/*/statistics` granularity + update rate vs. declaring P4 counters (recompile). Pick one (§5.2).
+7. The three-part path flip (§10.1) works live, and the negative check holds: a table flip *alone* breaks connectivity (confirming the dual-identity mechanics), while extra inactive-identity entries are harmless.
 
 ---
 

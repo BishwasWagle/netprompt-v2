@@ -79,6 +79,23 @@ class Verdict:
 
 Note: the runtime **replaces** the hardcoded switch-status writes currently in `update_topology_state.py` with monitor-computed status — `kg_path_selector.py`-style status→path reads keep working unchanged.
 
+## 3b. Update after reviewing your merged work (milestone-II-latest)
+
+Your `llm_orchestrator` already emits `llm_generated_experiment_config.json` with
+`selected_sfc`, `selected_policy`, `selected_path`, `deployment_mode`, and the
+`p4_json`/`access_rules`/`relay_rules`/`backup_rules` paths — that **is**
+essentially the Option-2 handoff. So the integration is even thinner than
+proposed: a small adapter maps your artifact into our `DeploymentSpec`
+(`selected_sfc → sfc`, the four file paths → `binding`; we derive `envelope`
+ourselves). **Two fields we'd ask you to add to the artifact:**
+`correlation_id` (any unique run id) and `target_field` (which field the
+mission serves). Everything else is covered.
+
+Also noted: you serve **Qwen2.5-1.5B-Instruct + LoRA via transformers/PEFT**
+(`requirements-runtime.txt`). Our Tier-2 adaptation model is the same family —
+we'll align our serving on the same stack so the node carries one inference
+setup.
+
 ## 4. Implementation status (runtime side — already built)
 
 So you can see the shapes are real, not proposals: all types in this note exist in

@@ -102,6 +102,17 @@ def goal(report: MonitorReport) -> bool:
 
 
 @dataclass
+class TableEntry:
+    """One installed table entry — the unit of ConfigSnapshot.switch_table_dumps
+    and the state the gate's L2 simulation runs against (design §10.5, §11)."""
+    table: str
+    key: str              # match key: MAC (forward_table) or IPv4 (policy tables)
+    action: str
+    args: tuple           # e.g. (egress_port,) for forward; () for marker actions
+    handle: int
+
+
+@dataclass
 class ConfigSnapshot:
     """Exact installed state for deterministic rollback (design §5.3, §10.5)."""
     correlation_id: str

@@ -8,6 +8,13 @@ EDGE_MAC = "00:00:00:00:00:0b"
 PORT_PRIMARY = 11      # s1 -> s2
 PORT_BACKUP = 12       # s1 -> s3
 
+# Per-switch valid egress ports (s1: 10 drones + 2 relays; s2/s3: s1-side + edge-side)
+SWITCH_PORTS = {"s1": set(range(1, 13)), "s2": {1, 2}, "s3": {1, 2}}
+
+# Every switch must keep all flows routable (design §11 L2): 10 drones + edge.
+DRONE_MACS = tuple(f"00:00:00:00:00:{i:02x}" for i in range(1, 11))
+REQUIRED_MACS = DRONE_MACS + (EDGE_MAC,)
+
 # --- KG (controller-node hosts Neo4j; existing scripts use the same endpoint) ---
 KG_URI = os.environ.get("NETPROMPT_KG_URI", "bolt://controller-node:7687")
 KG_USER = os.environ.get("NETPROMPT_KG_USER", "neo4j")

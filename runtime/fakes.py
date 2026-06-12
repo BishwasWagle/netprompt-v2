@@ -29,8 +29,13 @@ class FakeDeployer:
             knob, value = cand.params
             self.state["knobs"][knob] = value
         elif cand.kind == REGEN:
+            params = cand.params
+            if len(params) == 2 and all(isinstance(p, str) for p in params):
+                # Real-shaped (switch, rules_text): recorded, no simulated
+                # effect — fixture models don't interpret rule text.
+                return
             # Simulation regens carry explicit (key, value) effects.
-            for key, value in cand.params:
+            for key, value in params:
                 if key == "path":
                     self.state["path"] = value
                 else:

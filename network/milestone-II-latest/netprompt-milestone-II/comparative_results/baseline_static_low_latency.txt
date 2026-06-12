@@ -1,0 +1,37 @@
+Method: Static SFC + Static P4
+Scenario: low_latency
+Selected SFC: LowLatencyVideoSFC
+KG Used: No
+Path Reasoning Used: No
+Configured Bandwidth Mbps: 80
+Configured Delay: 5ms
+Configured Loss Percent: 0
+Rule Install Seconds: 0.063360
+Experiment Seconds: 142.081528
+Total Seconds: 146.278475
+PingAll Dropped Percent: 0.0
+
+Throughput Output:
+tcp connect failed: Connection timed out
+------------------------------------------------------------
+Client connecting to 10.0.0.100, TCP port 5001
+TCP window size: -1.00 Byte (default)
+------------------------------------------------------------
+[  1] local 0.0.0.0 port 0 connected with 10.0.0.100 port 5001
+
+Latency Output:
+PING 10.0.0.100 (10.0.0.100) 56(84) bytes of data.
+64 bytes from 10.0.0.100: icmp_seq=1 ttl=64 time=14.5 ms
+64 bytes from 10.0.0.100: icmp_seq=2 ttl=64 time=14.4 ms
+64 bytes from 10.0.0.100: icmp_seq=3 ttl=64 time=14.4 ms
+64 bytes from 10.0.0.100: icmp_seq=4 ttl=64 time=14.4 ms
+64 bytes from 10.0.0.100: icmp_seq=5 ttl=64 time=14.4 ms
+64 bytes from 10.0.0.100: icmp_seq=6 ttl=64 time=14.4 ms
+64 bytes from 10.0.0.100: icmp_seq=7 ttl=64 time=14.4 ms
+64 bytes from 10.0.0.100: icmp_seq=8 ttl=64 time=14.4 ms
+64 bytes from 10.0.0.100: icmp_seq=9 ttl=64 time=14.4 ms
+64 bytes from 10.0.0.100: icmp_seq=10 ttl=64 time=14.4 ms
+
+--- 10.0.0.100 ping statistics ---
+10 packets transmitted, 10 received, 0% packet loss, time 9013ms
+rtt min/avg/max/mdev = 14.380/14.403/14.455/0.020 ms

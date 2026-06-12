@@ -1,0 +1,91 @@
+Experiment Type: Dynamic SFC-P4 with Queue Policy
+Scenario: congestion
+Scenario Description: Congested network condition
+Selected SFC: ReliableRelaySFC
+P4 JSON: /home/cc/netprompt-milestone-II/compiled_p4/reliable_relay.json
+Rule File: /home/cc/netprompt-milestone-II/p4_rules/reliable_relay_rules.txt
+Policy Type: relay_policy_table_backup_mode
+Configured Bandwidth: 20 Mbps
+Configured Delay: 25ms
+Configured Loss: 2%
+
+Applied Queue Policy:
+- d4-eth0: netem delay 10ms loss 0.5%
+- d5-eth0: netem delay 10ms loss 0.5%
+
+PingAll Dropped Percent: 5.454545454545454
+
+Throughput Result d4 -> edge:
+tcp connect failed: Connection timed out
+------------------------------------------------------------
+Client connecting to 10.0.0.100, TCP port 5001
+TCP window size: -1.00 Byte (default)
+------------------------------------------------------------
+[  1] local 0.0.0.0 port 0 connected with 10.0.0.100 port 5001
+
+Throughput Result d5 -> edge:
+tcp connect failed: Connection timed out
+------------------------------------------------------------
+Client connecting to 10.0.0.100, TCP port 5001
+TCP window size: -1.00 Byte (default)
+------------------------------------------------------------
+[  1] local 0.0.0.0 port 0 connected with 10.0.0.100 port 5001
+
+Throughput Result d6 -> edge:
+tcp connect failed: Connection timed out
+------------------------------------------------------------
+Client connecting to 10.0.0.100, TCP port 5001
+TCP window size: -1.00 Byte (default)
+------------------------------------------------------------
+[  1] local 0.0.0.0 port 0 connected with 10.0.0.100 port 5001
+
+Latency Result d4 -> edge:
+PING 10.0.0.100 (10.0.0.100) 56(84) bytes of data.
+64 bytes from 10.0.0.100: icmp_seq=1 ttl=64 time=39.5 ms
+64 bytes from 10.0.0.100: icmp_seq=2 ttl=64 time=39.4 ms
+64 bytes from 10.0.0.100: icmp_seq=3 ttl=64 time=39.4 ms
+64 bytes from 10.0.0.100: icmp_seq=4 ttl=64 time=39.4 ms
+64 bytes from 10.0.0.100: icmp_seq=5 ttl=64 time=39.4 ms
+64 bytes from 10.0.0.100: icmp_seq=6 ttl=64 time=39.4 ms
+64 bytes from 10.0.0.100: icmp_seq=7 ttl=64 time=39.4 ms
+64 bytes from 10.0.0.100: icmp_seq=8 ttl=64 time=39.5 ms
+64 bytes from 10.0.0.100: icmp_seq=9 ttl=64 time=39.4 ms
+64 bytes from 10.0.0.100: icmp_seq=10 ttl=64 time=39.4 ms
+
+--- 10.0.0.100 ping statistics ---
+10 packets transmitted, 10 received, 0% packet loss, time 9004ms
+rtt min/avg/max/mdev = 39.390/39.417/39.510/0.034 ms
+
+Latency Result d5 -> edge:
+PING 10.0.0.100 (10.0.0.100) 56(84) bytes of data.
+64 bytes from 10.0.0.100: icmp_seq=1 ttl=64 time=39.4 ms
+64 bytes from 10.0.0.100: icmp_seq=2 ttl=64 time=39.4 ms
+64 bytes from 10.0.0.100: icmp_seq=3 ttl=64 time=39.4 ms
+64 bytes from 10.0.0.100: icmp_seq=4 ttl=64 time=39.4 ms
+64 bytes from 10.0.0.100: icmp_seq=5 ttl=64 time=39.4 ms
+64 bytes from 10.0.0.100: icmp_seq=6 ttl=64 time=39.4 ms
+64 bytes from 10.0.0.100: icmp_seq=7 ttl=64 time=39.4 ms
+64 bytes from 10.0.0.100: icmp_seq=8 ttl=64 time=39.4 ms
+64 bytes from 10.0.0.100: icmp_seq=9 ttl=64 time=39.4 ms
+64 bytes from 10.0.0.100: icmp_seq=10 ttl=64 time=39.4 ms
+
+--- 10.0.0.100 ping statistics ---
+10 packets transmitted, 10 received, 0% packet loss, time 9013ms
+rtt min/avg/max/mdev = 39.393/39.411/39.439/0.012 ms
+
+Latency Result d6 -> edge:
+PING 10.0.0.100 (10.0.0.100) 56(84) bytes of data.
+64 bytes from 10.0.0.100: icmp_seq=1 ttl=64 time=29.4 ms
+64 bytes from 10.0.0.100: icmp_seq=2 ttl=64 time=29.5 ms
+64 bytes from 10.0.0.100: icmp_seq=3 ttl=64 time=29.4 ms
+64 bytes from 10.0.0.100: icmp_seq=4 ttl=64 time=29.4 ms
+64 bytes from 10.0.0.100: icmp_seq=5 ttl=64 time=29.4 ms
+64 bytes from 10.0.0.100: icmp_seq=6 ttl=64 time=29.4 ms
+64 bytes from 10.0.0.100: icmp_seq=7 ttl=64 time=29.4 ms
+64 bytes from 10.0.0.100: icmp_seq=8 ttl=64 time=29.4 ms
+64 bytes from 10.0.0.100: icmp_seq=9 ttl=64 time=29.4 ms
+64 bytes from 10.0.0.100: icmp_seq=10 ttl=64 time=29.4 ms
+
+--- 10.0.0.100 ping statistics ---
+10 packets transmitted, 10 received, 0% packet loss, time 9013ms
+rtt min/avg/max/mdev = 29.387/29.415/29.473/0.025 ms

@@ -1,0 +1,20 @@
+Method: Proposed KG-Driven NetPrompt
+Scenario: battery_depletion
+Selected SFC: EnergyAwareSFC
+Selected Path: PrimaryPath
+Selected Relay: s2
+KG Used: Yes
+Path Reasoning Used: Yes
+Policy Type: energy_policy_table_essential_only
+Configured Bandwidth Mbps: 15
+Configured Delay: 30ms
+Configured Loss Percent: 2
+RTT Average ms: 34.430
+Throughput Mbps: 4.78
+Measured Packet Loss Percent: 10.0
+KG Update Seconds: 0.504729
+Path-Aware SFC Selection Seconds: 0.998886
+Policy Deployment Experiment Seconds: 1108.647491
+Result Push Seconds: 0.539284
+Total Pipeline Seconds: 1110.757728
+Result File: /home/cc/netprompt-milestone-II/results/dynamic_p4_battery_depletion_EnergyAwareSFC.txt

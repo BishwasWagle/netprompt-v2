@@ -1,0 +1,13 @@
+table_add priority_table set_low_latency_class 10.0.0.100 =>
+
+table_add forward_table forward 00:00:00:00:00:0b => 2
+table_add forward_table forward 00:00:00:00:00:01 => 1
+table_add forward_table forward 00:00:00:00:00:02 => 1
+table_add forward_table forward 00:00:00:00:00:03 => 1
+table_add forward_table forward 00:00:00:00:00:04 => 1
+table_add forward_table forward 00:00:00:00:00:05 => 1
+table_add forward_table forward 00:00:00:00:00:06 => 1
+table_add forward_table forward 00:00:00:00:00:07 => 1
+table_add forward_table forward 00:00:00:00:00:08 => 1
+table_add forward_table forward 00:00:00:00:00:09 => 1
+table_add forward_table forward 00:00:00:00:00:0a => 1

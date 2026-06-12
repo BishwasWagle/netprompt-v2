@@ -1,0 +1,62 @@
+Experiment Type: Multi-Hop Dynamic SFC-P4
+Scenario: ddil
+Scenario Description: Disconnected, degraded, intermittent, limited condition
+Selected SFC: ReliableRelaySFC
+P4 JSON: /home/cc/netprompt-milestone-II/compiled_p4/reliable_relay.json
+Access Rules: /home/cc/netprompt-milestone-II/p4_multihop_rules/reliable_relay_s1_rules.txt
+Relay Rules: /home/cc/netprompt-milestone-II/p4_multihop_rules/reliable_relay_s2_rules.txt
+Backup Rules: /home/cc/netprompt-milestone-II/p4_multihop_rules/reliable_relay_s3_rules.txt
+Policy Type: backup_path_reliable_relay
+Configured Bandwidth: 5 Mbps
+Configured Delay: 80ms
+Configured Loss: 5%
+
+Applied Queue Policy:
+- ReliableRelaySFC: d4/d5 netem delay 10ms loss 0.5%
+
+PingAll Dropped Percent: 19.09090909090909
+
+Throughput Result d4 -> edge:
+tcp connect failed: Connection timed out
+------------------------------------------------------------
+Client connecting to 10.0.0.100, TCP port 5001
+TCP window size: -1.00 Byte (default)
+------------------------------------------------------------
+[  1] local 0.0.0.0 port 0 connected with 10.0.0.100 port 5001
+
+Throughput Result d5 -> edge:
+tcp connect failed: Connection timed out
+------------------------------------------------------------
+Client connecting to 10.0.0.100, TCP port 5001
+TCP window size: -1.00 Byte (default)
+------------------------------------------------------------
+[  1] local 0.0.0.0 port 0 connected with 10.0.0.100 port 5001
+
+Throughput Result d6 -> edge:
+tcp connect failed: Connection timed out
+------------------------------------------------------------
+Client connecting to 10.0.0.100, TCP port 5001
+TCP window size: -1.00 Byte (default)
+------------------------------------------------------------
+[  1] local 0.0.0.0 port 0 connected with 10.0.0.100 port 5001
+
+Latency Result d4 -> edge:
+PING 10.0.0.100 (10.0.0.100) 56(84) bytes of data.
+
+--- 10.0.0.100 ping statistics ---
+10 packets transmitted, 0 received, 100% packet loss, time 9213ms
+
+
+Latency Result d5 -> edge:
+PING 10.0.0.100 (10.0.0.100) 56(84) bytes of data.
+
+--- 10.0.0.100 ping statistics ---
+10 packets transmitted, 0 received, 100% packet loss, time 9197ms
+
+
+Latency Result d6 -> edge:
+PING 10.0.0.100 (10.0.0.100) 56(84) bytes of data.
+
+--- 10.0.0.100 ping statistics ---
+10 packets transmitted, 0 received, 100% packet loss, time 9197ms
+

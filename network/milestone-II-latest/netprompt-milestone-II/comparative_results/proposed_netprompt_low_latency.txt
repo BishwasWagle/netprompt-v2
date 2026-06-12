@@ -1,0 +1,20 @@
+Method: Proposed KG-Driven NetPrompt
+Scenario: low_latency
+Selected SFC: LowLatencyVideoSFC
+Selected Path: PrimaryPath
+Selected Relay: s2
+KG Used: Yes
+Path Reasoning Used: Yes
+Policy Type: primary_path_low_latency
+Configured Bandwidth Mbps: 80
+Configured Delay: 5ms
+Configured Loss Percent: 0
+RTT Average ms: 29.747
+Throughput Mbps: 56.5
+Measured Packet Loss Percent: 0.0
+KG Update Seconds: 0.506312
+Path-Aware SFC Selection Seconds: 0.999416
+Policy Deployment Experiment Seconds: 82.13377
+Result Push Seconds: 0.542094
+Total Pipeline Seconds: 84.248463
+Result File: /home/cc/netprompt-milestone-II/results/multihop_low_latency_LowLatencyVideoSFC.txt

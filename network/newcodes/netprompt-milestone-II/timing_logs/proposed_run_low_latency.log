@@ -1,0 +1,476 @@
+================================================
+NetPrompt Milestone II Final Runner
+================================================
+Scenario: low_latency
+
+
+Updating KG topology/path state...
+Updated KG topology state for scenario: low_latency
+Selected path: PrimaryPath
+Reason: Low-latency traffic uses the primary relay path.
+Selecting SFC from KG...
+KG-selected SFC: LowLatencyVideoSFC
+KG-selected Path: PrimaryPath
+KG-selected Relay: s2
+Path Reason: Primary relay s2 is active, so primary path is selected.
+
+Running experiment...
+Using multi-hop BMv2 topology for SFC: LowLatencyVideoSFC
+============================================
+Multi-Hop Dynamic SFC-P4 Auto Runner
+============================================
+Scenario: low_latency
+
+Selecting SFC from Neo4j KG...
+KG-selected SFC: LowLatencyVideoSFC
+
+Resolving multi-hop SFC mapping...
+P4 JSON: /home/cc/netprompt-milestone-II/compiled_p4/low_latency.json
+Access Rules: /home/cc/netprompt-milestone-II/p4_multihop_rules/low_latency_s1_rules.txt
+Relay Rules: /home/cc/netprompt-milestone-II/p4_multihop_rules/low_latency_s2_rules.txt
+Backup Rules: /home/cc/netprompt-milestone-II/p4_multihop_rules/low_latency_s3_rules.txt
+Policy Type: primary_path_low_latency
+
+Cleaning Mininet...
+
+Running multi-hop dynamic SFC-P4 experiment...
+Obtaining JSON from switch...
+Done
+Control utility for runtime P4 table manipulation
+RuntimeCmd: Adding entry to exact match table priority_table
+match key:           EXACT-0a:00:00:64
+action:              set_low_latency_class
+runtime data:        
+Entry has been added with handle 0
+RuntimeCmd: Adding entry to exact match table priority_table
+match key:           EXACT-0a:00:00:64
+action:              set_low_latency_class
+runtime data:        
+Invalid table operation (DUPLICATE_ENTRY)
+RuntimeCmd: Adding entry to exact match table forward_table
+match key:           EXACT-00:00:00:00:00:01
+action:              forward
+runtime data:        00:01
+Entry has been added with handle 0
+RuntimeCmd: Adding entry to exact match table forward_table
+match key:           EXACT-00:00:00:00:00:02
+action:              forward
+runtime data:        00:02
+Entry has been added with handle 1
+RuntimeCmd: Adding entry to exact match table forward_table
+match key:           EXACT-00:00:00:00:00:03
+action:              forward
+runtime data:        00:03
+Entry has been added with handle 2
+RuntimeCmd: Adding entry to exact match table forward_table
+match key:           EXACT-00:00:00:00:00:04
+action:              forward
+runtime data:        00:04
+Entry has been added with handle 3
+RuntimeCmd: Adding entry to exact match table forward_table
+match key:           EXACT-00:00:00:00:00:05
+action:              forward
+runtime data:        00:05
+Entry has been added with handle 4
+RuntimeCmd: Adding entry to exact match table forward_table
+match key:           EXACT-00:00:00:00:00:06
+action:              forward
+runtime data:        00:06
+Entry has been added with handle 5
+RuntimeCmd: Adding entry to exact match table forward_table
+match key:           EXACT-00:00:00:00:00:07
+action:              forward
+runtime data:        00:07
+Entry has been added with handle 6
+RuntimeCmd: Adding entry to exact match table forward_table
+match key:           EXACT-00:00:00:00:00:08
+action:              forward
+runtime data:        00:08
+Entry has been added with handle 7
+RuntimeCmd: Adding entry to exact match table forward_table
+match key:           EXACT-00:00:00:00:00:09
+action:              forward
+runtime data:        00:09
+Entry has been added with handle 8
+RuntimeCmd: Adding entry to exact match table forward_table
+match key:           EXACT-00:00:00:00:00:0a
+action:              forward
+runtime data:        00:0a
+Entry has been added with handle 9
+RuntimeCmd: Adding entry to exact match table forward_table
+match key:           EXACT-00:00:00:00:00:0b
+action:              forward
+runtime data:        00:0b
+Entry has been added with handle 10
+RuntimeCmd: 
+Obtaining JSON from switch...
+Done
+Control utility for runtime P4 table manipulation
+RuntimeCmd: Adding entry to exact match table priority_table
+match key:           EXACT-0a:00:00:64
+action:              set_low_latency_class
+runtime data:        
+Entry has been added with handle 0
+RuntimeCmd: Adding entry to exact match table priority_table
+match key:           EXACT-0a:00:00:64
+action:              set_low_latency_class
+runtime data:        
+Invalid table operation (DUPLICATE_ENTRY)
+RuntimeCmd: Adding entry to exact match table forward_table
+match key:           EXACT-00:00:00:00:00:0b
+action:              forward
+runtime data:        00:02
+Entry has been added with handle 0
+RuntimeCmd: Adding entry to exact match table forward_table
+match key:           EXACT-00:00:00:00:00:01
+action:              forward
+runtime data:        00:01
+Entry has been added with handle 1
+RuntimeCmd: Adding entry to exact match table forward_table
+match key:           EXACT-00:00:00:00:00:02
+action:              forward
+runtime data:        00:01
+Entry has been added with handle 2
+RuntimeCmd: Adding entry to exact match table forward_table
+match key:           EXACT-00:00:00:00:00:03
+action:              forward
+runtime data:        00:01
+Entry has been added with handle 3
+RuntimeCmd: Adding entry to exact match table forward_table
+match key:           EXACT-00:00:00:00:00:04
+action:              forward
+runtime data:        00:01
+Entry has been added with handle 4
+RuntimeCmd: Adding entry to exact match table forward_table
+match key:           EXACT-00:00:00:00:00:05
+action:              forward
+runtime data:        00:01
+Entry has been added with handle 5
+RuntimeCmd: Adding entry to exact match table forward_table
+match key:           EXACT-00:00:00:00:00:06
+action:              forward
+runtime data:        00:01
+Entry has been added with handle 6
+RuntimeCmd: Adding entry to exact match table forward_table
+match key:           EXACT-00:00:00:00:00:07
+action:              forward
+runtime data:        00:01
+Entry has been added with handle 7
+RuntimeCmd: Adding entry to exact match table forward_table
+match key:           EXACT-00:00:00:00:00:08
+action:              forward
+runtime data:        00:01
+Entry has been added with handle 8
+RuntimeCmd: Adding entry to exact match table forward_table
+match key:           EXACT-00:00:00:00:00:09
+action:              forward
+runtime data:        00:01
+Entry has been added with handle 9
+RuntimeCmd: Adding entry to exact match table forward_table
+match key:           EXACT-00:00:00:00:00:0a
+action:              forward
+runtime data:        00:01
+Entry has been added with handle 10
+RuntimeCmd: 
+Obtaining JSON from switch...
+Done
+Control utility for runtime P4 table manipulation
+RuntimeCmd: Adding entry to exact match table priority_table
+match key:           EXACT-0a:00:00:64
+action:              set_low_latency_class
+runtime data:        
+Entry has been added with handle 0
+RuntimeCmd: Adding entry to exact match table priority_table
+match key:           EXACT-0a:00:00:64
+action:              set_low_latency_class
+runtime data:        
+Invalid table operation (DUPLICATE_ENTRY)
+RuntimeCmd: Adding entry to exact match table forward_table
+match key:           EXACT-00:00:00:00:00:0b
+action:              forward
+runtime data:        00:02
+Entry has been added with handle 0
+RuntimeCmd: Adding entry to exact match table forward_table
+match key:           EXACT-00:00:00:00:00:01
+action:              forward
+runtime data:        00:01
+Entry has been added with handle 1
+RuntimeCmd: Adding entry to exact match table forward_table
+match key:           EXACT-00:00:00:00:00:02
+action:              forward
+runtime data:        00:01
+Entry has been added with handle 2
+RuntimeCmd: Adding entry to exact match table forward_table
+match key:           EXACT-00:00:00:00:00:03
+action:              forward
+runtime data:        00:01
+Entry has been added with handle 3
+RuntimeCmd: Adding entry to exact match table forward_table
+match key:           EXACT-00:00:00:00:00:04
+action:              forward
+runtime data:        00:01
+Entry has been added with handle 4
+RuntimeCmd: Adding entry to exact match table forward_table
+match key:           EXACT-00:00:00:00:00:05
+action:              forward
+runtime data:        00:01
+Entry has been added with handle 5
+RuntimeCmd: Adding entry to exact match table forward_table
+match key:           EXACT-00:00:00:00:00:06
+action:              forward
+runtime data:        00:01
+Entry has been added with handle 6
+RuntimeCmd: Adding entry to exact match table forward_table
+match key:           EXACT-00:00:00:00:00:07
+action:              forward
+runtime data:        00:01
+Entry has been added with handle 7
+RuntimeCmd: Adding entry to exact match table forward_table
+match key:           EXACT-00:00:00:00:00:08
+action:              forward
+runtime data:        00:01
+Entry has been added with handle 8
+RuntimeCmd: Adding entry to exact match table forward_table
+match key:           EXACT-00:00:00:00:00:09
+action:              forward
+runtime data:        00:01
+Entry has been added with handle 9
+RuntimeCmd: Adding entry to exact match table forward_table
+match key:           EXACT-00:00:00:00:00:0a
+action:              forward
+runtime data:        00:01
+Entry has been added with handle 10
+RuntimeCmd: 
+======================================================================
+Multi-Hop Dynamic SFC-P4 Experiment
+======================================================================
+Scenario: low_latency
+Selected SFC: LowLatencyVideoSFC
+P4 JSON: /home/cc/netprompt-milestone-II/compiled_p4/low_latency.json
+Access Rules: /home/cc/netprompt-milestone-II/p4_multihop_rules/low_latency_s1_rules.txt
+Relay Rules: /home/cc/netprompt-milestone-II/p4_multihop_rules/low_latency_s2_rules.txt
+Backup Rules: /home/cc/netprompt-milestone-II/p4_multihop_rules/low_latency_s3_rules.txt
+Policy Type: primary_path_low_latency
+======================================================================
+Installing rules on access switch s1...
+Waiting for BMv2 thrift port 9090...
+Installing rules on primary relay switch s2...
+Waiting for BMv2 thrift port 9091...
+Installing rules on backup relay switch s3...
+Waiting for BMv2 thrift port 9092...
+Applying queue policy...
+Queue policy:
+  - LowLatencyVideoSFC: d4/d5 pfifo limit 20
+Running pingall...
+Results saved to /home/cc/netprompt-milestone-II/results/multihop_low_latency_LowLatencyVideoSFC.txt
+
+Multi-hop dynamic SFC-P4 experiment completed.
+Generated result:
+-rw-r--r-- 1 root root 4.8K Jun 11 20:59 /home/cc/netprompt-milestone-II/results/multihop_low_latency_LowLatencyVideoSFC.txt
+
+Parsing results and pushing to Neo4j KG...
+Parsing final Milestone II result files...
+Parsed 9 result files.
+Generated JSON: /home/cc/netprompt-milestone-II/results/final_milestone2_results_clean.json
+Generated CSV: /home/cc/netprompt-milestone-II/results/final_milestone2_results_clean.csv
+Pushing results to Neo4j...
+Pushed final parsed results into Neo4j.
+Done.
+[
+  {
+    "experiment_type": "Dynamic SFC-P4 with Queue Policy",
+    "scenario": "baseline",
+    "selected_sfc": "BandwidthOptimizedSFC",
+    "policy_type": "bandwidth_policy_table_bulk_marking",
+    "p4_json": "/home/cc/netprompt-milestone-II/compiled_p4/bandwidth_optimized.json",
+    "rule_file": "/home/cc/netprompt-milestone-II/p4_rules/bandwidth_optimized_rules.txt",
+    "access_rules": "",
+    "relay_rules": "",
+    "backup_rules": "",
+    "configured_bandwidth_mbps": 40.0,
+    "configured_delay": "15ms",
+    "configured_loss_percent": 1.0,
+    "throughput_mbps": null,
+    "rtt_min_ms": 19.407,
+    "rtt_avg_ms": 19.432,
+    "rtt_max_ms": 19.546,
+    "rtt_mdev_ms": 0.041,
+    "measured_packet_loss_percent": 10.0,
+    "source_file": "dynamic_p4_baseline_BandwidthOptimizedSFC.txt"
+  },
+  {
+    "experiment_type": "Dynamic SFC-P4 with Queue Policy",
+    "scenario": "battery_depletion",
+    "selected_sfc": "EnergyAwareSFC",
+    "policy_type": "energy_policy_table_essential_only",
+    "p4_json": "/home/cc/netprompt-milestone-II/compiled_p4/energy_aware.json",
+    "rule_file": "/home/cc/netprompt-milestone-II/p4_rules/energy_aware_rules.txt",
+    "access_rules": "",
+    "relay_rules": "",
+    "backup_rules": "",
+    "configured_bandwidth_mbps": 15.0,
+    "configured_delay": "30ms",
+    "configured_loss_percent": 2.0,
+    "throughput_mbps": null,
+    "rtt_min_ms": 34.424,
+    "rtt_avg_ms": 34.473,
+    "rtt_max_ms": 34.725,
+    "rtt_mdev_ms": 0.096,
+    "measured_packet_loss_percent": 20.0,
+    "source_file": "dynamic_p4_battery_depletion_EnergyAwareSFC.txt"
+  },
+  {
+    "experiment_type": "Dynamic SFC-P4 with Queue Policy",
+    "scenario": "congestion",
+    "selected_sfc": "ReliableRelaySFC",
+    "policy_type": "relay_policy_table_backup_mode",
+    "p4_json": "/home/cc/netprompt-milestone-II/compiled_p4/reliable_relay.json",
+    "rule_file": "/home/cc/netprompt-milestone-II/p4_rules/reliable_relay_rules.txt",
+    "access_rules": "",
+    "relay_rules": "",
+    "backup_rules": "",
+    "configured_bandwidth_mbps": 20.0,
+    "configured_delay": "25ms",
+    "configured_loss_percent": 2.0,
+    "throughput_mbps": null,
+    "rtt_min_ms": 39.39,
+    "rtt_avg_ms": 39.417,
+    "rtt_max_ms": 39.51,
+    "rtt_mdev_ms": 0.034,
+    "measured_packet_loss_percent": 0.0,
+    "source_file": "dynamic_p4_congestion_ReliableRelaySFC.txt"
+  },
+  {
+    "experiment_type": "Dynamic SFC-P4",
+    "scenario": "low_latency",
+    "selected_sfc": "LowLatencyVideoSFC",
+    "policy_type": "priority_table_low_latency",
+    "p4_json": "/home/cc/netprompt-milestone-II/compiled_p4/low_latency.json",
+    "rule_file": "/home/cc/netprompt-milestone-II/p4_rules/low_latency_rules.txt",
+    "access_rules": "",
+    "relay_rules": "",
+    "backup_rules": "",
+    "configured_bandwidth_mbps": 80.0,
+    "configured_delay": "5ms",
+    "configured_loss_percent": 0.0,
+    "throughput_mbps": null,
+    "rtt_min_ms": 14.385,
+    "rtt_avg_ms": 14.406,
+    "rtt_max_ms": 14.474,
+    "rtt_mdev_ms": 0.026,
+    "measured_packet_loss_percent": 0.0,
+    "source_file": "dynamic_p4_low_latency_LowLatencyVideoSFC.txt"
+  },
+  {
+    "experiment_type": "Multi-Hop Dynamic SFC-P4",
+    "scenario": "baseline",
+    "selected_sfc": "LowLatencyVideoSFC",
+    "policy_type": "primary_path_low_latency",
+    "p4_json": "/home/cc/netprompt-milestone-II/compiled_p4/low_latency.json",
+    "rule_file": "",
+    "access_rules": "/home/cc/netprompt-milestone-II/p4_multihop_rules/low_latency_s1_rules.txt",
+    "relay_rules": "/home/cc/netprompt-milestone-II/p4_multihop_rules/low_latency_s2_rules.txt",
+    "backup_rules": "/home/cc/netprompt-milestone-II/p4_multihop_rules/low_latency_s3_rules.txt",
+    "configured_bandwidth_mbps": 40.0,
+    "configured_delay": "15ms",
+    "configured_loss_percent": 1.0,
+    "throughput_mbps": null,
+    "rtt_min_ms": 39.713,
+    "rtt_avg_ms": 39.806,
+    "rtt_max_ms": 40.084,
+    "rtt_mdev_ms": 0.102,
+    "measured_packet_loss_percent": 0.0,
+    "source_file": "multihop_baseline_LowLatencyVideoSFC.txt"
+  },
+  {
+    "experiment_type": "Multi-Hop Dynamic SFC-P4",
+    "scenario": "congestion",
+    "selected_sfc": "ReliableRelaySFC",
+    "policy_type": "backup_path_reliable_relay",
+    "p4_json": "/home/cc/netprompt-milestone-II/compiled_p4/reliable_relay.json",
+    "rule_file": "",
+    "access_rules": "/home/cc/netprompt-milestone-II/p4_multihop_rules/reliable_relay_s1_rules.txt",
+    "relay_rules": "/home/cc/netprompt-milestone-II/p4_multihop_rules/reliable_relay_s2_rules.txt",
+    "backup_rules": "/home/cc/netprompt-milestone-II/p4_multihop_rules/reliable_relay_s3_rules.txt",
+    "configured_bandwidth_mbps": 20.0,
+    "configured_delay": "25ms",
+    "configured_loss_percent": 2.0,
+    "throughput_mbps": null,
+    "rtt_min_ms": null,
+    "rtt_avg_ms": null,
+    "rtt_max_ms": null,
+    "rtt_mdev_ms": null,
+    "measured_packet_loss_percent": 100.0,
+    "source_file": "multihop_congestion_ReliableRelaySFC.txt"
+  },
+  {
+    "experiment_type": "Multi-Hop Dynamic SFC-P4",
+    "scenario": "ddil",
+    "selected_sfc": "ReliableRelaySFC",
+    "policy_type": "backup_path_reliable_relay",
+    "p4_json": "/home/cc/netprompt-milestone-II/compiled_p4/reliable_relay.json",
+    "rule_file": "",
+    "access_rules": "/home/cc/netprompt-milestone-II/p4_multihop_rules/reliable_relay_s1_rules.txt",
+    "relay_rules": "/home/cc/netprompt-milestone-II/p4_multihop_rules/reliable_relay_s2_rules.txt",
+    "backup_rules": "/home/cc/netprompt-milestone-II/p4_multihop_rules/reliable_relay_s3_rules.txt",
+    "configured_bandwidth_mbps": 5.0,
+    "configured_delay": "80ms",
+    "configured_loss_percent": 5.0,
+    "throughput_mbps": null,
+    "rtt_min_ms": null,
+    "rtt_avg_ms": null,
+    "rtt_max_ms": null,
+    "rtt_mdev_ms": null,
+    "measured_packet_loss_percent": 100.0,
+    "source_file": "multihop_ddil_ReliableRelaySFC.txt"
+  },
+  {
+    "experiment_type": "Multi-Hop Dynamic SFC-P4",
+    "scenario": "low_latency",
+    "selected_sfc": "LowLatencyVideoSFC",
+    "policy_type": "primary_path_low_latency",
+    "p4_json": "/home/cc/netprompt-milestone-II/compiled_p4/low_latency.json",
+    "rule_file": "",
+    "access_rules": "/home/cc/netprompt-milestone-II/p4_multihop_rules/low_latency_s1_rules.txt",
+    "relay_rules": "/home/cc/netprompt-milestone-II/p4_multihop_rules/low_latency_s2_rules.txt",
+    "backup_rules": "/home/cc/netprompt-milestone-II/p4_multihop_rules/low_latency_s3_rules.txt",
+    "configured_bandwidth_mbps": 80.0,
+    "configured_delay": "5ms",
+    "configured_loss_percent": 0.0,
+    "throughput_mbps": null,
+    "rtt_min_ms": 29.809,
+    "rtt_avg_ms": 29.828,
+    "rtt_max_ms": 29.864,
+    "rtt_mdev_ms": 0.016,
+    "measured_packet_loss_percent": 0.0,
+    "source_file": "multihop_low_latency_LowLatencyVideoSFC.txt"
+  },
+  {
+    "experiment_type": "Multi-Hop Dynamic SFC-P4",
+    "scenario": "relay_failure",
+    "selected_sfc": "ReliableRelaySFC",
+    "policy_type": "backup_path_reliable_relay",
+    "p4_json": "/home/cc/netprompt-milestone-II/compiled_p4/reliable_relay.json",
+    "rule_file": "",
+    "access_rules": "/home/cc/netprompt-milestone-II/p4_multihop_rules/reliable_relay_s1_rules.txt",
+    "relay_rules": "/home/cc/netprompt-milestone-II/p4_multihop_rules/reliable_relay_s2_rules.txt",
+    "backup_rules": "/home/cc/netprompt-milestone-II/p4_multihop_rules/reliable_relay_s3_rules.txt",
+    "configured_bandwidth_mbps": 30.0,
+    "configured_delay": "35ms",
+    "configured_loss_percent": 4.0,
+    "throughput_mbps": null,
+    "rtt_min_ms": null,
+    "rtt_avg_ms": null,
+    "rtt_max_ms": null,
+    "rtt_mdev_ms": null,
+    "measured_packet_loss_percent": 100.0,
+    "source_file": "multihop_relay_failure_ReliableRelaySFC.txt"
+  }
+]
+
+================================================
+NetPrompt Milestone II final pipeline completed.
+Scenario: low_latency
+SFC: LowLatencyVideoSFC
+Results parsed and pushed to Neo4j.
+================================================

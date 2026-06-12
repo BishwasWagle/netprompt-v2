@@ -1,5 +1,10 @@
+# union of Run-time-Manager and milestone-II ignore rules
 __pycache__/
 *.pyc
 .pytest_cache/
 .idea/
 .DS_Store
+FC_key.pem
+checkpoint-*/
+*.pt
+*.safetensors

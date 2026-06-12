@@ -1,0 +1,154 @@
+Experiment Type: Dynamic SFC-P4 with Queue Policy
+Scenario: battery_depletion
+Scenario Description: Low-energy drone condition
+Selected SFC: EnergyAwareSFC
+P4 JSON: /home/cc/netprompt-milestone-II/compiled_p4/energy_aware.json
+Rule File: /home/cc/netprompt-milestone-II/p4_rules/energy_aware_rules.txt
+Policy Type: energy_policy_table_essential_only
+Configured Bandwidth: 15 Mbps
+Configured Delay: 30ms
+Configured Loss: 2%
+
+Applied Queue Policy:
+- d4-eth0: tbf rate 5mbit burst 32kbit latency 400ms
+- d5-eth0: tbf rate 5mbit burst 32kbit latency 400ms
+- d6-eth0: tbf rate 5mbit burst 32kbit latency 400ms
+
+PingAll Dropped Percent: 94.54545454545455
+
+Throughput Result d4 -> edge:
+------------------------------------------------------------
+Client connecting to 10.0.0.100, TCP port 5001
+TCP window size: 85.3 KByte (default)
+------------------------------------------------------------
+[  1] local 10.0.0.4 port 47170 connected with 10.0.0.100 port 5001
+[ ID] Interval       Transfer     Bandwidth
+[  1] 0.0000-5.7523 sec  3.25 MBytes  4.74 Mbits/sec
+
+TCP Port Check d4 -> edge:
+TCP_OK
+
+Iperf Listen Check d4 -> edge:
+LISTEN 0      4096         0.0.0.0:5001      0.0.0.0:*    users:(("iperf",pid=2496445,fd=3))
+
+Iperf Server Process d4 -> edge:
+root     2496445  0.0  0.0 154112  2156 pts/13   Sl+  01:34   0:00 iperf -s -p 5001
+
+Iperf Server Log d4 -> edge:
+------------------------------------------------------------
+Server listening on TCP port 5001
+TCP window size: 85.3 KByte (default)
+------------------------------------------------------------
+read tcp flags (peer close) failed
+(null)local 10.0.0.100 port 5001 connected with 10.0.0.4 port 47166
+[  1] local 10.0.0.100 port 5001 connected with 10.0.0.4 port 47170
+[ ID] Interval       Transfer     Bandwidth
+[  1] 0.0000-5.7077 sec  3.25 MBytes  4.78 Mbits/sec
+
+Throughput Result d5 -> edge:
+------------------------------------------------------------
+Client connecting to 10.0.0.100, TCP port 5001
+TCP window size: 85.3 KByte (default)
+------------------------------------------------------------
+[  1] local 10.0.0.5 port 47474 connected with 10.0.0.100 port 5001
+[ ID] Interval       Transfer     Bandwidth
+[  1] 0.0000-5.7523 sec  3.25 MBytes  4.74 Mbits/sec
+
+TCP Port Check d5 -> edge:
+TCP_OK
+
+Iperf Listen Check d5 -> edge:
+LISTEN 0      4096         0.0.0.0:5001      0.0.0.0:*    users:(("iperf",pid=2496463,fd=3))
+
+Iperf Server Process d5 -> edge:
+root     2496463  0.0  0.0 154112  2212 pts/13   Sl+  01:34   0:00 iperf -s -p 5001
+
+Iperf Server Log d5 -> edge:
+------------------------------------------------------------
+Server listening on TCP port 5001
+TCP window size: 85.3 KByte (default)
+------------------------------------------------------------
+read tcp flags (peer close) failed
+(null)local 10.0.0.100 port 5001 connected with 10.0.0.5 port 47472
+[  1] local 10.0.0.100 port 5001 connected with 10.0.0.5 port 47474
+[ ID] Interval       Transfer     Bandwidth
+[  1] 0.0000-5.7077 sec  3.25 MBytes  4.78 Mbits/sec
+
+Throughput Result d6 -> edge:
+------------------------------------------------------------
+Client connecting to 10.0.0.100, TCP port 5001
+TCP window size: 85.3 KByte (default)
+------------------------------------------------------------
+[  1] local 10.0.0.6 port 36598 connected with 10.0.0.100 port 5001
+[ ID] Interval       Transfer     Bandwidth
+[  1] 0.0000-5.7522 sec  3.25 MBytes  4.74 Mbits/sec
+
+TCP Port Check d6 -> edge:
+TCP_OK
+
+Iperf Listen Check d6 -> edge:
+LISTEN 0      4096         0.0.0.0:5001      0.0.0.0:*    users:(("iperf",pid=2496481,fd=3))
+
+Iperf Server Process d6 -> edge:
+root     2496481  0.0  0.0 154112  2092 pts/13   Sl+  01:34   0:00 iperf -s -p 5001
+
+Iperf Server Log d6 -> edge:
+------------------------------------------------------------
+Server listening on TCP port 5001
+TCP window size: 85.3 KByte (default)
+------------------------------------------------------------
+read tcp flags (peer close) failed
+(null)local 10.0.0.100 port 5001 connected with 10.0.0.6 port 36584
+[  1] local 10.0.0.100 port 5001 connected with 10.0.0.6 port 36598
+[ ID] Interval       Transfer     Bandwidth
+[  1] 0.0000-5.7077 sec  3.25 MBytes  4.78 Mbits/sec
+
+Latency Result d4 -> edge:
+PING 10.0.0.100 (10.0.0.100) 56(84) bytes of data.
+64 bytes from 10.0.0.100: icmp_seq=1 ttl=64 time=34.5 ms
+64 bytes from 10.0.0.100: icmp_seq=2 ttl=64 time=34.4 ms
+64 bytes from 10.0.0.100: icmp_seq=3 ttl=64 time=34.4 ms
+64 bytes from 10.0.0.100: icmp_seq=4 ttl=64 time=34.4 ms
+64 bytes from 10.0.0.100: icmp_seq=5 ttl=64 time=34.4 ms
+64 bytes from 10.0.0.100: icmp_seq=7 ttl=64 time=34.4 ms
+64 bytes from 10.0.0.100: icmp_seq=8 ttl=64 time=34.4 ms
+64 bytes from 10.0.0.100: icmp_seq=9 ttl=64 time=34.4 ms
+64 bytes from 10.0.0.100: icmp_seq=10 ttl=64 time=34.4 ms
+
+--- 10.0.0.100 ping statistics ---
+10 packets transmitted, 9 received, 10% packet loss, time 9042ms
+rtt min/avg/max/mdev = 34.410/34.430/34.497/0.025 ms
+
+Latency Result d5 -> edge:
+PING 10.0.0.100 (10.0.0.100) 56(84) bytes of data.
+64 bytes from 10.0.0.100: icmp_seq=1 ttl=64 time=34.5 ms
+64 bytes from 10.0.0.100: icmp_seq=2 ttl=64 time=34.4 ms
+64 bytes from 10.0.0.100: icmp_seq=3 ttl=64 time=34.4 ms
+64 bytes from 10.0.0.100: icmp_seq=4 ttl=64 time=34.4 ms
+64 bytes from 10.0.0.100: icmp_seq=5 ttl=64 time=34.4 ms
+64 bytes from 10.0.0.100: icmp_seq=6 ttl=64 time=34.4 ms
+64 bytes from 10.0.0.100: icmp_seq=7 ttl=64 time=34.4 ms
+64 bytes from 10.0.0.100: icmp_seq=8 ttl=64 time=34.4 ms
+64 bytes from 10.0.0.100: icmp_seq=9 ttl=64 time=34.4 ms
+64 bytes from 10.0.0.100: icmp_seq=10 ttl=64 time=34.4 ms
+
+--- 10.0.0.100 ping statistics ---
+10 packets transmitted, 10 received, 0% packet loss, time 9013ms
+rtt min/avg/max/mdev = 34.413/34.425/34.472/0.016 ms
+
+Latency Result d6 -> edge:
+PING 10.0.0.100 (10.0.0.100) 56(84) bytes of data.
+64 bytes from 10.0.0.100: icmp_seq=1 ttl=64 time=34.4 ms
+64 bytes from 10.0.0.100: icmp_seq=2 ttl=64 time=34.4 ms
+64 bytes from 10.0.0.100: icmp_seq=3 ttl=64 time=34.4 ms
+64 bytes from 10.0.0.100: icmp_seq=4 ttl=64 time=34.4 ms
+64 bytes from 10.0.0.100: icmp_seq=5 ttl=64 time=34.4 ms
+64 bytes from 10.0.0.100: icmp_seq=6 ttl=64 time=34.4 ms
+64 bytes from 10.0.0.100: icmp_seq=7 ttl=64 time=34.4 ms
+64 bytes from 10.0.0.100: icmp_seq=8 ttl=64 time=34.4 ms
+64 bytes from 10.0.0.100: icmp_seq=9 ttl=64 time=34.4 ms
+64 bytes from 10.0.0.100: icmp_seq=10 ttl=64 time=34.4 ms
+
+--- 10.0.0.100 ping statistics ---
+10 packets transmitted, 10 received, 0% packet loss, time 9013ms
+rtt min/avg/max/mdev = 34.414/34.433/34.448/0.011 ms

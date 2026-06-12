@@ -1,0 +1,30 @@
+\begin{table*}[t]
+\caption{Comparative Network Performance Across Mission Scenarios}
+\label{tab:performance}
+\centering
+\small
+\begin{tabular}{lllll}
+\toprule
+Method & Scenario & RTT (ms) & Throughput (Mbps) & Packet Loss (\%) \\
+\midrule
+NetPrompt & Baseline & 39.83 & 56.00 & 0.00 \\
+Rule-Based & Baseline & 34.40 & -- & 3.64 \\
+Static SFC & Baseline & 34.40 & -- & 5.45 \\
+NetPrompt & Low Latency & 29.80 & 56.50 & 0.00 \\
+Rule-Based & Low Latency & 14.42 & -- & 0.00 \\
+Static SFC & Low Latency & 14.40 & -- & 0.00 \\
+NetPrompt & Battery & 34.43 & 4.78 & 10.00 \\
+Rule-Based & Battery & 64.44 & -- & 97.27 \\
+Static SFC & Battery & 64.42 & -- & 6.36 \\
+NetPrompt & Congestion & 69.84 & 2.33 & 0.00 \\
+Rule-Based & Congestion & 54.40 & -- & 11.82 \\
+Static SFC & Congestion & 54.41 & -- & 4.55 \\
+NetPrompt & Relay Failure & 65.88 & 2.34 & 0.00 \\
+Rule-Based & Relay Failure & 74.40 & -- & 19.09 \\
+Static SFC & Relay Failure & 74.45 & -- & 9.09 \\
+NetPrompt & DDIL & 124.85 & 2.34 & 0.00 \\
+Rule-Based & DDIL & 164.42 & -- & 17.27 \\
+Static SFC & DDIL & 164.43 & -- & 16.36 \\
+\bottomrule
+\end{tabular}
+\end{table*}

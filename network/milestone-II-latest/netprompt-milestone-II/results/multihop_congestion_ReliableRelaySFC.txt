@@ -1,0 +1,464 @@
+Experiment Type: Multi-Hop Dynamic SFC-P4
+Scenario: congestion
+Scenario Description: Congested network condition
+Selected SFC: ReliableRelaySFC
+P4 JSON: /home/cc/netprompt-milestone-II/compiled_p4/reliable_relay.json
+Access Rules: /home/cc/netprompt-milestone-II/p4_multihop_rules/reliable_relay_s1_rules.txt
+Relay Rules: /home/cc/netprompt-milestone-II/p4_multihop_rules/reliable_relay_s2_rules.txt
+Backup Rules: /home/cc/netprompt-milestone-II/p4_multihop_rules/reliable_relay_s3_rules.txt
+Policy Type: backup_path_reliable_relay
+Edge Interface Mode: backup_edge_eth1
+Configured Bandwidth: 20 Mbps
+Configured Delay: 25ms
+Configured Loss: 2%
+
+Applied Queue Policy:
+- ReliableRelaySFC: d4/d5 netem delay 10ms loss 0.5%
+
+PingAll Dropped Percent: 4.545454545454546
+
+===== TCP DEBUG SNAPSHOT =====
+
+--- d4_ip_addr ---
+1: lo: <LOOPBACK,UP,LOWER_UP> mtu 65536 qdisc noqueue state UNKNOWN group default qlen 1000
+    link/loopback 00:00:00:00:00:00 brd 00:00:00:00:00:00
+    inet 127.0.0.1/8 scope host lo
+       valid_lft forever preferred_lft forever
+    inet6 ::1/128 scope host 
+       valid_lft forever preferred_lft forever
+2: d4-eth0@if1467: <BROADCAST,MULTICAST,UP,LOWER_UP> mtu 1500 qdisc netem state UP group default qlen 1000
+    link/ether 00:00:00:00:00:04 brd ff:ff:ff:ff:ff:ff link-netnsid 0
+    inet 10.0.0.4/24 brd 10.0.0.255 scope global d4-eth0
+       valid_lft forever preferred_lft forever
+    inet6 fe80::200:ff:fe00:4/64 scope link 
+       valid_lft forever preferred_lft forever
+
+
+--- d4_route ---
+10.0.0.0/24 dev d4-eth0 proto kernel scope link src 10.0.0.4 
+
+
+--- d4_arp ---
+Address                  HWtype  HWaddress           Flags Mask            Iface
+10.0.0.1                 ether   00:00:00:00:00:01   CM                    d4-eth0
+10.0.0.10                ether   00:00:00:00:00:0a   CM                    d4-eth0
+10.0.0.100               ether   00:00:00:00:00:0c   CM                    d4-eth0
+10.0.0.7                 ether   00:00:00:00:00:07   CM                    d4-eth0
+10.0.0.9                 ether   00:00:00:00:00:09   CM                    d4-eth0
+10.0.0.3                 ether   00:00:00:00:00:03   CM                    d4-eth0
+10.0.0.6                 ether   00:00:00:00:00:06   CM                    d4-eth0
+10.0.0.8                 ether   00:00:00:00:00:08   CM                    d4-eth0
+10.0.0.2                 ether   00:00:00:00:00:02   CM                    d4-eth0
+10.0.0.5                 ether   00:00:00:00:00:05   CM                    d4-eth0
+
+
+--- edge_ip_addr ---
+1: lo: <LOOPBACK,UP,LOWER_UP> mtu 65536 qdisc noqueue state UNKNOWN group default qlen 1000
+    link/loopback 00:00:00:00:00:00 brd 00:00:00:00:00:00
+    inet 127.0.0.1/8 scope host lo
+       valid_lft forever preferred_lft forever
+    inet6 ::1/128 scope host 
+       valid_lft forever preferred_lft forever
+2: edge-eth0@if1476: <BROADCAST,MULTICAST,UP,LOWER_UP> mtu 1500 qdisc htb state UP group default qlen 1000
+    link/ether 00:00:00:00:00:0b brd ff:ff:ff:ff:ff:ff link-netnsid 0
+3: edge-eth1@if1479: <BROADCAST,MULTICAST,UP,LOWER_UP> mtu 1500 qdisc htb state UP group default qlen 1000
+    link/ether 00:00:00:00:00:0c brd ff:ff:ff:ff:ff:ff link-netnsid 0
+    inet 10.0.0.100/24 scope global edge-eth1
+       valid_lft forever preferred_lft forever
+
+
+--- edge_route ---
+10.0.0.0/24 dev edge-eth1 scope link src 10.0.0.100 
+
+
+--- edge_arp ---
+Address                  HWtype  HWaddress           Flags Mask            Iface
+10.0.0.4                 ether   00:00:00:00:00:04   CM                    edge-eth1
+10.0.0.10                ether   00:00:00:00:00:0a   CM                    edge-eth1
+10.0.0.1                 ether   00:00:00:00:00:01   CM                    edge-eth1
+10.0.0.5                 ether   00:00:00:00:00:05   CM                    edge-eth1
+10.0.0.2                 ether   00:00:00:00:00:02   CM                    edge-eth1
+10.0.0.8                 ether   00:00:00:00:00:08   CM                    edge-eth1
+10.0.0.6                 ether   00:00:00:00:00:06   CM                    edge-eth1
+10.0.0.3                 ether   00:00:00:00:00:03   CM                    edge-eth1
+10.0.0.9                 ether   00:00:00:00:00:09   CM                    edge-eth1
+10.0.0.7                 ether   00:00:00:00:00:07   CM                    edge-eth1
+
+
+--- d4_ping_edge ---
+PING 10.0.0.100 (10.0.0.100) 56(84) bytes of data.
+64 bytes from 10.0.0.100: icmp_seq=1 ttl=64 time=71.9 ms
+64 bytes from 10.0.0.100: icmp_seq=2 ttl=64 time=71.8 ms
+64 bytes from 10.0.0.100: icmp_seq=3 ttl=64 time=71.8 ms
+
+--- 10.0.0.100 ping statistics ---
+3 packets transmitted, 3 received, 0% packet loss, time 2004ms
+rtt min/avg/max/mdev = 71.801/71.851/71.912/0.045 ms
+
+
+--- edge_ping_d4 ---
+PING 10.0.0.4 (10.0.0.4) 56(84) bytes of data.
+64 bytes from 10.0.0.4: icmp_seq=1 ttl=64 time=71.8 ms
+64 bytes from 10.0.0.4: icmp_seq=2 ttl=64 time=71.9 ms
+64 bytes from 10.0.0.4: icmp_seq=3 ttl=64 time=71.7 ms
+
+--- 10.0.0.4 ping statistics ---
+3 packets transmitted, 3 received, 0% packet loss, time 2004ms
+rtt min/avg/max/mdev = 71.736/71.817/71.888/0.062 ms
+
+
+--- d4_tcp_5001_before_server ---
+bash: connect: Connection refused
+bash: line 1: /dev/tcp/10.0.0.100/5001: Connection refused
+TCP_FAIL
+
+===== END TCP DEBUG SNAPSHOT =====
+
+Throughput Result d4 -> edge:
+------------------------------------------------------------
+Client connecting to 10.0.0.100, UDP port 5001
+Sending 1470 byte datagrams, IPG target: 1121.52 us (kalman adjust)
+UDP buffer size:  208 KByte (default)
+------------------------------------------------------------
+[  1] local 10.0.0.4 port 36501 connected with 10.0.0.100 port 5001
+[ ID] Interval       Transfer     Bandwidth
+[  1] 0.0000-5.0020 sec  6.26 MBytes  10.5 Mbits/sec
+[  1] Sent 4463 datagrams
+[  3] WARNING: did not receive ack of last datagram after 10 tries.
+
+TCP Port Check d4 -> edge:
+UDP_MODE_NO_TCP_CHECK
+
+Iperf Listen Check d4 -> edge:
+UNCONN 0      0            0.0.0.0:5001      0.0.0.0:*    users:(("iperf",pid=2488741,fd=3))
+
+Iperf Server Process d4 -> edge:
+root     2488741  0.0  0.0 153716  2092 pts/16   Sl+  23:38   0:00 iperf -s -u -p 5001
+
+Iperf Server Log d4 -> edge:
+------------------------------------------------------------
+Server listening on UDP port 5001
+UDP buffer size:  208 KByte (default)
+------------------------------------------------------------
+[  1] local 10.0.0.100 port 5001 connected with 10.0.0.4 port 36501
+[ ID] Interval       Transfer     Bandwidth        Jitter   Lost/Total Datagrams
+[  1] 0.0000-5.0021 sec  6.22 MBytes  10.4 Mbits/sec   0.045 ms 26/4462 (0.58%)
+[  3] WARNING: ack of last datagram failed.
+[  2] local 10.0.0.100 port 5001 connected with 10.0.0.4 port 36501
+[ ID] Interval       Transfer     Bandwidth        Jitter   Lost/Total Datagrams
+[  2] 0.0000-0.0101 sec  2.87 KBytes  2.34 Mbits/sec   0.629 ms 4471/4473 (1e+02%)
+[  4] WARNING: ack of last datagram failed.
+[  3] local 10.0.0.100 port 5001 connected with 10.0.0.4 port 36501
+[ ID] Interval       Transfer     Bandwidth        Jitter   Lost/Total Datagrams
+[  3] 0.0000-0.0100 sec  2.87 KBytes  2.35 Mbits/sec   0.626 ms 4482/4484 (1e+02%)
+[  3] WARNING: ack of last datagram failed.
+[  4] local 10.0.0.100 port 5001 connected with 10.0.0.4 port 36501
+[ ID] Interval       Transfer     Bandwidth        Jitter   Lost/Total Datagrams
+[  4] 0.0000-0.0100 sec  2.87 KBytes  2.35 Mbits/sec   0.625 ms 4493/4495 (1e+02%)
+[  4] WARNING: ack of last datagram failed.
+[  5] local 10.0.0.100 port 5001 connected with 10.0.0.4 port 36501
+[ ID] Interval       Transfer     Bandwidth        Jitter   Lost/Total Datagrams
+[  5] 0.0000-0.0101 sec  2.87 KBytes  2.33 Mbits/sec   0.630 ms 4504/4506 (1e+02%)
+[  3] WARNING: ack of last datagram failed.
+[  6] local 10.0.0.100 port 5001 connected with 10.0.0.4 port 36501
+[ ID] Interval       Transfer     Bandwidth        Jitter   Lost/Total Datagrams
+[  6] 0.0000-0.0100 sec  2.87 KBytes  2.35 Mbits/sec   0.625 ms 4515/4517 (1e+02%)
+[  4] WARNING: ack of last datagram failed.
+[  7] local 10.0.0.100 port 5001 connected with 10.0.0.4 port 36501
+[ ID] Interval       Transfer     Bandwidth        Jitter   Lost/Total Datagrams
+[  7] 0.0000-0.0100 sec  2.87 KBytes  2.35 Mbits/sec   0.626 ms 4526/4528 (1e+02%)
+[  3] WARNING: ack of last datagram failed.
+[  8] local 10.0.0.100 port 5001 connected with 10.0.0.4 port 36501
+[ ID] Interval       Transfer     Bandwidth        Jitter   Lost/Total Datagrams
+[  8] 0.0000-0.0100 sec  2.87 KBytes  2.35 Mbits/sec   0.625 ms 4537/4539 (1e+02%)
+[  4] WARNING: ack of last datagram failed.
+[  9] local 10.0.0.100 port 5001 connected with 10.0.0.4 port 36501
+[ ID] Interval       Transfer     Bandwidth        Jitter   Lost/Total Datagrams
+[  9] 0.0000-0.0100 sec  2.87 KBytes  2.34 Mbits/sec   0.628 ms 4548/4550 (1e+02%)
+[  3] WARNING: ack of last datagram failed.
+[ 10] local 10.0.0.100 port 5001 connected with 10.0.0.4 port 36501
+[ ID] Interval       Transfer     Bandwidth        Jitter   Lost/Total Datagrams
+[ 10] 0.0000-0.0101 sec  2.87 KBytes  2.33 Mbits/sec   0.630 ms 4559/4561 (1e+02%)
+[  4] WARNING: ack of last datagram failed.
+[ 11] local 10.0.0.100 port 5001 connected with 10.0.0.4 port 36501
+[ ID] Interval       Transfer     Bandwidth        Jitter   Lost/Total Datagrams
+[ 11] 0.0000-0.0101 sec  2.87 KBytes  2.33 Mbits/sec   0.630 ms 4570/4572 (1e+02%)
+[  3] WARNING: ack of last datagram failed.
+[ 12] local 10.0.0.100 port 5001 connected with 10.0.0.4 port 36501
+[ ID] Interval       Transfer     Bandwidth        Jitter   Lost/Total Datagrams
+[ 12] 0.0000-0.0100 sec  2.87 KBytes  2.35 Mbits/sec   0.626 ms 4581/4583 (1e+02%)
+[  4] WARNING: ack of last datagram failed.
+[ 13] local 10.0.0.100 port 5001 connected with 10.0.0.4 port 36501
+[ ID] Interval       Transfer     Bandwidth        Jitter   Lost/Total Datagrams
+[ 13] 0.0000-0.0101 sec  2.87 KBytes  2.33 Mbits/sec   0.632 ms 4592/4594 (1e+02%)
+[  3] WARNING: ack of last datagram failed.
+[ 14] local 10.0.0.100 port 5001 connected with 10.0.0.4 port 36501
+[ ID] Interval       Transfer     Bandwidth        Jitter   Lost/Total Datagrams
+[ 14] 0.0000-0.0100 sec  2.87 KBytes  2.36 Mbits/sec   0.623 ms 4603/4605 (1e+02%)
+[  4] WARNING: ack of last datagram failed.
+[ 15] local 10.0.0.100 port 5001 connected with 10.0.0.4 port 36501
+[ ID] Interval       Transfer     Bandwidth        Jitter   Lost/Total Datagrams
+[ 15] 0.0000-0.0100 sec  2.87 KBytes  2.35 Mbits/sec   0.627 ms 4614/4616 (1e+02%)
+[  3] WARNING: ack of last datagram failed.
+[ 16] local 10.0.0.100 port 5001 connected with 10.0.0.4 port 36501
+[ ID] Interval       Transfer     Bandwidth        Jitter   Lost/Total Datagrams
+[ 16] 0.0000-0.0100 sec  2.87 KBytes  2.36 Mbits/sec   0.623 ms 4625/4627 (1e+02%)
+[  4] WARNING: ack of last datagram failed.
+[ 17] local 10.0.0.100 port 5001 connected with 10.0.0.4 port 36501
+[ ID] Interval       Transfer     Bandwidth        Jitter   Lost/Total Datagrams
+[ 17] 0.0000-0.0101 sec  2.87 KBytes  2.34 Mbits/sec   0.629 ms 4636/4638 (1e+02%)
+[  3] WARNING: ack of last datagram failed.
+[ 18] local 10.0.0.100 port 5001 connected with 10.0.0.4 port 36501
+[ ID] Interval       Transfer     Bandwidth        Jitter   Lost/Total Datagrams
+[ 18] 0.0000-0.0099 sec  2.87 KBytes  2.37 Mbits/sec   0.621 ms 4647/4649 (1e+02%)
+[  4] WARNING: ack of last datagram failed.
+[ 19] local 10.0.0.100 port 5001 connected with 10.0.0.4 port 36501
+
+Throughput Result d5 -> edge:
+------------------------------------------------------------
+Client connecting to 10.0.0.100, UDP port 5001
+Sending 1470 byte datagrams, IPG target: 1121.52 us (kalman adjust)
+UDP buffer size:  208 KByte (default)
+------------------------------------------------------------
+[  1] local 10.0.0.5 port 59818 connected with 10.0.0.100 port 5001
+[ ID] Interval       Transfer     Bandwidth
+[  1] 0.0000-5.0020 sec  6.26 MBytes  10.5 Mbits/sec
+[  1] Sent 4463 datagrams
+[  3] WARNING: did not receive ack of last datagram after 10 tries.
+
+TCP Port Check d5 -> edge:
+UDP_MODE_NO_TCP_CHECK
+
+Iperf Listen Check d5 -> edge:
+UNCONN 0      0            0.0.0.0:5001      0.0.0.0:*    users:(("iperf",pid=2488777,fd=3))
+
+Iperf Server Process d5 -> edge:
+root     2488777  0.0  0.0 153716  2092 pts/16   Sl+  23:39   0:00 iperf -s -u -p 5001
+
+Iperf Server Log d5 -> edge:
+------------------------------------------------------------
+Server listening on UDP port 5001
+UDP buffer size:  208 KByte (default)
+------------------------------------------------------------
+[  1] local 10.0.0.100 port 5001 connected with 10.0.0.5 port 59818
+[ ID] Interval       Transfer     Bandwidth        Jitter   Lost/Total Datagrams
+[  1] 0.0000-5.0019 sec  6.22 MBytes  10.4 Mbits/sec   0.066 ms 27/4462 (0.61%)
+[  3] WARNING: ack of last datagram failed.
+[  2] local 10.0.0.100 port 5001 connected with 10.0.0.5 port 59818
+[ ID] Interval       Transfer     Bandwidth        Jitter   Lost/Total Datagrams
+[  2] 0.0000-0.0100 sec  2.87 KBytes  2.35 Mbits/sec   0.626 ms 4471/4473 (1e+02%)
+[  4] WARNING: ack of last datagram failed.
+[  3] local 10.0.0.100 port 5001 connected with 10.0.0.5 port 59818
+[ ID] Interval       Transfer     Bandwidth        Jitter   Lost/Total Datagrams
+[  3] 0.0000-0.0101 sec  2.87 KBytes  2.34 Mbits/sec   0.628 ms 4482/4484 (1e+02%)
+[  3] WARNING: ack of last datagram failed.
+[  4] local 10.0.0.100 port 5001 connected with 10.0.0.5 port 59818
+[ ID] Interval       Transfer     Bandwidth        Jitter   Lost/Total Datagrams
+[  4] 0.0000-0.0100 sec  2.87 KBytes  2.35 Mbits/sec   0.625 ms 4493/4495 (1e+02%)
+[  4] WARNING: ack of last datagram failed.
+[  5] local 10.0.0.100 port 5001 connected with 10.0.0.5 port 59818
+[ ID] Interval       Transfer     Bandwidth        Jitter   Lost/Total Datagrams
+[  5] 0.0000-0.0100 sec  2.87 KBytes  2.34 Mbits/sec   0.628 ms 4504/4506 (1e+02%)
+[  3] WARNING: ack of last datagram failed.
+[  6] local 10.0.0.100 port 5001 connected with 10.0.0.5 port 59818
+[ ID] Interval       Transfer     Bandwidth        Jitter   Lost/Total Datagrams
+[  6] 0.0000-0.0100 sec  2.87 KBytes  2.34 Mbits/sec   0.627 ms 4515/4517 (1e+02%)
+[  4] WARNING: ack of last datagram failed.
+[  7] local 10.0.0.100 port 5001 connected with 10.0.0.5 port 59818
+[ ID] Interval       Transfer     Bandwidth        Jitter   Lost/Total Datagrams
+[  7] 0.0000-0.0100 sec  2.87 KBytes  2.35 Mbits/sec   0.625 ms 4527/4529 (1e+02%)
+[  3] WARNING: ack of last datagram failed.
+[  8] local 10.0.0.100 port 5001 connected with 10.0.0.5 port 59818
+[ ID] Interval       Transfer     Bandwidth        Jitter   Lost/Total Datagrams
+[  8] 0.0000-0.0100 sec  2.87 KBytes  2.35 Mbits/sec   0.626 ms 4538/4540 (1e+02%)
+[  4] WARNING: ack of last datagram failed.
+[  9] local 10.0.0.100 port 5001 connected with 10.0.0.5 port 59818
+[ ID] Interval       Transfer     Bandwidth        Jitter   Lost/Total Datagrams
+[  9] 0.0000-0.0101 sec  2.87 KBytes  2.34 Mbits/sec   0.629 ms 4549/4551 (1e+02%)
+[  3] WARNING: ack of last datagram failed.
+[ 10] local 10.0.0.100 port 5001 connected with 10.0.0.5 port 59818
+[ ID] Interval       Transfer     Bandwidth        Jitter   Lost/Total Datagrams
+[ 10] 0.0000-0.0100 sec  2.87 KBytes  2.36 Mbits/sec   0.622 ms 4560/4562 (1e+02%)
+[  4] WARNING: ack of last datagram failed.
+[ 11] local 10.0.0.100 port 5001 connected with 10.0.0.5 port 59818
+[ ID] Interval       Transfer     Bandwidth        Jitter   Lost/Total Datagrams
+[ 11] 0.0000-0.0101 sec  2.87 KBytes  2.34 Mbits/sec   0.629 ms 4571/4573 (1e+02%)
+[  3] WARNING: ack of last datagram failed.
+[ 12] local 10.0.0.100 port 5001 connected with 10.0.0.5 port 59818
+[ ID] Interval       Transfer     Bandwidth        Jitter   Lost/Total Datagrams
+[ 12] 0.0000-0.0100 sec  2.87 KBytes  2.35 Mbits/sec   0.626 ms 4582/4584 (1e+02%)
+[  4] WARNING: ack of last datagram failed.
+[ 13] local 10.0.0.100 port 5001 connected with 10.0.0.5 port 59818
+[ ID] Interval       Transfer     Bandwidth        Jitter   Lost/Total Datagrams
+[ 13] 0.0000-0.0100 sec  2.87 KBytes  2.35 Mbits/sec   0.626 ms 4593/4595 (1e+02%)
+[  3] WARNING: ack of last datagram failed.
+[ 14] local 10.0.0.100 port 5001 connected with 10.0.0.5 port 59818
+[ ID] Interval       Transfer     Bandwidth        Jitter   Lost/Total Datagrams
+[ 14] 0.0000-0.0101 sec  2.87 KBytes  2.33 Mbits/sec   0.631 ms 4604/4606 (1e+02%)
+[  4] WARNING: ack of last datagram failed.
+[ 15] local 10.0.0.100 port 5001 connected with 10.0.0.5 port 59818
+[ ID] Interval       Transfer     Bandwidth        Jitter   Lost/Total Datagrams
+[ 15] 0.0000-0.0100 sec  2.87 KBytes  2.35 Mbits/sec   0.625 ms 4615/4617 (1e+02%)
+[  3] WARNING: ack of last datagram failed.
+[ 16] local 10.0.0.100 port 5001 connected with 10.0.0.5 port 59818
+[ ID] Interval       Transfer     Bandwidth        Jitter   Lost/Total Datagrams
+[ 16] 0.0000-0.0100 sec  2.87 KBytes  2.34 Mbits/sec   0.627 ms 4626/4628 (1e+02%)
+[  4] WARNING: ack of last datagram failed.
+[ 17] local 10.0.0.100 port 5001 connected with 10.0.0.5 port 59818
+[ ID] Interval       Transfer     Bandwidth        Jitter   Lost/Total Datagrams
+[ 17] 0.0000-0.0100 sec  2.87 KBytes  2.35 Mbits/sec   0.625 ms 4637/4639 (1e+02%)
+[  3] WARNING: ack of last datagram failed.
+[ 18] local 10.0.0.100 port 5001 connected with 10.0.0.5 port 59818
+[ ID] Interval       Transfer     Bandwidth        Jitter   Lost/Total Datagrams
+[ 18] 0.0000-0.0101 sec  2.87 KBytes  2.34 Mbits/sec   0.628 ms 4648/4650 (1e+02%)
+[  4] WARNING: ack of last datagram failed.
+
+Throughput Result d6 -> edge:
+------------------------------------------------------------
+Client connecting to 10.0.0.100, UDP port 5001
+Sending 1470 byte datagrams, IPG target: 1121.52 us (kalman adjust)
+UDP buffer size:  208 KByte (default)
+------------------------------------------------------------
+[  1] local 10.0.0.6 port 48243 connected with 10.0.0.100 port 5001
+[ ID] Interval       Transfer     Bandwidth
+[  1] 0.0000-5.0021 sec  6.26 MBytes  10.5 Mbits/sec
+[  1] Sent 4463 datagrams
+[  3] WARNING: did not receive ack of last datagram after 10 tries.
+
+TCP Port Check d6 -> edge:
+UDP_MODE_NO_TCP_CHECK
+
+Iperf Listen Check d6 -> edge:
+UNCONN 0      0            0.0.0.0:5001      0.0.0.0:*    users:(("iperf",pid=2488811,fd=3))
+
+Iperf Server Process d6 -> edge:
+root     2488811  0.0  0.0 153716  2184 pts/16   Sl+  23:39   0:00 iperf -s -u -p 5001
+
+Iperf Server Log d6 -> edge:
+------------------------------------------------------------
+Server listening on UDP port 5001
+UDP buffer size:  208 KByte (default)
+------------------------------------------------------------
+[  1] local 10.0.0.100 port 5001 connected with 10.0.0.6 port 48243
+[ ID] Interval       Transfer     Bandwidth        Jitter   Lost/Total Datagrams
+[  1] 0.0000-5.0018 sec  6.26 MBytes  10.5 Mbits/sec   0.037 ms 0/4462 (0%)
+[  3] WARNING: ack of last datagram failed.
+[  2] local 10.0.0.100 port 5001 connected with 10.0.0.6 port 48243
+[ ID] Interval       Transfer     Bandwidth        Jitter   Lost/Total Datagrams
+[  2] 0.0000-0.0101 sec  2.87 KBytes  2.34 Mbits/sec   0.628 ms 4471/4473 (1e+02%)
+[  4] WARNING: ack of last datagram failed.
+[  3] local 10.0.0.100 port 5001 connected with 10.0.0.6 port 48243
+[ ID] Interval       Transfer     Bandwidth        Jitter   Lost/Total Datagrams
+[  3] 0.0000-0.0100 sec  2.87 KBytes  2.34 Mbits/sec   0.628 ms 4482/4484 (1e+02%)
+[  3] WARNING: ack of last datagram failed.
+[  4] local 10.0.0.100 port 5001 connected with 10.0.0.6 port 48243
+[ ID] Interval       Transfer     Bandwidth        Jitter   Lost/Total Datagrams
+[  4] 0.0000-0.0100 sec  2.87 KBytes  2.35 Mbits/sec   0.627 ms 4493/4495 (1e+02%)
+[  4] WARNING: ack of last datagram failed.
+[  5] local 10.0.0.100 port 5001 connected with 10.0.0.6 port 48243
+[ ID] Interval       Transfer     Bandwidth        Jitter   Lost/Total Datagrams
+[  5] 0.0000-0.0101 sec  2.87 KBytes  2.33 Mbits/sec   0.630 ms 4504/4506 (1e+02%)
+[  3] WARNING: ack of last datagram failed.
+[  6] local 10.0.0.100 port 5001 connected with 10.0.0.6 port 48243
+[ ID] Interval       Transfer     Bandwidth        Jitter   Lost/Total Datagrams
+[  6] 0.0000-0.0101 sec  2.87 KBytes  2.33 Mbits/sec   0.632 ms 4515/4517 (1e+02%)
+[  4] WARNING: ack of last datagram failed.
+[  7] local 10.0.0.100 port 5001 connected with 10.0.0.6 port 48243
+[ ID] Interval       Transfer     Bandwidth        Jitter   Lost/Total Datagrams
+[  7] 0.0000-0.0100 sec  2.87 KBytes  2.34 Mbits/sec   0.627 ms 4526/4528 (1e+02%)
+[  3] WARNING: ack of last datagram failed.
+[  8] local 10.0.0.100 port 5001 connected with 10.0.0.6 port 48243
+[ ID] Interval       Transfer     Bandwidth        Jitter   Lost/Total Datagrams
+[  8] 0.0000-0.0100 sec  2.87 KBytes  2.34 Mbits/sec   0.627 ms 4537/4539 (1e+02%)
+[  4] WARNING: ack of last datagram failed.
+[  9] local 10.0.0.100 port 5001 connected with 10.0.0.6 port 48243
+[ ID] Interval       Transfer     Bandwidth        Jitter   Lost/Total Datagrams
+[  9] 0.0000-0.0100 sec  2.87 KBytes  2.34 Mbits/sec   0.628 ms 4548/4550 (1e+02%)
+[  3] WARNING: ack of last datagram failed.
+[ 10] local 10.0.0.100 port 5001 connected with 10.0.0.6 port 48243
+[ ID] Interval       Transfer     Bandwidth        Jitter   Lost/Total Datagrams
+[ 10] 0.0000-0.0101 sec  2.87 KBytes  2.33 Mbits/sec   0.632 ms 4559/4561 (1e+02%)
+[  4] WARNING: ack of last datagram failed.
+[ 11] local 10.0.0.100 port 5001 connected with 10.0.0.6 port 48243
+[ ID] Interval       Transfer     Bandwidth        Jitter   Lost/Total Datagrams
+[ 11] 0.0000-0.0101 sec  2.87 KBytes  2.34 Mbits/sec   0.629 ms 4570/4572 (1e+02%)
+[  3] WARNING: ack of last datagram failed.
+[ 12] local 10.0.0.100 port 5001 connected with 10.0.0.6 port 48243
+[ ID] Interval       Transfer     Bandwidth        Jitter   Lost/Total Datagrams
+[ 12] 0.0000-0.0100 sec  2.87 KBytes  2.35 Mbits/sec   0.625 ms 4581/4583 (1e+02%)
+[  4] WARNING: ack of last datagram failed.
+[ 13] local 10.0.0.100 port 5001 connected with 10.0.0.6 port 48243
+[ ID] Interval       Transfer     Bandwidth        Jitter   Lost/Total Datagrams
+[ 13] 0.0000-0.0101 sec  2.87 KBytes  2.34 Mbits/sec   0.629 ms 4592/4594 (1e+02%)
+[  3] WARNING: ack of last datagram failed.
+[ 14] local 10.0.0.100 port 5001 connected with 10.0.0.6 port 48243
+[ ID] Interval       Transfer     Bandwidth        Jitter   Lost/Total Datagrams
+[ 14] 0.0000-0.0101 sec  2.87 KBytes  2.33 Mbits/sec   0.630 ms 4603/4605 (1e+02%)
+[  4] WARNING: ack of last datagram failed.
+[ 15] local 10.0.0.100 port 5001 connected with 10.0.0.6 port 48243
+[ ID] Interval       Transfer     Bandwidth        Jitter   Lost/Total Datagrams
+[ 15] 0.0000-0.0101 sec  2.87 KBytes  2.34 Mbits/sec   0.629 ms 4614/4616 (1e+02%)
+[  3] WARNING: ack of last datagram failed.
+[ 16] local 10.0.0.100 port 5001 connected with 10.0.0.6 port 48243
+[ ID] Interval       Transfer     Bandwidth        Jitter   Lost/Total Datagrams
+[ 16] 0.0000-0.0101 sec  2.87 KBytes  2.34 Mbits/sec   0.629 ms 4625/4627 (1e+02%)
+[  4] WARNING: ack of last datagram failed.
+[ 17] local 10.0.0.100 port 5001 connected with 10.0.0.6 port 48243
+[ ID] Interval       Transfer     Bandwidth        Jitter   Lost/Total Datagrams
+[ 17] 0.0000-0.0101 sec  2.87 KBytes  2.34 Mbits/sec   0.629 ms 4636/4638 (1e+02%)
+[  3] WARNING: ack of last datagram failed.
+[ 18] local 10.0.0.100 port 5001 connected with 10.0.0.6 port 48243
+[ ID] Interval       Transfer     Bandwidth        Jitter   Lost/Total Datagrams
+[ 18] 0.0000-0.0101 sec  2.87 KBytes  2.33 Mbits/sec   0.630 ms 4647/4649 (1e+02%)
+[  4] WARNING: ack of last datagram failed.
+[ 19] local 10.0.0.100 port 5001 connected with 10.0.0.6 port 48243
+
+Latency Result d4 -> edge:
+PING 10.0.0.100 (10.0.0.100) 56(84) bytes of data.
+64 bytes from 10.0.0.100: icmp_seq=1 ttl=64 time=71.9 ms
+64 bytes from 10.0.0.100: icmp_seq=2 ttl=64 time=71.9 ms
+64 bytes from 10.0.0.100: icmp_seq=3 ttl=64 time=71.9 ms
+64 bytes from 10.0.0.100: icmp_seq=4 ttl=64 time=71.8 ms
+64 bytes from 10.0.0.100: icmp_seq=5 ttl=64 time=71.8 ms
+64 bytes from 10.0.0.100: icmp_seq=6 ttl=64 time=71.8 ms
+64 bytes from 10.0.0.100: icmp_seq=7 ttl=64 time=71.8 ms
+64 bytes from 10.0.0.100: icmp_seq=8 ttl=64 time=71.8 ms
+64 bytes from 10.0.0.100: icmp_seq=9 ttl=64 time=71.8 ms
+64 bytes from 10.0.0.100: icmp_seq=10 ttl=64 time=71.8 ms
+
+--- 10.0.0.100 ping statistics ---
+10 packets transmitted, 10 received, 0% packet loss, time 9016ms
+rtt min/avg/max/mdev = 71.755/71.832/71.918/0.045 ms
+
+Latency Result d5 -> edge:
+PING 10.0.0.100 (10.0.0.100) 56(84) bytes of data.
+64 bytes from 10.0.0.100: icmp_seq=2 ttl=64 time=71.9 ms
+64 bytes from 10.0.0.100: icmp_seq=3 ttl=64 time=71.9 ms
+64 bytes from 10.0.0.100: icmp_seq=4 ttl=64 time=71.9 ms
+64 bytes from 10.0.0.100: icmp_seq=5 ttl=64 time=71.8 ms
+64 bytes from 10.0.0.100: icmp_seq=6 ttl=64 time=71.8 ms
+64 bytes from 10.0.0.100: icmp_seq=7 ttl=64 time=71.9 ms
+64 bytes from 10.0.0.100: icmp_seq=8 ttl=64 time=71.8 ms
+64 bytes from 10.0.0.100: icmp_seq=9 ttl=64 time=71.8 ms
+64 bytes from 10.0.0.100: icmp_seq=10 ttl=64 time=71.8 ms
+
+--- 10.0.0.100 ping statistics ---
+10 packets transmitted, 9 received, 10% packet loss, time 9020ms
+rtt min/avg/max/mdev = 71.778/71.845/71.895/0.037 ms
+
+Latency Result d6 -> edge:
+PING 10.0.0.100 (10.0.0.100) 56(84) bytes of data.
+64 bytes from 10.0.0.100: icmp_seq=1 ttl=64 time=61.8 ms
+64 bytes from 10.0.0.100: icmp_seq=2 ttl=64 time=61.8 ms
+64 bytes from 10.0.0.100: icmp_seq=3 ttl=64 time=61.9 ms
+64 bytes from 10.0.0.100: icmp_seq=4 ttl=64 time=61.8 ms
+64 bytes from 10.0.0.100: icmp_seq=5 ttl=64 time=61.9 ms
+64 bytes from 10.0.0.100: icmp_seq=6 ttl=64 time=61.8 ms
+64 bytes from 10.0.0.100: icmp_seq=7 ttl=64 time=61.9 ms
+64 bytes from 10.0.0.100: icmp_seq=8 ttl=64 time=61.9 ms
+64 bytes from 10.0.0.100: icmp_seq=9 ttl=64 time=61.9 ms
+64 bytes from 10.0.0.100: icmp_seq=10 ttl=64 time=61.8 ms
+
+--- 10.0.0.100 ping statistics ---
+10 packets transmitted, 10 received, 0% packet loss, time 9017ms
+rtt min/avg/max/mdev = 61.820/61.849/61.887/0.020 ms

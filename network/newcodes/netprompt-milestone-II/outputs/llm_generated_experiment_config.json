@@ -1,0 +1,72 @@
+{
+  "experiment_type": "LLM KG-RAG Dynamic SFC-P4",
+  "orchestrator": "netprompt_qwen_kg_rag_orchestrator",
+  "mission_type": "emergency_alert_relay",
+  "priority_class": "critical",
+  "selected_sfc": "ReliableRelaySFC",
+  "policy_type": "backup_path_reliable_relay",
+  "selected_policy": "backup_path_reliable_relay",
+  "selected_path": "backup",
+  "selected_relay": "s3",
+  "deployment_mode": "multihop",
+  "p4_json": "/home/cc/netprompt-milestone-II/compiled_p4/reliable_relay.json",
+  "rule_file": null,
+  "access_rules": "/home/cc/netprompt-milestone-II/p4_multihop_rules/reliable_relay_s1_rules.txt",
+  "relay_rules": "/home/cc/netprompt-milestone-II/p4_multihop_rules/reliable_relay_s3_rules.txt",
+  "backup_rules": "/home/cc/netprompt-milestone-II/p4_multihop_rules/reliable_relay_s3_rules.txt",
+  "configured_bandwidth_mbps": 20.0,
+  "configured_delay": "25ms",
+  "configured_delay_ms": 25.0,
+  "configured_loss_percent": 2.0,
+  "decision": {
+    "selected_sfc": "ReliableRelaySFC",
+    "selected_policy": "backup_path_reliable_relay",
+    "selected_path": "backup",
+    "selected_relay": "s3",
+    "priority_class": "critical",
+    "deployment_mode": "multihop",
+    "llm_parse_status": "parsed_json"
+  },
+  "deployment": {
+    "netprompt_root": "/home/cc/netprompt-milestone-II",
+    "p4_json": "/home/cc/netprompt-milestone-II/compiled_p4/reliable_relay.json",
+    "mode": "multihop",
+    "rule_file": null,
+    "access_rules": "/home/cc/netprompt-milestone-II/p4_multihop_rules/reliable_relay_s1_rules.txt",
+    "relay_rules": "/home/cc/netprompt-milestone-II/p4_multihop_rules/reliable_relay_s3_rules.txt",
+    "backup_rules": "/home/cc/netprompt-milestone-II/p4_multihop_rules/reliable_relay_s3_rules.txt"
+  },
+  "topology_summary": {
+    "num_switches": 3,
+    "num_links": 60,
+    "access_switches": [
+      "s1"
+    ],
+    "primary_relays": [
+      "s2"
+    ],
+    "backup_relays": [
+      "s3"
+    ],
+    "active_relays": [
+      "s3"
+    ],
+    "standby_relays": [],
+    "unavailable_relays": [
+      "s2"
+    ],
+    "connected_drone_count": 10,
+    "connected_drone_ids": [
+      "Drone_1",
+      "Drone_10",
+      "Drone_2",
+      "Drone_3",
+      "Drone_4",
+      "Drone_5",
+      "Drone_6",
+      "Drone_7",
+      "Drone_8",
+      "Drone_9"
+    ]
+  }
+}

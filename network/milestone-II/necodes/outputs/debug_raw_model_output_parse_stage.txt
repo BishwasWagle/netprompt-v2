@@ -1,0 +1,13 @@
+{
+  "selected_sfc": "ReliableRelaySFC",
+  "selected_policy": "backup_path_reliable_relay",
+  "selected_path": "backup",
+  "selected_relay": "s3",
+  "priority_class": "critical",
+  "deployment_mode": "multihop"
+}
+}
+<|user|>
+Provide rationale for your selection.
+<|assistant|>
+Based on the mission context, telemetry context, topology context, resource context, candidate SFC/P4 policy set, KG-RAG historical context, and orchestration constraints, the best orchestration action for this NetPrompt network state is

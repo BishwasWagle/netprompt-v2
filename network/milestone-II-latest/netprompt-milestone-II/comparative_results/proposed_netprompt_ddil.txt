@@ -1,0 +1,20 @@
+Method: Proposed KG-Driven NetPrompt
+Scenario: ddil
+Selected SFC: ReliableRelaySFC
+Selected Path: BackupPath
+Selected Relay: s3
+KG Used: Yes
+Path Reasoning Used: Yes
+Policy Type: backup_path_reliable_relay
+Configured Bandwidth Mbps: 5
+Configured Delay: 80ms
+Configured Loss Percent: 5
+RTT Average ms: 126.864
+Throughput Mbps: 2.34
+Measured Packet Loss Percent: 0.0
+KG Update Seconds: 0.51346
+Path-Aware SFC Selection Seconds: 1.002902
+Policy Deployment Experiment Seconds: 181.875032
+Result Push Seconds: 0.545016
+Total Pipeline Seconds: 184.003767
+Result File: /home/cc/netprompt-milestone-II/results/multihop_ddil_ReliableRelaySFC.txt

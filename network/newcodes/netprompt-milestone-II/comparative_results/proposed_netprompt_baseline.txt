@@ -1,0 +1,12 @@
+Method: Proposed KG-Driven NetPrompt
+Scenario: baseline
+Selected SFC: LowLatencyVideoSFC
+Selected Path: PrimaryPath
+Selected Relay: s2
+KG Used: Yes
+Path Reasoning Used: Yes
+KG Update Seconds: 0.503
+Path-Aware SFC Selection Seconds: 0.991094
+Policy Deployment Experiment Seconds: 440.999857
+Result Push Seconds: 0.533517
+Total Pipeline Seconds: 443.093423

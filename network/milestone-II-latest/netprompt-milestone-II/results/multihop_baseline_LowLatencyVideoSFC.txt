@@ -1,0 +1,256 @@
+Experiment Type: Multi-Hop Dynamic SFC-P4
+Scenario: baseline
+Scenario Description: Normal baseline condition
+Selected SFC: LowLatencyVideoSFC
+P4 JSON: /home/cc/netprompt-milestone-II/compiled_p4/low_latency.json
+Access Rules: /home/cc/netprompt-milestone-II/p4_multihop_rules/low_latency_s1_rules.txt
+Relay Rules: /home/cc/netprompt-milestone-II/p4_multihop_rules/low_latency_s2_rules.txt
+Backup Rules: /home/cc/netprompt-milestone-II/p4_multihop_rules/low_latency_s3_rules.txt
+Policy Type: primary_path_low_latency
+Configured Bandwidth: 40 Mbps
+Configured Delay: 15ms
+Configured Loss: 1%
+
+Applied Queue Policy:
+- LowLatencyVideoSFC: d4/d5 pfifo limit 20
+
+PingAll Dropped Percent: 1.8181818181818181
+
+===== TCP DEBUG SNAPSHOT =====
+
+--- d4_ip_addr ---
+1: lo: <LOOPBACK,UP,LOWER_UP> mtu 65536 qdisc noqueue state UNKNOWN group default qlen 1000
+    link/loopback 00:00:00:00:00:00 brd 00:00:00:00:00:00
+    inet 127.0.0.1/8 scope host lo
+       valid_lft forever preferred_lft forever
+    inet6 ::1/128 scope host 
+       valid_lft forever preferred_lft forever
+2: d4-eth0@if1312: <BROADCAST,MULTICAST,UP,LOWER_UP> mtu 1500 qdisc pfifo state UP group default qlen 1000
+    link/ether 00:00:00:00:00:04 brd ff:ff:ff:ff:ff:ff link-netnsid 0
+    inet 10.0.0.4/24 brd 10.0.0.255 scope global d4-eth0
+       valid_lft forever preferred_lft forever
+    inet6 fe80::200:ff:fe00:4/64 scope link 
+       valid_lft forever preferred_lft forever
+
+
+--- d4_route ---
+10.0.0.0/24 dev d4-eth0 proto kernel scope link src 10.0.0.4 
+
+
+--- d4_arp ---
+Address                  HWtype  HWaddress           Flags Mask            Iface
+10.0.0.8                 ether   00:00:00:00:00:08   CM                    d4-eth0
+10.0.0.2                 ether   00:00:00:00:00:02   CM                    d4-eth0
+10.0.0.5                 ether   00:00:00:00:00:05   CM                    d4-eth0
+10.0.0.1                 ether   00:00:00:00:00:01   CM                    d4-eth0
+10.0.0.10                ether   00:00:00:00:00:0a   CM                    d4-eth0
+10.0.0.7                 ether   00:00:00:00:00:07   CM                    d4-eth0
+10.0.0.100               ether   00:00:00:00:00:0b   CM                    d4-eth0
+10.0.0.9                 ether   00:00:00:00:00:09   CM                    d4-eth0
+10.0.0.3                 ether   00:00:00:00:00:03   CM                    d4-eth0
+10.0.0.6                 ether   00:00:00:00:00:06   CM                    d4-eth0
+
+
+--- edge_ip_addr ---
+1: lo: <LOOPBACK,UP,LOWER_UP> mtu 65536 qdisc noqueue state UNKNOWN group default qlen 1000
+    link/loopback 00:00:00:00:00:00 brd 00:00:00:00:00:00
+    inet 127.0.0.1/8 scope host lo
+       valid_lft forever preferred_lft forever
+    inet6 ::1/128 scope host 
+       valid_lft forever preferred_lft forever
+2: edge-eth0@if1321: <BROADCAST,MULTICAST,UP,LOWER_UP> mtu 1500 qdisc htb state UP group default qlen 1000
+    link/ether 00:00:00:00:00:0b brd ff:ff:ff:ff:ff:ff link-netnsid 0
+    inet 10.0.0.100/24 brd 10.0.0.255 scope global edge-eth0
+       valid_lft forever preferred_lft forever
+    inet6 fe80::200:ff:fe00:b/64 scope link 
+       valid_lft forever preferred_lft forever
+3: edge-eth1@if1324: <BROADCAST,MULTICAST,UP,LOWER_UP> mtu 1500 qdisc htb state UP group default qlen 1000
+    link/ether 0a:a7:c0:55:51:f7 brd ff:ff:ff:ff:ff:ff link-netnsid 0
+    inet6 fe80::8a7:c0ff:fe55:51f7/64 scope link 
+       valid_lft forever preferred_lft forever
+
+
+--- edge_route ---
+10.0.0.0/24 dev edge-eth0 proto kernel scope link src 10.0.0.100 
+
+
+--- edge_arp ---
+Address                  HWtype  HWaddress           Flags Mask            Iface
+10.0.0.6                 ether   00:00:00:00:00:06   CM                    edge-eth0
+10.0.0.3                 ether   00:00:00:00:00:03   CM                    edge-eth0
+10.0.0.9                 ether   00:00:00:00:00:09   CM                    edge-eth0
+10.0.0.7                 ether   00:00:00:00:00:07   CM                    edge-eth0
+10.0.0.4                 ether   00:00:00:00:00:04   CM                    edge-eth0
+10.0.0.10                ether   00:00:00:00:00:0a   CM                    edge-eth0
+10.0.0.1                 ether   00:00:00:00:00:01   CM                    edge-eth0
+10.0.0.5                 ether   00:00:00:00:00:05   CM                    edge-eth0
+10.0.0.2                 ether   00:00:00:00:00:02   CM                    edge-eth0
+10.0.0.8                 ether   00:00:00:00:00:08   CM                    edge-eth0
+
+
+--- d4_ping_edge ---
+PING 10.0.0.100 (10.0.0.100) 56(84) bytes of data.
+64 bytes from 10.0.0.100: icmp_seq=1 ttl=64 time=39.8 ms
+64 bytes from 10.0.0.100: icmp_seq=2 ttl=64 time=39.9 ms
+64 bytes from 10.0.0.100: icmp_seq=3 ttl=64 time=39.8 ms
+
+--- 10.0.0.100 ping statistics ---
+3 packets transmitted, 3 received, 0% packet loss, time 2004ms
+rtt min/avg/max/mdev = 39.814/39.835/39.851/0.015 ms
+
+
+--- edge_ping_d4 ---
+PING 10.0.0.4 (10.0.0.4) 56(84) bytes of data.
+64 bytes from 10.0.0.4: icmp_seq=1 ttl=64 time=39.8 ms
+64 bytes from 10.0.0.4: icmp_seq=2 ttl=64 time=39.8 ms
+64 bytes from 10.0.0.4: icmp_seq=3 ttl=64 time=39.8 ms
+
+--- 10.0.0.4 ping statistics ---
+3 packets transmitted, 3 received, 0% packet loss, time 2004ms
+rtt min/avg/max/mdev = 39.806/39.813/39.827/0.009 ms
+
+
+--- d4_tcp_5001_before_server ---
+bash: connect: Connection refused
+bash: line 1: /dev/tcp/10.0.0.100/5001: Connection refused
+TCP_FAIL
+
+===== END TCP DEBUG SNAPSHOT =====
+
+Throughput Result d4 -> edge:
+------------------------------------------------------------
+Client connecting to 10.0.0.100, TCP port 5001
+TCP window size: 85.3 KByte (default)
+------------------------------------------------------------
+[  1] local 10.0.0.4 port 54548 connected with 10.0.0.100 port 5001
+[ ID] Interval       Transfer     Bandwidth
+[  1] 0.0000-6.1302 sec  40.6 MBytes  55.6 Mbits/sec
+
+TCP Port Check d4 -> edge:
+TCP_OK
+
+Iperf Listen Check d4 -> edge:
+LISTEN 0      4096         0.0.0.0:5001      0.0.0.0:*    users:(("iperf",pid=2469544,fd=3))
+
+Iperf Server Process d4 -> edge:
+root     2469544  0.0  0.0 154112  2104 pts/15   Sl+  21:29   0:00 iperf -s -p 5001
+
+Iperf Server Log d4 -> edge:
+------------------------------------------------------------
+Server listening on TCP port 5001
+TCP window size: 85.3 KByte (default)
+------------------------------------------------------------
+read tcp flags (peer close) failed
+(null)local 10.0.0.100 port 5001 connected with 10.0.0.4 port 54544
+[  1] local 10.0.0.100 port 5001 connected with 10.0.0.4 port 54548
+[ ID] Interval       Transfer     Bandwidth
+[  1] 0.0000-6.0826 sec  40.6 MBytes  56.0 Mbits/sec
+
+Throughput Result d5 -> edge:
+------------------------------------------------------------
+Client connecting to 10.0.0.100, TCP port 5001
+TCP window size: 85.3 KByte (default)
+------------------------------------------------------------
+[  1] local 10.0.0.5 port 56626 connected with 10.0.0.100 port 5001
+[ ID] Interval       Transfer     Bandwidth
+[  1] 0.0000-6.1453 sec  40.8 MBytes  55.6 Mbits/sec
+
+TCP Port Check d5 -> edge:
+TCP_OK
+
+Iperf Listen Check d5 -> edge:
+LISTEN 0      4096         0.0.0.0:5001      0.0.0.0:*    users:(("iperf",pid=2469562,fd=3))
+
+Iperf Server Process d5 -> edge:
+root     2469562  0.0  0.0 154112  2212 pts/15   Sl+  21:29   0:00 iperf -s -p 5001
+
+Iperf Server Log d5 -> edge:
+------------------------------------------------------------
+Server listening on TCP port 5001
+TCP window size: 85.3 KByte (default)
+------------------------------------------------------------
+read tcp flags (peer close) failed
+(null)local 10.0.0.100 port 5001 connected with 10.0.0.5 port 56620
+[  1] local 10.0.0.100 port 5001 connected with 10.0.0.5 port 56626
+[ ID] Interval       Transfer     Bandwidth
+[  1] 0.0000-6.1012 sec  40.8 MBytes  56.0 Mbits/sec
+
+Throughput Result d6 -> edge:
+------------------------------------------------------------
+Client connecting to 10.0.0.100, TCP port 5001
+TCP window size: 85.3 KByte (default)
+------------------------------------------------------------
+[  1] local 10.0.0.6 port 34158 connected with 10.0.0.100 port 5001
+[ ID] Interval       Transfer     Bandwidth
+[  1] 0.0000-6.1614 sec  40.9 MBytes  55.7 Mbits/sec
+
+TCP Port Check d6 -> edge:
+TCP_OK
+
+Iperf Listen Check d6 -> edge:
+LISTEN 0      4096         0.0.0.0:5001      0.0.0.0:*    users:(("iperf",pid=2469580,fd=3))
+
+Iperf Server Process d6 -> edge:
+root     2469580  0.0  0.0 154112  2136 pts/15   Sl+  21:29   0:00 iperf -s -p 5001
+
+Iperf Server Log d6 -> edge:
+------------------------------------------------------------
+Server listening on TCP port 5001
+TCP window size: 85.3 KByte (default)
+------------------------------------------------------------
+read tcp flags (peer close) failed
+(null)local 10.0.0.100 port 5001 connected with 10.0.0.6 port 34144
+[  1] local 10.0.0.100 port 5001 connected with 10.0.0.6 port 34158
+[ ID] Interval       Transfer     Bandwidth
+[  1] 0.0000-6.1194 sec  40.9 MBytes  56.0 Mbits/sec
+
+Latency Result d4 -> edge:
+PING 10.0.0.100 (10.0.0.100) 56(84) bytes of data.
+64 bytes from 10.0.0.100: icmp_seq=1 ttl=64 time=40.0 ms
+64 bytes from 10.0.0.100: icmp_seq=2 ttl=64 time=39.9 ms
+64 bytes from 10.0.0.100: icmp_seq=3 ttl=64 time=39.8 ms
+64 bytes from 10.0.0.100: icmp_seq=4 ttl=64 time=39.8 ms
+64 bytes from 10.0.0.100: icmp_seq=5 ttl=64 time=39.8 ms
+64 bytes from 10.0.0.100: icmp_seq=6 ttl=64 time=39.8 ms
+64 bytes from 10.0.0.100: icmp_seq=7 ttl=64 time=39.8 ms
+64 bytes from 10.0.0.100: icmp_seq=8 ttl=64 time=39.8 ms
+64 bytes from 10.0.0.100: icmp_seq=9 ttl=64 time=39.8 ms
+64 bytes from 10.0.0.100: icmp_seq=10 ttl=64 time=39.8 ms
+
+--- 10.0.0.100 ping statistics ---
+10 packets transmitted, 10 received, 0% packet loss, time 9016ms
+rtt min/avg/max/mdev = 39.803/39.835/39.960/0.047 ms
+
+Latency Result d5 -> edge:
+PING 10.0.0.100 (10.0.0.100) 56(84) bytes of data.
+64 bytes from 10.0.0.100: icmp_seq=1 ttl=64 time=39.9 ms
+64 bytes from 10.0.0.100: icmp_seq=2 ttl=64 time=39.8 ms
+64 bytes from 10.0.0.100: icmp_seq=3 ttl=64 time=39.8 ms
+64 bytes from 10.0.0.100: icmp_seq=4 ttl=64 time=39.8 ms
+64 bytes from 10.0.0.100: icmp_seq=5 ttl=64 time=39.8 ms
+64 bytes from 10.0.0.100: icmp_seq=6 ttl=64 time=39.8 ms
+64 bytes from 10.0.0.100: icmp_seq=7 ttl=64 time=39.8 ms
+64 bytes from 10.0.0.100: icmp_seq=8 ttl=64 time=39.8 ms
+64 bytes from 10.0.0.100: icmp_seq=9 ttl=64 time=39.8 ms
+64 bytes from 10.0.0.100: icmp_seq=10 ttl=64 time=39.8 ms
+
+--- 10.0.0.100 ping statistics ---
+10 packets transmitted, 10 received, 0% packet loss, time 9016ms
+rtt min/avg/max/mdev = 39.796/39.825/39.869/0.018 ms
+
+Latency Result d6 -> edge:
+PING 10.0.0.100 (10.0.0.100) 56(84) bytes of data.
+64 bytes from 10.0.0.100: icmp_seq=1 ttl=64 time=39.9 ms
+64 bytes from 10.0.0.100: icmp_seq=2 ttl=64 time=39.8 ms
+64 bytes from 10.0.0.100: icmp_seq=3 ttl=64 time=39.8 ms
+64 bytes from 10.0.0.100: icmp_seq=4 ttl=64 time=39.8 ms
+64 bytes from 10.0.0.100: icmp_seq=5 ttl=64 time=39.9 ms
+64 bytes from 10.0.0.100: icmp_seq=6 ttl=64 time=39.8 ms
+64 bytes from 10.0.0.100: icmp_seq=7 ttl=64 time=39.8 ms
+64 bytes from 10.0.0.100: icmp_seq=8 ttl=64 time=39.8 ms
+64 bytes from 10.0.0.100: icmp_seq=9 ttl=64 time=39.9 ms
+64 bytes from 10.0.0.100: icmp_seq=10 ttl=64 time=39.8 ms
+
+--- 10.0.0.100 ping statistics ---
+10 packets transmitted, 10 received, 0% packet loss, time 9017ms
+rtt min/avg/max/mdev = 39.812/39.832/39.864/0.016 ms

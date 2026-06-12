@@ -1,0 +1,18 @@
+\begin{table*}[t]
+\caption{NetPrompt Orchestration Overhead}
+\label{tab:overhead}
+\centering
+\small
+\begin{tabular}{lllll}
+\toprule
+Scenario & SFC Selection (s) & KG Update (s) & Deployment (s) & Total Pipeline (s) \\
+\midrule
+Baseline & 1.00 & 0.51 & 104.40 & 106.52 \\
+Low Latency & 1.00 & 0.51 & 82.13 & 84.25 \\
+Battery & 1.00 & 0.50 & 1108.65 & 1110.76 \\
+Congestion & 1.00 & 0.51 & 140.49 & 142.62 \\
+Relay Failure & 1.00 & 0.51 & 231.66 & 233.78 \\
+DDIL & 1.00 & 0.51 & 181.88 & 184.00 \\
+\bottomrule
+\end{tabular}
+\end{table*}

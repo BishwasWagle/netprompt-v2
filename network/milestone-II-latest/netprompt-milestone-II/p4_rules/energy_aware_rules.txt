@@ -1,0 +1,12 @@
+table_add energy_policy_table allow_essential 10.0.0.4 10.0.0.100 =>
+table_add energy_policy_table allow_essential 10.0.0.5 10.0.0.100 =>
+table_add energy_policy_table allow_essential 10.0.0.6 10.0.0.100 =>
+
+table_add energy_policy_table allow_essential 10.0.0.100 10.0.0.4 =>
+table_add energy_policy_table allow_essential 10.0.0.100 10.0.0.5 =>
+table_add energy_policy_table allow_essential 10.0.0.100 10.0.0.6 =>
+
+table_add forward_table forward 00:00:00:00:00:04 => 4
+table_add forward_table forward 00:00:00:00:00:05 => 5
+table_add forward_table forward 00:00:00:00:00:06 => 6
+table_add forward_table forward 00:00:00:00:00:0b => 11

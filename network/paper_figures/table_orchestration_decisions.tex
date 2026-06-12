@@ -1,0 +1,18 @@
+\begin{table*}[t]
+\caption{Scenario-Aware Orchestration Decisions}
+\label{tab:orchestration}
+\centering
+\small
+\begin{tabular}{llll}
+\toprule
+Scenario & SFC & Path & Relay \\
+\midrule
+Baseline & LowLatencyVideoSFC & PrimaryPath & s2 \\
+Low Latency & LowLatencyVideoSFC & PrimaryPath & s2 \\
+Battery & EnergyAwareSFC & PrimaryPath & s2 \\
+Congestion & ReliableRelaySFC & BackupPath & s3 \\
+Relay Failure & ReliableRelaySFC & BackupPath & s3 \\
+DDIL & ReliableRelaySFC & BackupPath & s3 \\
+\bottomrule
+\end{tabular}
+\end{table*}

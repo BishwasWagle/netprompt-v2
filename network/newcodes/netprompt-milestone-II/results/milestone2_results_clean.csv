@@ -1,0 +1,7 @@
+scenario,recommended_sfc,selected_sfc,sfc_priority,configured_bandwidth_mbps,configured_delay,configured_loss_percent,throughput_mbps,rtt_min_ms,rtt_avg_ms,rtt_max_ms,rtt_mdev_ms,measured_packet_loss_percent,source_file
+baseline,LowLatencyVideoSFC,LowLatencyVideoSFC,latency,40.0,15ms,1.0,,34.351,34.377,34.469,0.038,0.0,milestone2_baseline_LowLatencyVideoSFC.txt
+battery_depletion,EnergyAwareSFC,EnergyAwareSFC,energy,15.0,30ms,2.0,,64.334,64.351,64.378,0.011,0.0,milestone2_battery_depletion_EnergyAwareSFC.txt
+congestion,ReliableRelaySFC,ReliableRelaySFC,reliability,20.0,25ms,2.0,,54.328,54.34,54.363,0.01,10.0,milestone2_congestion_ReliableRelaySFC.txt
+ddil,ReliableRelaySFC,ReliableRelaySFC,reliability,5.0,80ms,5.0,,164.335,164.358,164.433,0.027,10.0,milestone2_ddil_ReliableRelaySFC.txt
+low_latency,LowLatencyVideoSFC,LowLatencyVideoSFC,latency,80.0,5ms,0.0,,14.325,14.346,14.4,0.021,0.0,milestone2_low_latency_LowLatencyVideoSFC.txt
+relay_failure,ReliableRelaySFC,ReliableRelaySFC,reliability,30.0,35ms,4.0,,74.309,74.324,74.365,0.016,0.0,milestone2_relay_failure_ReliableRelaySFC.txt

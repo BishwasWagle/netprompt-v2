@@ -1,0 +1,8 @@
+neo4j
+pandas
+numpy
+torch
+transformers
+peft
+bitsandbytes
+accelerate

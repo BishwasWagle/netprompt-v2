@@ -1,0 +1,5 @@
+# Scripts executed on the Linux nodes must stay LF even when edited on Windows.
+*.sh text eol=lf
+*.py text eol=lf
+*.txt text
+*.md text

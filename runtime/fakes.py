@@ -51,3 +51,8 @@ class FakeMonitor:
 
     def observe_window(self) -> MonitorReport:
         return self.model.report(self.deployer.state)
+
+    def rebaseline(self) -> None:
+        """§7.6: on commit, the current state becomes the new baseline —
+        later drift is judged against what was actually committed."""
+        self.model.baseline = self.model._flows(self.deployer.state)

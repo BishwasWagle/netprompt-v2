@@ -174,13 +174,16 @@ class AdaptResult:
     tier_reached: int
     trace: list                   # [AttemptRecord]
     reason: str = ""              # on failure: "all tiers exhausted" | "budget spent" | ...
+    final_report: object = None   # MonitorReport at exit: goal report on success,
+                                  # best-achieved (dominating) state on failure
 
 
 @dataclass
 class Verdict:
     """Terminal evaluator outcome, recorded to the KG (design §8)."""
     correlation_id: str
-    outcome: str                  # "healthy" | "marginal" | "rollback" | "escalated" | "system_fault"
+    outcome: str                  # "healthy" | "marginal" | "rollback" | "escalated"
+                                  #   | "system_fault" | "rejected" (gate-refused, never deployed)
     tier_reached: int
     headroom: float
     trace: list

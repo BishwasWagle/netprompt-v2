@@ -121,6 +121,18 @@ def test_proposer_gives_up_when_model_only_emits_garbage():
         diag, REGEN_ENV, state, set()) is None    # -> engine escalates (fail-safe)
 
 
+def test_proposer_treats_client_exception_as_failed_generation():
+    """§7.4 fail-safe for the REAL serving endpoint: a client that raises
+    (timeout / 5xx / OOM) must degrade to None (-> escalate), never propagate
+    and crash the episode."""
+    class BrokenClient:
+        def generate(self, prompt):
+            raise RuntimeError("serving endpoint down")
+    diag, state = diag_and_state()
+    proposer = RegenProposer(BrokenClient(), table_state_fn=s1_tables, max_rejects=3)
+    assert proposer(diag, REGEN_ENV, state, set()) is None     # no exception escapes
+
+
 # ---------------- end-to-end through the engine ----------------
 
 def test_engine_runs_regen_candidate_through_gate_and_rolls_back():

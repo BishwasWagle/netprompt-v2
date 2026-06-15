@@ -85,7 +85,9 @@ def evaluate(spec: DeploymentSpec, report: MonitorReport, ctx: EvalContext) -> E
     # 2 · SLA met, sustained?
     if not r.target_sla_met:
         # 3 · our change caused it? (regressed vs baseline AND not exogenous, §5.7)
-        regressed = r.vs_baseline.get(spec.target_field, 0.0) < 0.0
+        #     Deadband by REGRESSION_EPS so real-measurement noise on the target's
+        #     margin can't trigger a spurious rollback (fixtures regress far past it).
+        regressed = r.vs_baseline.get(spec.target_field, 0.0) < -config.REGRESSION_EPS
         if regressed and not r.exogenous_shift:
             if ctx.last_good is not None:
                 ctx.deployer.rollback(ctx.last_good)

@@ -15,6 +15,12 @@ EDGE_MAC_BACKUP = "00:00:00:00:00:0c"    # backup identity (edge-eth1 -> s3)
 EDGE_MACS = {"primary": EDGE_MAC, "backup": EDGE_MAC_BACKUP}
 EDGE_IFACES = {"primary": "edge-eth0", "backup": "edge-eth1"}
 EDGE_PORTS = {"primary": PORT_PRIMARY, "backup": PORT_BACKUP}
+# A reroute is MULTI-SWITCH (M0/C2 finding): s1 selects the relay egress port,
+# and the destination RELAY switch must itself forward the active edge identity
+# to the edge — under a primary SFC, s3 has no 0c entry, so without this the
+# frame is dropped at s3 and the path is dead despite s1 being correct. Both
+# relays reach the edge on port 2 (s2-eth2 / s3-eth2 per the topology).
+RELAY_EDGE = {"primary": ("s2", 2), "backup": ("s3", 2)}
 EDGE_IP = "10.0.0.100"
 SUBNET = "10.0.0.0/24"
 EDGE_HOST = "edge"
@@ -49,6 +55,10 @@ BASELINE_WINDOW_PROBES = 5     # pre-cutover steady-state window (design §5.3)
 BUDGET_N = 6                   # applied attempts per episode
 HEADROOM_TAU = 0.15            # min margin for Commit-healthy; below = marginal
 EPS_IMPROVE = 0.02             # strict-progress threshold on headroom
+REGRESSION_EPS = 0.02          # rung-3 margin-drop deadband: a real (noisy) monitor
+                               #   jitters vs_baseline by ~1e-7 on idle flows, so a
+                               #   regression must exceed this to be attributed to us
+                               #   (fixtures regress by ~1.0+, far above the floor)
 REGEN_MAX_REJECTS = 3          # K gate-rejections before Tier-2 returns None
 
 # --- tune knob quantization (design §7.3): knob -> step size ---
@@ -58,7 +68,14 @@ KNOB_STEPS = {
 }
 
 # --- knob -> tc command templates (design §10.2; defaults from
-#     apply_sfc_queue_policy in the milestone-II experiment) ---
+#     apply_sfc_queue_policy in the milestone-II experiment).
+#     QDISC MODEL (M0 Issue-2 decision, "Model B" = milestone-II): the target
+#     field's drone-eth0 root qdisc is WHOLLY deployer-owned (just the knob), so
+#     `replace root` is correct — there is no impairment to preserve there. The
+#     scenario environment (delay/loss) lives on the SWITCH-side veths
+#     (s1-eth{N}), which the deployer never writes and the monitor reads (M5).
+#     A TUNE therefore composes with the environment without disturbing it, and
+#     rollback only has to restore the baseline knob (SFC_QOS_BASELINE). ---
 TC_TEMPLATES = {
     "tbf_rate_mbit": "tc qdisc replace dev {dev} root tbf rate {value}mbit burst 32kbit latency 50ms",
     "pfifo_limit": "tc qdisc replace dev {dev} root pfifo limit {value}",
@@ -86,4 +103,17 @@ SFC_ACTION_SPACE = {
     "EnergyAwareSFC":       {"legal_tiers": frozenset(("tune",)),
                              "legal_paths": frozenset(("primary",)),
                              "knob_ranges": {"tbf_rate_mbit": (5, 40)}},
+}
+
+# --- per-SFC qos BASELINE (Issue-2 / Model B): the knob value deploy() installs
+#     as the field's deployer-owned drone-eth0 root qdisc, and the value rollback
+#     reverts a TUNE to. Mirrors apply_sfc_queue_policy in the milestone-II
+#     experiment. A real binding may carry its own `qos`; this is the fallback
+#     when it does not (until the planner supplies it — M-K). ReliableRelay's
+#     policy is a netem (not a knob) and it adapts via reroute, so no baseline. ---
+SFC_QOS_BASELINE = {
+    "LowLatencyVideoSFC":    {"pfifo_limit": 20},
+    "BandwidthOptimizedSFC": {"tbf_rate_mbit": 80},
+    "EnergyAwareSFC":        {"tbf_rate_mbit": 5},
+    "ReliableRelaySFC":      {},
 }

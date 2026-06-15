@@ -77,14 +77,23 @@ def test_build_envelope_unknown_field_raises():
         KGClient(driver).build_envelope("ReliableRelaySFC", "Field_99")
 
 
-def test_read_field_requirements_maps_all_fields():
+def test_read_field_requirements_translates_kg_ids_to_runtime():
     driver = FakeDriver(responses=[[
         {"id": "Field_1", "lat": 20, "bw": 40},
         {"id": "Field_2", "lat": 50, "bw": 20},
     ]])
     reqs = KGClient(driver).read_field_requirements()
-    assert set(reqs) == {"Field_1", "Field_2"}
-    assert reqs["Field_1"].max_latency_ms == 20
+    assert set(reqs) == {"F1", "F2"}                  # KG Field_N -> runtime F_N
+    assert reqs["F1"].max_latency_ms == 20
+
+
+def test_build_envelope_translates_runtime_field_id_to_kg():
+    """The runtime passes F1; the KG is queried for Field_1 (and a binding that
+    already carries Field_1 passes through unchanged)."""
+    driver = FakeDriver(responses=[[{"lat": 20, "bw": 40}], [{"lat": 20, "bw": 40}]])
+    KGClient(driver).build_envelope("LowLatencyVideoSFC", "F1")
+    field_query = driver.calls[1]                     # the AgriculturalField MATCH
+    assert field_query[1]["field"] == "Field_1"       # translated F1 -> Field_1
 
 
 def test_read_last_good_roundtrips_payload():

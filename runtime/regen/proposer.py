@@ -36,9 +36,16 @@ class RegenProposer:
         rejected = [c.params[1] for c in prior]
         budget = self.max_rejects - len(prior)
         for _ in range(budget):
-            text = self.client.generate(build_prompt(
-                diag, env, state, entries, rejected,
-                self.switch, KNOWN_TABLES)).strip()
+            try:
+                text = self.client.generate(build_prompt(
+                    diag, env, state, entries, rejected,
+                    self.switch, KNOWN_TABLES)).strip()
+            except Exception:
+                # §7.4 fail-safe: a real serving endpoint that hangs/errors
+                # (timeout, 5xx, OOM) must degrade to escalate-sooner, NOT crash
+                # the episode. Treat any generation failure as a rejected attempt.
+                rejected.append("(generation error)")
+                continue
             if not validate(text):
                 rejected.append(text or "(empty)")
                 continue

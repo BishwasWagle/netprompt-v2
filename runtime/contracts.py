@@ -47,7 +47,9 @@ class Candidate:
     params by kind:
       tune:    (knob_name, new_value)
       reroute: (target_path,)
-      regen:   (rules_text,) or simulation effects (("path", v), ...) in fakes
+      regen:   (switch, rules_text)   — the real shape used by the proposer, gate,
+               and deployer. (FakeDeployer ALSO accepts simulation-effect tuples
+               (("path", v), ...) for the off-node scenario models.)
     """
     kind: str            # TUNE | REROUTE | REGEN
     params: tuple
@@ -221,8 +223,11 @@ def jsonable(obj):
 
 # ---------------------------------------------------------------------------
 # Deployer protocol (design §9/§10) — the surface the engine, evaluator, and
-# RuntimeManager actually consume. FakeDeployer implements it; the real
-# deployer (M4) must too:
+# RuntimeManager actually consume. The real deployer (M4) implements ALL of it;
+# FakeDeployer implements the subset the off-node engine/evaluator tests need
+# (state, capture, apply, rollback) — deploy/re_push/table_state/recover_switch
+# are node-only and exercised by the integration tests, so engine callers guard
+# the optional ones (`hasattr(deployer, "table_state")`).
 #
 #   state -> {"path": PRIMARY|BACKUP, "knobs": {knob: value}}
 #       current applied config; propose() reads it to step knobs / skip

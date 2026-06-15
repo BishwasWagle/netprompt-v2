@@ -173,8 +173,17 @@ class Deployer:
         self._tables = {}
         for switch, key in config.SWITCH_RULES_KEYS.items():
             text = Path(spec.binding[key]).read_text()
+            # Idempotent install: clear any residual entries first so deploy is
+            # safe at episode start on a resident network (launch_network.py
+            # already populated the tables) — a blind re-add hits DUPLICATE_ENTRY
+            # and emits no handle, like re_push. (M4-node finding.)
+            self._reset_switch(switch)
             self._install_rules(switch, text)
-        initial_qos = spec.binding.get("qos", {})
+        # Issue-2 / Model B: establish the field's deployer-owned baseline qdisc
+        # so a later TUNE is reversible (rollback reverts to these values). Prefer
+        # the binding's own qos; fall back to the per-SFC baseline when it omits
+        # one (until the planner supplies it — M-K).
+        initial_qos = spec.binding.get("qos") or config.SFC_QOS_BASELINE.get(spec.sfc, {})
         self._qos = {}
         for host in self.host_map.get(spec.target_field, []):
             self._qos[host] = {}
@@ -183,8 +192,8 @@ class Deployer:
         # Active path: backup-flavored bindings install the 0c identity
         # (milestone-II-latest); align the host side with the rules.
         backup = ("backup" in str(spec.binding.get("policy_type", "")).lower()
-                  or (self._find_s1_forward(config.EDGE_MAC_BACKUP) is not None
-                      and self._find_s1_forward(config.EDGE_MAC) is None))
+                  or (self._find_forward("s1", config.EDGE_MAC_BACKUP) is not None
+                      and self._find_forward("s1", config.EDGE_MAC) is None))
         self._set_path(BACKUP if backup else PRIMARY, force=True)
         return self.capture()
 
@@ -194,25 +203,18 @@ class Deployer:
             for host in self.host_map[self.spec.target_field]:
                 self._set_knob(host, knob, value)
         elif cand.kind == REROUTE:
-            # Three-part action (design §10.1, milestone-II-latest mechanics):
-            # (1) ensure s1 forwards the target path's edge MAC to its relay
-            # port; (2) bind 10.0.0.100 to that path's edge interface;
-            # (3) repoint every drone's static ARP at that MAC.
+            # Multi-switch action (design §10.1, milestone-II-latest mechanics;
+            # M0/C2 finding): (1) s1 forwards the target path's edge MAC to its
+            # relay port; (2) the destination RELAY switch forwards that same
+            # edge MAC to the edge (a primary SFC's s3 lacks the 0c entry, so
+            # without this the frame dies at s3); (3) bind 10.0.0.100 to that
+            # path's edge interface; (4) repoint every drone's static ARP — (3)
+            # and (4) are _set_path, which also re-arps the edge->drones.
             (path,) = cand.params
-            mac, port = config.EDGE_MACS[path], config.EDGE_PORTS[path]
-            entry = self._find_s1_forward(mac)
-            if entry is None:
-                out = self.runner.run_cli("s1", add_command(
-                    "forward_table", "forward", mac, (str(port),)))
-                handles = parse_handles(out)
-                if len(handles) != 1:
-                    raise DeployError("reroute: could not parse new entry handle")
-                self._tables.setdefault("s1", []).append(TableEntry(
-                    "forward_table", mac, "forward", (str(port),), handles[0]))
-            elif entry.args != (str(port),):
-                self.runner.run_cli("s1", modify_command(
-                    entry.table, entry.action, entry.handle, (str(port),)))
-                entry.args = (str(port),)
+            mac = config.EDGE_MACS[path]
+            relay, relay_port = config.RELAY_EDGE[path]
+            self._ensure_forward("s1", mac, config.EDGE_PORTS[path])
+            self._ensure_forward(relay, mac, relay_port)
             self._set_path(path)
         elif cand.kind == REGEN:
             switch, rules_text = cand.params
@@ -233,14 +235,54 @@ class Deployer:
             self._set_path(snapshot.active_path)     # host side back too
 
     def re_push(self, snapshot: ConfigSnapshot) -> None:
-        """Same revision, fresh full install (rung-1 system fix)."""
+        """Same revision, fresh full install (rung-1 system fix). Resets each
+        switch from its ACTUAL current entries first, so the install is clean
+        regardless of residual state: a restarted switch dumps empty (nothing
+        to delete); a switch that kept its tables is cleared. (M4-node: BMv2
+        rejects a re-add of an existing key with DUPLICATE_ENTRY and emits no
+        handle for it, so a blind reinstall trips the handle-count check.)"""
         for switch, key in config.SWITCH_RULES_KEYS.items():
             text = Path(snapshot.binding[key]).read_text()
+            self._reset_switch(switch)
             self._install_rules(switch, text)
         for host, knobs in snapshot.qos_state.items():
             for knob, value in knobs.items():
                 self._set_knob(host, knob, value)
         self._set_path(snapshot.active_path, force=True)
+
+    def recover_switch(self, switch: str, snapshot: ConfigSnapshot) -> None:
+        """Re-sync ONE switch to `snapshot`'s table state after it was restarted
+        (M6 watchdog, rung-1): the process restart is switch_control's job; this
+        restores the CURRENT committed config (incl. a reroute's entries), not the
+        base binding. Diffs by (table, KEY) — NOT handle — because a restart
+        re-numbers every handle, so a handle-based diff would churn (delete-all +
+        add-all, racy). When the post-restart base already matches the snapshot
+        (the common no-adaptation case) the diff is empty and nothing is touched."""
+        self._refresh_tables(switch)                      # live post-restart state
+        live = {(e.table, e.key): e for e in self._tables.get(switch, [])}
+        want = {(e.table, e.key): e
+                for e in snapshot.switch_table_dumps.get(switch, [])}
+        commands = []
+        for tk, w in want.items():
+            e = live.get(tk)
+            if e is None:
+                commands.append(add_command(w.table, w.action, w.key, w.args))
+            elif (e.action, tuple(e.args)) != (w.action, tuple(w.args)):
+                commands.append(modify_command(w.table, w.action, e.handle, w.args))
+        for tk, e in live.items():
+            if tk not in want:
+                commands.append(delete_command(e.table, e.handle))
+        if commands:
+            self.runner.run_cli(switch, "\n".join(commands))
+            self._refresh_tables(switch)                  # resync to fresh handles
+
+    def _reset_switch(self, switch: str) -> None:
+        """Delete every entry currently on `switch`, read from a live dump so
+        the handles are real even after a restart re-numbered them."""
+        self._refresh_tables(switch)
+        for e in list(self._tables.get(switch, [])):
+            self.runner.run_cli(switch, delete_command(e.table, e.handle))
+        self._tables[switch] = []
 
     # ---- internals ----
 
@@ -260,11 +302,31 @@ class Deployer:
         self.runner.run_host(host, tc_command(knob, value, _host_dev(host)))
         self._qos.setdefault(host, {})[knob] = value
 
-    def _find_s1_forward(self, mac: str) -> TableEntry | None:
-        for e in self._tables.get("s1", []):
+    def _find_forward(self, switch: str, mac: str) -> TableEntry | None:
+        for e in self._tables.get(switch, []):
             if e.table == "forward_table" and e.key == mac:
                 return e
         return None
+
+    def _ensure_forward(self, switch: str, mac: str, port: int) -> None:
+        """Idempotently make `switch` forward `mac` to `port` (add or modify),
+        keeping self._tables in sync. The reroute's per-switch primitive (M0/C2:
+        both s1 and the destination relay must point the edge identity)."""
+        args = (str(port),)
+        entry = self._find_forward(switch, mac)
+        if entry is None:
+            out = self.runner.run_cli(switch, add_command(
+                "forward_table", "forward", mac, args))
+            handles = parse_handles(out)
+            if len(handles) != 1:
+                raise DeployError(
+                    f"reroute: could not parse new entry handle on {switch}")
+            self._tables.setdefault(switch, []).append(TableEntry(
+                "forward_table", mac, "forward", args, handles[0]))
+        elif entry.args != args:
+            self.runner.run_cli(switch, modify_command(
+                entry.table, entry.action, entry.handle, args))
+            entry.args = args
 
     def _set_path(self, path: str, force: bool = False) -> None:
         """Bind the edge identity + drone ARP to `path` (mirrors the

@@ -111,9 +111,13 @@ Evaluation is at **field granularity** (not per-drone) — that's where requirem
 
 ### 5.2 Measurement — passive-first
 
-- **Throughput / loss:** read **per-port packet/byte counters passively**. Primary candidate: **OS-level veth interface stats** (`/sys/class/net/<intf>/statistics/`) on the switch ports — zero P4 change, per-port granularity maps port→drone→field. Alternative: declare P4 counters and read via thrift (`counter_read`) — more precise per-table, but requires modifying/recompiling the P4 programs. The S0 spike (§10.7) decides.
-- **Latency:** lightweight always-on `ping` (negligible load).
+- **Throughput / loss:** read **per-port packet/byte counters passively**. **Decided (S0 spike C6, 2026-06-14): OS-level veth interface stats** (`/sys/class/net/<intf>/statistics/`) on the **switch-side** ports — zero P4 change, per-port granularity, readable directly in the root namespace (no `mnexec`). The port→field map is **derived from `host_map`** (`network_monitor.port_map_from_hosts`: drone `dN` → s1 port `N`) so it is a single source of truth with the deployer's TUNE targeting. The P4-counter alternative (recompile) is the fallback if veth granularity ever proves too coarse for loss.
+- **Latency:** lightweight always-on `ping` from the drone namespace (negligible load). *Implementation note:* ping exits non-zero on loss, so the runner must not treat that as a command failure.
 - **`iperf`:** **only** for deliberate on-demand checks — chiefly confirming a backup path's capacity *before* committing a reroute. Never for continuous monitoring (it would congest the fabric it measures, and would *cause* the harm it's meant to detect).
+
+> **Throughput needs real traffic (node-verified).** Counters measure whatever the SFC is actually carrying; on an idle fabric every field reads ~0 Mbps and therefore *fails* its bandwidth bound — including at baseline. Harm detection (§5.4, `displaced_harm`) compares **met-at-baseline → unmet-now**, so a neighbour that already looks unmet at baseline can never register as harmed. In production the SFC carries continuous traffic; in evaluation, representative load must be running **through both the baseline window and the observation** for throughput/harm to be meaningful.
+
+> **Measurement point: per-field throughput is at the ACCESS link, upstream of the shared bottleneck (node-verified, M6).** The `s1-eth{N}` counters measure drone→s1 (what each field *sends*), which is upstream of the shared relay link (`s1→s2`, ~60 Mbit) where fields actually contend. So **shared-link contention is invisible to per-field throughput** — both an aggressor and its victim read full offered load regardless of shaping. Contention instead shows as **loss and latency** (drops + queuing at the bottleneck), read via ping — measured at the saturated relay, F2's RTT was ~246 ms vs ~55 ms once relieved (a precise 4× signal; ping-loss is too coarse with few packets). **Consequence:** the contention-harm scenario (§7.3) is diagnosed/relieved on **latency**, not bandwidth. (Per-field *bottleneck* throughput is not directly measurable — the `forward_table` merges all fields onto the one shared edge entry, so the bottleneck has no per-field counter.)
 
 ### 5.3 Snapshots — two artifacts, both KG-resident
 
@@ -187,6 +191,8 @@ class MonitorReport:
 
 Path health → switch status is attributed via the flows currently *using* that path. `kg_client` writes `ProgrammableSwitch.status`; [kg_path_selector.py](network/milestone-II/experiments/kg_path_selector.py)'s status→path logic then works unchanged on real state.
 
+**`system_sound` (rung 1) vs. `switch_status` (per-switch) — node-clarified.** Rung 1 bails the whole episode to `system_fault` with no adaptation, so `system_sound` must mean *the fabric genuinely can't carry traffic*, not merely *something is wrong*. The rule (`network_monitor._system_sound`): **unsound iff `s1` is Failed OR both relays are Failed** (no path exists). A **single** relay death stays *sound* on purpose — it is recoverable, so the loop should reach rung 4 and **reroute to the surviving relay** rather than bail. `Failed` means a dead process/thrift; `Degraded` (alive but SLA-violating) is **not** a fault and is handled by normal adaptation. (An earlier "any switch alive" rule was wrong: it called s1-dead "sound".)
+
 **Idle-path observability:** a Standby backup carries no traffic, so its health is *inferred*, not observed (`path_confidence`). This is why a Tier-1 reroute onto it requires the one-shot active `iperf` capacity check before commit.
 
 ### 5.6 Hysteresis
@@ -198,11 +204,11 @@ ok → suspect → violating     (needs K-of-M consecutive bad probes)
 violating → recovering → ok  (needs K-of-M consecutive good probes)
 ```
 
-`*.met` reflects the post-hysteresis state. The adapt engine's "re-observe over a full window" uses the same machine.
+`*.met` reflects the post-hysteresis state. The adapt engine's "re-observe over a full window" uses the same machine. *Node note:* `network_monitor.observe_window()` samples a **fresh** K-of-M window of M probes per call (each `observe` is independent), returning the sustained verdict for the current config — which matches the loop's one-observe-per-`apply` usage. (Probes are currently sampled back-to-back; spacing them by `PROBE_INTERVAL_S` is a fidelity refinement for flapping conditions, not needed for sustained faults.)
 
 ### 5.7 Exogenous-shift detection (for rung-3 causality)
 
-Rung 3 ("our change caused it?") cannot be a pure baseline metric-diff: if the baseline was captured before an environment shift (network fine at deploy, then conditions degrade mid-observation), a metric drop *looks* like our change caused it and triggers a wrongful rollback. The network monitor therefore exposes `exogenous_shift` — **did the underlying link characteristics change vs. baseline, independent of our config?** Estimated from passive path characteristics (e.g., measured per-link delay/loss/available-bandwidth drifting on links we didn't touch; on the testbed this corresponds to the scenario knob changing, in production to measured path conditions). Rung 3 attributes to *us* only when a regression occurs **and** `exogenous_shift` is false.
+Rung 3 ("our change caused it?") cannot be a pure baseline metric-diff: if the baseline was captured before an environment shift (network fine at deploy, then conditions degrade mid-observation), a metric drop *looks* like our change caused it and triggers a wrongful rollback. The network monitor therefore exposes `exogenous_shift` — **did the underlying link characteristics change vs. baseline, independent of our config?** Estimated from passive path characteristics (e.g., measured per-link delay/loss/available-bandwidth drifting on links we didn't touch; on the testbed this corresponds to the scenario knob changing, in production to measured path conditions). Rung 3 attributes to *us* only when a regression occurs **and** `exogenous_shift` is false. *Node implementation:* read by `parse_qdisc` over the **switch-side env veths** (`s1-eth{N}`) — the unmanaged links where, under Model B (§10.2), the scenario impairment lives — and compared to the baseline qdisc (`pipeline.qdisc_shifted`). Because the deployer's TUNE only touches drone-`eth0`, a knob change can never be misread as an exogenous shift.
 
 ---
 
@@ -235,9 +241,11 @@ COMMIT PATH:
 
 Notes:
 - **Rung-1 tiered fix order:** re-push the *same* revision first (recovers transient process/install faults cheaply), then rollback to last-known-good if the re-push fails or the fault recurs. System fixes are not adapt attempts and draw no retry budget.
-- **Rung 3 causality** = `(metric regressed vs baseline) AND (not exogenous_shift)`. A regression coinciding with an exogenous shift (link conditions changed underneath us, §5.7) is attributed to the environment → skip rollback, go to rung 4. Without the `exogenous_shift` guard the evaluator would wrongly roll back environment-caused regressions. Conservative by design.
+- **Rung 3 causality** = `(target margin dropped by more than `REGRESSION_EPS`) AND (not exogenous_shift)`. A regression coinciding with an exogenous shift (link conditions changed underneath us, §5.7) is attributed to the environment → skip rollback, go to rung 4. Without the `exogenous_shift` guard the evaluator would wrongly roll back environment-caused regressions. The `REGRESSION_EPS` (0.02) deadband was added after the real monitor showed `vs_baseline` jitters ~1e-7 on idle flows — without it, measurement noise triggered spurious rollbacks (node-verified). Conservative by design. *(The analogous deadband is still owed on the headroom/`improves` paths — §13b.A.)*
 - **Stage 5 uses Option B** (see §7): harm is first treated as an in-envelope problem to adapt around; escalation only when no harm-free config exists in budget.
 - **Recording:** healthy, marginal, rollback, and escalation verdicts all write a `Verdict` + attribution `trace` to the KG. `Results + analytics` aggregates these for the planner.
+
+> **Bounds must be calibrated to the real testbed (node-verified, important for evaluation).** Measured edge round-trips are **~40 ms on the primary path and ~52 ms on the backup**. So a field whose KG bound is, e.g., LowLatency's **20 ms** is **physically unachievable** on this fabric — with the real monitor it can never pass rung 2, so the loop exhausts its tiers and *correctly* escalates ("no in-envelope fix"). This is the fixtures-vs-real-testbed gap (risk register): the synthetic scenario models assumed reachable numbers; the wires have their own physics. For live evaluation, either pick bounds the path can meet (the 50 ms field is met on primary), expect escalation as the correct outcome, or relax the bound / reduce link delay to calibrate. The off-node scenario fixtures remain the algorithmic spec; the live runs are where bounds get reconciled to hardware.
 
 ---
 
@@ -357,6 +365,17 @@ Reads strategic state, writes **runtime** state. Never writes the SFC library.
 **JSON-string properties** via `contracts.jsonable` — Neo4j properties cannot hold
 nested maps. All runtime writes carry `updated_by: 'runtime-manager'`.
 
+> **Field-id translation at the KG boundary (node-verified 2026-06-15).** The live
+> KG's `AgriculturalField` ids are `Field_1…Field_5`; the runtime uses short ids
+> `F1/F2` throughout (fixtures, host_map, monitor, `target_field`). `kg_client`
+> translates at its boundary (`_to_kg_field`/`_from_kg_field`, `F<n>↔Field_<n>`) so
+> the runtime stays on `F1/F2` and never learns the KG's naming — `build_envelope`
+> maps the input field in, `read_field_requirements` maps the output ids out, and
+> either form passes through unchanged in the matching direction (so an M-K binding
+> carrying `Field_1` also works). The pairing is fixed by bounds: `F1=Field_1`
+> (20 ms/40 Mbps), `F2=Field_2` (50 ms/20 Mbps). Open M-K item: which form
+> `DeploymentSpec.target_field` carries — the translation tolerates either.
+
 ---
 
 ## 9. Interfaces & Contracts
@@ -423,13 +442,17 @@ Both P4 programs forward purely by **destination MAC → egress port** via `forw
 - **primary:** `edge-eth0`, MAC `00:00:00:00:00:0b`, reached via s2 (s1 entry `0b => 11`)
 - **backup:** `edge-eth1`, MAC `00:00:00:00:00:0c`, reached via s3 (s1 entry `0c => 12`)
 
-The active path is selected by **which interface owns 10.0.0.100 plus the drones' static ARP** — not by switch tables alone. Reroute is therefore a **three-part action** (`Deployer._set_path`, all through the same Runner):
+The active path is selected by **which interface owns 10.0.0.100 plus the drones' static ARP** — not by switch tables alone. Reroute is therefore a **five-part action** (`Deployer.apply` REROUTE + `_set_path`, all through the same Runner):
 
-1. ensure s1 forwards the target identity's MAC to its relay port (`table_add`/`table_modify`, gate-checked);
-2. rebind `10.0.0.100` to the target interface (`ip addr flush/add`, `ip link set address`, `ip route replace` on the edge host);
-3. repoint every drone's static ARP for `10.0.0.100` at the target MAC.
+1. ensure **s1** forwards the target identity's MAC to its relay port (`table_add`/`table_modify`, gate-checked);
+2. ensure the **destination relay switch** forwards that same edge MAC to its edge-facing port (`config.RELAY_EDGE`: primary→`(s2, 2)`, backup→`(s3, 2)`);
+3. rebind `10.0.0.100` to the target interface (`ip addr flush/add`, `ip link set address`, `ip route replace` on the edge host);
+4. re-add the edge's static ARP for **every drone** (the `ip addr flush` in step 3 clears the connected ARP entries, killing the return path);
+5. repoint every drone's static ARP for `10.0.0.100` at the target MAC.
 
-Extra (inactive-identity) entries on s1 are harmless; the gate's L2 invariant requires every drone MAC routable **and the edge reachable on at least one of its identities** (which one is *active* is a host-side fact the post-deploy monitor verifies — sound vs noisy).
+> **Node-verified correction (M0 spike C2, 2026-06-14).** The original design described this as a *three-part* action (steps 1, 3, 5). On the live testbed that gives **100% loss** even though s1's TX counter grows: (a) under a primary SFC the destination relay (e.g. `s3`) has **no entry for the backup edge MAC `0c`**, so frames reach it and are dropped there → **step 2** is required; (b) flushing the edge interface clears its static ARP for the drones, so the edge can't reply → **step 4** is required (`launch_network.configure_hosts` already did this; the abbreviated flip did not). With all five parts the flip drops **exactly one in-flight packet** (sub-200ms), within the engine's re-observe window. The Deployer applies this idempotently (find-or-add-or-modify per switch); rollback removes the relay entry via the same per-switch semantic diff.
+
+Extra (inactive-identity) entries on s1/relays are harmless (verified negative check); the gate's L2 invariant requires every drone MAC routable **and the edge reachable on at least one of its identities** (which one is *active* is a host-side fact the post-deploy monitor verifies — sound vs noisy).
 
 > **Scope caveat — reroute is fabric-global.** `forward_table` keys on **destination** MAC only, and all upstream (drone→edge) traffic shares the one edge-MAC entry — so flipping it moves **every field's** upstream traffic, not just the target's. Per-field upstream path-splitting is impossible without changing the P4 key structure (src/IP-based matching) — a planner-adjacent SFC redesign, out of scope. Implications: (1) reroute helps when the problem is **path quality** (primary degraded/lossy), not **shared-bandwidth contention** — everyone moves together, so contention follows; (2) Tier-2 regen's action space in the current thin P4 is correspondingly narrow: per-drone **downstream** entries and the (unread) policy tables. Regen's research value here is demonstrating the constrained-LLM mechanism safely; its power grows as the P4 grows richer.
 
@@ -444,6 +467,8 @@ Because forwarding is static MAC→port and the metadata class is unread, the **
 | 2 · regen | LLM rewrites `forward_table` / policy entries (existing tables + actions only) | thrift |
 
 > **Caveat (reviewer-relevant):** the P4 program is thin — making the pipeline actually *read* `relay_mode` to choose egress would be a P4/SFC redesign (planner-adjacent) and is **out of scope**. Adaptation works entirely via `table_modify` + `tc`.
+
+> **Qdisc-ownership decision ("Model B", node-verified 2026-06-14).** A `tc qdisc replace … root` for a TUNE **replaces the whole root qdisc**, destroying the TCLink `htb+netem` that carries the scenario's delay/loss. We resolve this the way milestone-II's `apply_sfc_queue_policy` did: the **target field's drone-`eth0` root qdisc is wholly deployer-owned** (just the knob), so `replace root` is correct — there is nothing to preserve there. The scenario **environment lives on the switch-side veths** (`s1-eth{N}`), which the deployer never writes and the monitor reads (§5.2, §5.7) — so a TUNE composes with the environment without disturbing it. For rollback to be possible, every deploy installs a **baseline knob** (`config.SFC_QOS_BASELINE`, overridable by a binding's `qos`); a TUNE then reverts to it. *Known asymmetry:* only the target field's drones become knob-owned, so their **upstream** access-link impairment is dropped (downstream, switch-side, is retained) — matching milestone-II, and acceptable because the baseline is captured after the knob is applied, keeping harm/regression baseline-relative.
 
 ### 10.3 Live re-install needs no teardown
 
@@ -463,21 +488,30 @@ dynamic_sfc_p4_multihop_experiment.py  →
 
 `table_modify`/`table_delete` need the entry **handle** — parse it from `table_add` output on install, or read it via `table_dump`. `ConfigSnapshot.switch_table_dumps` stores `{switch, table, key, handle, action, args}` so reroute and rollback are deterministic.
 
+> **Node findings (M4, 2026-06-14).**
+> - **BMv2 handles are versioned, not sequential.** After add/delete churn the same slot is re-issued a large handle (e.g. `0x01000000`, `0x02000000` — the high bits encode a reuse generation), not `0,1,2`. The parsers capture any integer and rollback re-reads handles after every re-add, so this is handled — but **nothing may assume handle stability across re-adds**. (Off-node fixtures use small handles; that's fine for unit tests but not reality.)
+> - **`deploy` and `re_push` must be idempotent.** A blind re-install on a switch that still holds its entries hits `Invalid table operation (DUPLICATE_ENTRY)`, which emits **no handle** → the `len(handles)==len(rules)` check fails. Both now **reset each switch from a live dump (delete-all) before installing**, so they're safe on a resident network (a restarted switch dumps empty; a populated one is cleared first).
+> - **Never roll back *across* a re_push.** `_restore_tables` is handle-based and `re_push` re-numbers handles; rolling a pre-re_push snapshot onto post-re_push state diffs incompatible handle spaces. A recovery **re-baselines** (§7.6) instead.
+
+> **Switch watchdog / rung-1 recovery recipe (M6, node-verified).** A BMv2 switch can crash under churn (§10.7 item 4); the watchdog must restore the **current committed** config, not the base binding. The validated recipe is **per-switch**: (1) `switch_control.restart_switch(name)` relaunches the process on its existing veths and reinstalls the base rules — with **retries** (the thrift port can be in TIME_WAIT just after the kill, and a relaunch that doesn't bind in time orphans a duplicate; each attempt reaps all prior ones first); (2) `Deployer.recover_switch(name, last_good)` re-syncs that switch's tables to the committed snapshot, **diffing by (table, KEY) — not handle** (a restart re-numbers every handle, so a handle diff churns into delete-all+add-all and races into `DUPLICATE_ENTRY`; the key-diff is a no-op when the post-restart base already matches, and adds just a committed reroute's delta otherwise). Per-switch so the healthy switches aren't disturbed. *Note (review #8):* this recovery is currently driven by the **soak harness** (`tools/soak.py`); the evaluator's rung-1 `system_fault` verdict is not yet wired to trigger it inside `run_episode` — see §13 backlog.
+
 ### 10.6 Network ownership — and the out-of-band insight
 
 > **Switch mutation (reroute, regen) is out-of-band over thrift** — `simple_switch_CLI` talks to the switch's thrift TCP port directly and does **not** need the Mininet Python process. Only **`tc` (tune)** needs host-namespace access.
 
 So: a long-lived launcher brings up Mininet+BMv2 once and stays resident; the Deployer drives switches via `simple_switch_CLI` to ports 9090–92 (process-independent) and host `tc` via `mnexec`/`ip netns exec`. Fits the existing SSH-from-controller orchestration ([run_selected_sfc.py](controller/run_selected_sfc.py)).
 
-### 10.7 On-node verification checklist (cannot test on the Windows dev box)
+### 10.7 On-node verification checklist — **PASSED 2026-06-14** (now migrated to the Chameleon network-node)
 
-1. `table_add` handle output vs. `table_dump`; `table_modify <table> <action> <handle> => <port>` semantics.
-2. Live egress change takes effect immediately for in-flight flows.
-3. Host `tc` out-of-process via `mnexec` / `ip netns exec`.
-4. BMv2 long-run stability across many iterations; `/tmp/bmv2-*.ipc` handling.
-5. Confirm s1 port 11 = →s2, port 12 = →s3.
-6. Passive counter channel: veth `/sys/class/net/*/statistics` granularity + update rate vs. declaring P4 counters (recompile). Pick one (§5.2).
-7. The three-part path flip (§10.1) works live, and the negative check holds: a table flip *alone* breaks connectivity (confirming the dual-identity mechanics), while extra inactive-identity entries are harmless.
+Run with the resident `tools/launch_network.py`; full protocol + results in [tools/spike_s0.md](../runtime/tools/spike_s0.md).
+
+1. ✅ `table_add` prints `Entry has been added with handle N`; `table_dump` is `Dumping entry 0x…`; **both** `table_modify … => args` and bare-args forms are accepted (deployer's `=>` form is correct). *(See §10.5 on versioned handles.)*
+2. ✅ Live egress change takes effect immediately — the **five-part** flip (§10.1) drops exactly one in-flight packet.
+3. ✅ Host `tc`/ping out-of-process via `sudo mnexec -a <pid>` (anchored `pgrep -f 'mininet:dN$'` — unanchored matches `d1`→`d10`); shell constructs need an inner `sh -c`.
+4. ◐ BMv2 came up stable, but **crashes under heavy table churn** with no watchdog (the resident launcher stays "up" while its switches die — `/tmp/s1.log`: "open: No such file or directory"). Confirms the watchdog need (a dead switch is a rung-1 fault the loop should self-heal). The ≥1h soak is still owed before M6.
+5. ✅ s1 port 11 → s2, port 12 → s3; `s1-eth11/12` present.
+6. ✅ **Decision: veth `/sys/class/net/*/statistics`** (zero P4 change) — see §5.2.
+7. ✅ Flip works live and the negative check holds (extra inactive-identity entries harmless) — **but the flip is five-part, not three** (§10.1): the destination relay needs the edge-identity entry and the edge must re-ARP the drones, else 100% loss.
 
 ---
 
@@ -531,9 +565,38 @@ Each phase is testable against the existing BMv2 setup; `DeploymentSpec` is stub
 
 1. **Live re-install mechanics — documented in §10.** Remaining work is the on-node verification checklist (§10.7), not design.
 2. **DeploymentSpec / EscalationTicket schema sign-off** with Kiran — the only cross-boundary contracts.
-3. **Tier-2 regen prompt + grammar — resolved.** Implemented in `runtime/regen/`: GBNF generated from the gate's constants, verbatim prompt TEMPLATE, stub client, stateless K-cap. What remains for M7 is only the real serving endpoint (vLLM/llama.cpp + pinned Qwen-Coder revision, with `gbnf()` as the guided-decoding constraint) and the multi-model comparison harness.
+3. **Tier-2 regen prompt + grammar — resolved.** Implemented in `runtime/regen/`: GBNF generated from the gate's constants, verbatim prompt TEMPLATE, stub client, stateless K-cap. What remains for M7 is the real serving endpoint (vLLM/llama.cpp + pinned Qwen-Coder revision, with `gbnf()` as the guided-decoding constraint) and the multi-model comparison harness — **plus the review-#8 prerequisites in §13b.B** (plumb `gbnf()` through the proposer, decide gate L3; the exception fail-safe is already fixed).
 4. **Deploy backend** — keep BMv2 thrift for Milestone III, or invest in true P4Runtime gRPC? (Isolated to `deployer.py`.)
-5. **Persistent network** — confirm the demo environment can keep Mininet/BMv2 up across loop iterations.
+5. **Persistent network — confirmed.** `tools/launch_network.py` holds Mininet/BMv2 resident across loop iterations; the Deployer/Monitor drive it out-of-band (thrift + `mnexec`). The one caveat is BMv2 stability under churn (§10.7 item 4) → a **switch watchdog** in the launcher is the open item before the M6 soak.
+6. **KG reachability — confirmed.** `bolt://controller-node:7687` is reachable from network-node and the `neo4j` Python driver (6.2.0) is installed; `kg_client` (injectable driver) is ready to wire its real reads/writes into the loop (§8), replacing the hardcoded `update_topology_state.py`.
+7. **Testbed bound calibration** (§6 blockquote) — reconcile per-field SLA bounds to measured path latency (~40 ms primary / ~52 ms backup) before live evaluation, or treat over-tight bounds' escalation as the expected outcome.
+
+---
+
+## 13b. Known issues & hardening backlog (whole-codebase review #8, 2026-06-15)
+
+A 3-perspective review (M7/regen, the algorithmic core under real noise, contracts/M-K). **The system's safety properties hold** — `dominates` keys off *smoothed* met booleans (noise never drives an accepted regression), the post-deploy monitor + rollback catches a blackholing config, report metrics are window-averaged, and escalation is the fail-safe — so the items below are **near-bound inefficiency, M7-time prerequisites, or M-K contract questions, not unsafety.** The three live acceptance scenarios sidestep them by using clear-signal conditions. Listed so future hardening is targeted, not speculative.
+
+**Fixed in this review:** the regen proposer now catches `generate()` exceptions (a real serving endpoint that hangs/5xx must escalate, not crash — §7.4); `Candidate.params` regen docstring corrected to `(switch, rules_text)`.
+
+**A. Near-bound noise (mitigated; harden only when a *marginal* scenario needs it).**
+- `commit_outcome` (healthy vs marginal) compares headroom to `HEADROOM_TAU` with no deadband, and `improves` uses `EPS_IMPROVE=0.02` against headroom — both raw window-averaged margins can jitter near a bound, flipping verdict-flavor (both still commit) or admitting a noise-only "partial progress" in the hill-climb. The rung-3 regression path already got a `REGRESSION_EPS` deadband (the pattern to copy if needed).
+- `diagnose` picks the worst metric by raw margin: an *unreachable* flow (rtt→10 000 ms sentinel) always reads "latency-worst" (it's really a routing problem) → one wasted tune, then tier-escalates to reroute; coarse ping-loss (few packets) can flip the chosen knob direction. The dominates guard + escalation keep this *safe*, just inefficient.
+- Hysteresis cold-start: a fresh K-of-M window can flip violating on the first K bad probes (a post-apply settling transient). The acceptance scenarios sleep after an apply before observing.
+
+**B. M7 (Tier-2 real serving) prerequisites** (see §7 Tier-2 + impl-plan §M7).
+- `gbnf()` is **not plumbed through the proposer** (it calls `generate(prompt)` with no grammar arg) — the real vLLM/llama.cpp client must apply the GBNF constraint internally, else raw output burns the K-cap.
+- **Gate L3 (dry-install) is undecided/unimplemented** (the gate stops at L2): a regen passing L0–L2 simulation can still fail at real BMv2 install (DUPLICATE_ENTRY / handle drift). Mitigated by deployer idempotency + dominates catching a bad install post-deploy.
+- The GBNF over-accepts vs the gate on egress-port range and key-type-per-table → gate-rejected, wasted K-cap (harmless); greedy decoding isn't bitwise-reproducible across vLLM versions.
+
+**C. Design-vs-code gaps.**
+- **rung-1 `re_push` is not wired into the live loop.** The evaluator returns `system_fault` terminally; the M6 watchdog (§10.5) recovers switch *death* via `recover_switch` from the soak harness, but `run_episode` does not yet trigger a re_push/rollback on `system_fault`. Decide for M6-final/M7.
+- The off-node fakes implement a *subset* of the deployer/monitor protocol (engine callers guard the node-only methods with `hasattr`); the full real surface is exercised only by the integration tests.
+
+**D. M-K (planner-boundary) contract items — settle with Kiran.**
+- **Field-id direction:** the runtime translates `Field_N→F_N` on KG *reads* only; *write* payloads (`BaselineSnapshot.per_flow`, `EscalationTicket.observed`) carry runtime `F1/F2` ids, so a planner reading them must apply the inverse map. Undocumented in the planner contract.
+- `jsonable` is **one-way** (tuples/frozensets → JSON lists), so a planner cannot rebuild a `Candidate` from a persisted `trace` without re-tupling.
+- The §4 questions in `docs/runtime-planner-contracts.md` remain open: handoff Option 1 (thin) vs 2 (full), transport (KG-node+poll vs direct invoke), escalation-ack convention, extra `Verdict` cost fields, and who owns the baseline qos/qdisc.
 
 ---
 

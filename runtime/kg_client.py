@@ -13,12 +13,30 @@ Neo4j properties cannot hold nested maps.
 from __future__ import annotations
 
 import json
+import re
 
 from runtime import config
 from runtime.contracts import (
     BaselineSnapshot, ConfigSnapshot, Envelope, EscalationTicket, Verdict,
     jsonable,
 )
+
+# Field-id translation at the KG boundary: the runtime uses short ids (F1, F2);
+# the KG's AgriculturalField nodes use Field_1, Field_2, … Translate so the
+# runtime never has to know the KG's naming (and an M-K binding may carry either
+# form — both pass through unchanged in the direction that already matches).
+_RUNTIME_FIELD = re.compile(r"^F(\d+)$")
+_KG_FIELD = re.compile(r"^Field_(\d+)$")
+
+
+def _to_kg_field(field_id: str) -> str:
+    m = _RUNTIME_FIELD.match(field_id)
+    return f"Field_{m.group(1)}" if m else field_id
+
+
+def _from_kg_field(kg_id: str) -> str:
+    m = _KG_FIELD.match(kg_id)
+    return f"F{m.group(1)}" if m else kg_id
 
 
 class KGClient:
@@ -51,7 +69,7 @@ class KGClient:
                 "MATCH (f:AgriculturalField {id:$field}) "
                 "RETURN f.latency_requirement_ms AS lat, "
                 "f.bandwidth_requirement_mbps AS bw",
-                field=target_field).single()
+                field=_to_kg_field(target_field)).single()
         if f is None:
             raise LookupError(f"unknown field {target_field!r}")
         lats = [v for v in ((t or {}).get("lat"), f["lat"]) if v is not None]
@@ -76,7 +94,7 @@ class KGClient:
                 "MATCH (f:AgriculturalField) RETURN f.id AS id, "
                 "f.latency_requirement_ms AS lat, "
                 "f.bandwidth_requirement_mbps AS bw")
-            return {r["id"]: Envelope(
+            return {_from_kg_field(r["id"]): Envelope(
                         max_latency_ms=r["lat"], min_bandwidth_mbps=r["bw"],
                         max_loss_percent=config.DEFAULT_MAX_LOSS_PERCENT)
                     for r in rows}

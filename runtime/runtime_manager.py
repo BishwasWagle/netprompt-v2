@@ -18,7 +18,7 @@ class RuntimeManager:
     def __init__(self, deployer, monitor, gate,
                  budget_n: int = config.BUDGET_N,
                  active_capacity_ok=None, current_tables: dict | None = None,
-                 regen_proposer=None):
+                 regen_proposer=None, kg=None):
         self.deployer = deployer
         self.monitor = monitor
         self.gate = gate
@@ -26,15 +26,30 @@ class RuntimeManager:
         self.active_capacity_ok = active_capacity_ok
         self.current_tables = current_tables
         self.regen_proposer = regen_proposer
+        self.kg = kg                                 # optional KGClient (§8 writes)
+        self.kg_write_failures = 0                    # best-effort write counter
         # Pre-deploy state is the first last-known-good (rung-3 rollback target).
         self.last_good = deployer.capture()
+
+    def _kg_write(self, method: str, *args) -> None:
+        """KG writes are best-effort: a transient Neo4j failure must never abort
+        an episode (critical for the M6 soak — recording is not the loop's job).
+        Failures are swallowed and counted."""
+        if self.kg is None:
+            return
+        try:
+            getattr(self.kg, method)(*args)
+        except Exception:
+            self.kg_write_failures += 1
 
     def run_episode(self, spec: DeploymentSpec, timestamp: str = "") -> EvalResult:
         # Pre-deploy gate: a refused binding never reaches the network.
         g = self.gate.check_binding(spec)
         if not g.ok:
-            return EvalResult(Verdict(spec.correlation_id, "rejected", 0, 0.0,
-                                      [g.reason], timestamp))
+            result = EvalResult(Verdict(spec.correlation_id, "rejected", 0, 0.0,
+                                        [g.reason], timestamp))
+            self._kg_write("write_verdict", result.verdict)   # a refusal is a verdict
+            return result
 
         ctx = EvalContext(
             deployer=self.deployer, monitor=self.monitor, gate=self.gate,
@@ -45,10 +60,33 @@ class RuntimeManager:
             regen_proposer=self.regen_proposer,
             timestamp=timestamp,
         )
-        result = evaluate(spec, self.monitor.observe_window(), ctx)
+        report = self.monitor.observe_window()
+        # Monitor-computed switch status replaces the hardcoded SCENARIO_STATE;
+        # the pre-cutover baseline (§5.3) is visible regardless of outcome (a
+        # commit overwrites it below with the re-baselined one, same key).
+        self._kg_write("write_switch_status", report.switch_status, timestamp)
+        snap = self._baseline_snapshot(spec, report, timestamp)
+        if snap is not None:
+            self._kg_write("write_baseline", snap)
+        result = evaluate(spec, report, ctx)
+        self._kg_write("write_verdict", result.verdict)
+        if result.ticket is not None:
+            self._kg_write("write_escalation", result.ticket, timestamp)
 
         if result.verdict.outcome in ("healthy", "marginal"):
             # §7.6: any commit ends the episode — promote, re-baseline.
             self.last_good = self.deployer.capture()
             self.monitor.rebaseline()
+            self._kg_write("write_last_good", self.last_good, timestamp)
+            snap = self._baseline_snapshot(spec, report, timestamp)
+            if snap is not None:
+                self._kg_write("write_baseline", snap)
         return result
+
+    def _baseline_snapshot(self, spec, report, timestamp):
+        """The monitor's post-commit baseline as a BaselineSnapshot, if it
+        exposes one (the real NetworkMonitor does; the fake doesn't)."""
+        make = getattr(self.monitor, "baseline_snapshot", None)
+        if make is None:
+            return None
+        return make(spec.correlation_id, report.switch_status, timestamp)

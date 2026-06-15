@@ -3,13 +3,19 @@
 **Companion to:** [runtime-manager-design.md](runtime-manager-design.md) (v2). Section references (§) point there.
 **Owner:** Kevin. **Planner boundary:** unchanged — nothing here touches Kiran's files or responsibilities.
 
-> **Status (2026-06-12, branch `Run-time-Manager`, 129 unit tests green).**
-> The **local track is complete**: M1 ✅ · M2 ✅ · M3 ✅ · M4 ◐ (command/parse
-> layer + Deployer protocol done; real Runner remains) · M5 ◐ (computation
-> pipeline + kg_client done; sampler wiring remains) · M0 ✅ kit built, not yet
-> run · M7 ◐ (regen grammar/prompt/proposer + stub model done; real serving
-> remains) · M6 ☐ node-bound · M-K ☐ drafted, awaiting Kiran's sign-off.
-> Everything remaining requires the Chameleon nodes.
+> **Status (2026-06-15, branch `Run-time-Manager`, on the Chameleon network-node, 166 unit + 10 integration tests green).**
+> Local track complete and **node bring-up nearly done**: M1 ✅ · M2 ✅ · M3 ✅ ·
+> **M0 ✅ RUN & PASSED** (spike findings folded into the design doc) · **M4 ✅**
+> (real `NodeRunner` + Deployer fixes, the full deploy→flip→rollback→re_push exit
+> verified live) · **M5 ✅** (real `network_monitor`/`system_monitor` sampler,
+> induced-fault exit tests, `kg_client` wired into the loop — all live) ·
+> **M6 ◐** (all **3 acceptance scenarios pass LIVE** — reroute-and-commit,
+> ddil-escalate, contention-harm-tune-commit; watchdog + soak harness built &
+> validated by a short soak; only the **≥1h soak run** remains) · M7 ◐ (regen
+> plumbing + stub done; real serving remains — see review-#8 prereqs in §M7) ·
+> M-K ☐ awaiting Kiran (open items in design §13). The deterministic baseline
+> (M0–M6, Tier-2 stubbed) is demonstrated end-to-end on the live testbed.
+> See §7 "Node bring-up findings" + design §13 "Known issues & hardening backlog".
 
 ---
 
@@ -78,7 +84,7 @@ Bring up the existing multihop topology, pause before teardown, and verify by ha
 5. Port map confirm (s1 port 11→s2, 12→s3); BMv2 stability over ~1h idle + repeated CLI sessions.
 
 **Exit:** `tools/spike_s0.md` records answers; deployer + monitor APIs are unblocked. *If any item fails (e.g., `table_modify` semantics differ), the fallback is `table_delete`+`table_add` — same API, noted in the spike doc.*
-*Status: kit built and syntax-checked (`launch_network.py`, `spike_s0.sh`, `spike_s0.md` with a decision-to-code mapping per check); not yet run on the node.*
+*Status: **RUN & PASSED on network-node 2026-06-14** (`spike_s0.md` results filled). Headline finding: the reroute is a **five-part** action, not three (relay-switch entry + edge re-ARP) — folded into design §10.1. Counter channel = veth sysfs (§5.2). `mnexec` confirmed as `run_host`. Versioned handles + `deploy`/`re_push` idempotency (§10.5). One open item: BMv2 crashes under churn → switch watchdog before M6.*
 
 ### M1 · Contracts + fakes + test harness (local) — M
 `contracts.py`, `config.py`, `fakes.py`, and **scenario fixtures**: a small library of synthetic `MonitorReport` sequences encoding each scenario (healthy, causal regression, environment regression, contention harm, path-quality fault, ddil-everything-degraded). `FakeDeployer` tracks applied candidates and supports rollback; `FakeMonitor` replays fixture sequences with candidate-dependent branches (e.g., "if rerouted, backup metrics apply").
@@ -105,22 +111,29 @@ Bring up the existing multihop topology, pause before teardown, and verify by ha
 ### M4 · Node track: topology holder + real deployer — M (needs M0)
 `tools/launch_network.py` (extract topology from the experiment script; runs resident, never tears down; cleans `/tmp/bmv2-*.ipc` on start) and `deployer.py` (rules via `simple_switch_CLI` to 9090–92 with handle tracking per M0; `tc` via the M0-verified namespace mechanism; `ConfigSnapshot` capture; deterministic rollback).
 **Exit (integration):** deploy LowLatency binding → live-flip to backup → rollback → re_push, all on one uninterrupted network, verified by ping continuity.
-*Status: local half done — `deployer.py` (builders, parsers, handle tracking, semantic-diff rollback, `table_state()`) over an injectable Runner, with `ScriptedRunner` tests; `launch_network.py` written. Remaining: the real Runner (subprocess/SSH + the C3-verified namespace mechanism) and the integration exit above.*
+*Status: **DONE 2026-06-14.** `runtime/node_runner.py` (`NodeRunner`: `simple_switch_CLI` over thrift + `sudo mnexec -a <pid> sh -c`, anchored pgrep, `RunnerError` on thrift-down/timeout; injectable executor → 11 off-node tests). Deployer gained the multi-switch reroute (`config.RELAY_EDGE`, §10.1), the Model-B qos baseline (`config.SFC_QOS_BASELINE`, §10.2), and idempotent `deploy`/`re_push` (§10.5). The integration exit **passes live** (`tests/integration/test_m4_node_exit.py`): deploy → live flip → rollback → re_push on one uninterrupted network, ping-continuous.*
 
 ### M5 · Node track: real monitors + KG client — M
 `network_monitor.py` (per-field metrics from the M0 counter channel + namespace pings; hysteresis; baseline capture; harm/headroom/exogenous-shift computation — on the testbed, exogenous shift can be read from `tc qdisc show` on link interfaces we don't manage), `system_monitor.py` (PID/thrift/table checks → status table §5.5), `kg_client.py` (all §8 reads/writes; **replaces `update_topology_state.py`'s hardcoded writes** — that script stops being called by our loop; the file itself is untouched).
 **Exit (integration):** live `MonitorReport` matches induced conditions (kill s2 → `Failed`; congest primary → `Degraded`; harm list populates when a field is squeezed); baseline + status visible in Neo4j.
-*Status: local half done — `monitors/pipeline.py` (hysteresis, counter math, parsers, exogenous shift, status derivation, the shared `assemble_report`) and `kg_client.py` (injectable driver, envelope composition, JSON-payload writes). Remaining: sampler wiring (real sysfs paths, namespace ping, thrift liveness) + the integration exit above.*
+*Status: ◐ **core sampler built + live-smoke'd 2026-06-14.** `monitors/network_monitor.py` (`NetworkMonitor` window loop / hysteresis / status / report assembly over an injectable `sampler`; `NodeSampler` real I/O) + `monitors/system_monitor.py` (process/thrift liveness). `port_map` derived from `host_map`; env read switch-side (Model B); `system_sound` clarified (unsound iff s1 or both relays Failed — §5.5). 10 off-node tests; live smoke produced a real `MonitorReport`. Wired as `--monitor real` in `tools/run_episode.py`. **Induced-fault exit PASSES live** (`tests/integration/test_m5_monitor_node.py`): **kill s2** → `switch_status[s2]=Failed`, system stays sound (reroute-able); **congest primary** → target unmet + s2 `Degraded`; **squeeze a neighbour** → `displaced_harm=[F2]`. Plus `tools/switch_control.py` (the M6 watchdog primitive: kill/restart a single BMv2 + reinstall rules). Designed around the constraints (§6 bounds, §5.2 traffic): achievable bounds, rate-limited UDP, netem-child congestion. **KG wired into the loop** (`RuntimeManager(kg=…)`): switch_status + baseline on the entry observe, verdict always, escalation/last_good on the matching outcomes; field-id translation at the `kg_client` boundary (F1↔Field_1). Validated live against Neo4j (Verdict/Baseline/EscalationTicket/ProgrammableSwitch.status written, then cleaned up). **M5 COMPLETE** — 163 unit + 7 integration green.*
 
 ### M6 · End-to-end deterministic system (node) — M
 Wire `runtime_manager.py` over real deployer + monitors + KG. Run the three acceptance scenarios from M3 **live**, plus a soak run (repeated episodes over hours — BMv2 stability per M0 item 5).
 **Exit:** design-doc Phase-3/4 exit criteria pass on the live testbed **with Tier-2 still stubbed**. This is the paper's deterministic baseline system.
-*Status: not started (node-bound; everything it wires is built and unit-tested).*
+*Status: ◐ **IN PROGRESS — 2/3 acceptance scenarios pass LIVE 2026-06-15** (`tests/integration/test_m6_acceptance_node.py`, real deployer+monitor+KG over the loop): **reroute-and-commit** (relay fault → exogenous → Tier-1 reroute → commit, the first live commit, with KG Verdict+LastKnownGood) and **ddil-escalate** (both relays down → exhaust tiers → escalate + KG ticket). Bounds calibrated to measured path latency (§6). 165 unit + 9 integration green. **Watchdog + soak harness done** (`tools/soak.py`): episode loop with a switch watchdog (`switch_control.restart_switch` + `Deployer.recover_switch` — per-switch, key-based table restore of the CURRENT committed config). Validated by a soak (kill-every-3): commits + watchdog recoveries, 0 errors, 0 KG-write failures, 0 zombies — survives BMv2 crashes (C4) + KG hiccups. **All 3 acceptance scenarios pass LIVE** (`test_m6_acceptance_node.py`): reroute-and-commit, ddil-escalate, and **contention-harm → Tier-0 tune (harm relief) → commit** (calibrated on LATENCY, since the monitor measures access-link throughput upstream of the shared bottleneck — harm shows as F2 queuing delay). 165 unit + 10 integration green. Remaining: the **≥1h soak run** (`python3 -m runtime.tools.soak --minutes 60`).*
 
 ### M7 · Tier-2 regen + reproducibility (node + GPU) — L
 `regen/`: grammar (the two tables × existing actions — resolves open question §13.3), prompt template (violation, table dump, bounds, prior failures), `llm_client.py` against vLLM/llama.cpp serving Qwen-Coder (pinned revision, greedy, constrained). Gate L3 dry-install if M0 showed it's needed. Phase-5 hardening: structured logging of episodes/verdicts, multi-model comparison harness (Qwen vs DeepSeek-Coder vs Granite/StarCoder baseline) for the paper.
 **Exit:** a regen candidate flows propose → gate → apply → observe end-to-end; LLM-down test degrades to escalate-sooner (fail-safe §7.4); comparison table generated.
 *Status: plumbing done with a stub model — both exit behaviors above already pass locally (`runtime/regen/`: GBNF generated from gate constants and narrower than the gate, verbatim prompt TEMPLATE, stateless K-cap proposer, `StubLLMClient`). Remaining: the real serving client (vLLM/llama.cpp + pinned Qwen-Coder, `gbnf()` as the guided-decoding constraint), gate L3 if the spike shows it's needed, and the multi-model comparison harness.*
+
+**Review-#8 prerequisites for the real-serving swap (2026-06-15):**
+- ✅ **Exception fail-safe DONE** — the proposer now catches `generate()` exceptions (timeout/5xx/OOM) → escalate, not crash (§7.4).
+- ◇ **Plumb `gbnf()` into the decoder** — the proposer calls `generate(prompt)` with NO grammar arg, so the real client must apply the GBNF constraint internally; without it, raw output burns the K-cap and escalates early. `gbnf()` is currently dead outside tests.
+- ◇ **Decide gate L3 (dry-install)** — the gate stops at L2; a regen that passes L0–L2 can still fail at real BMv2 install (DUPLICATE_ENTRY/handle drift). Mitigated today by deployer idempotency + the dominates guard catching a bad install post-deploy, but decide explicitly.
+- ◇ **Grammar↔gate over-accept** — GBNF doesn't bound the egress port to `SWITCH_PORTS` or condition key-type on table, so the gate L0-rejects some grammar-valid output (wasted K-cap, harmless). Tighten the grammar or accept the waste.
+- ◇ **Reproducibility** — pin the model revision; greedy isn't bitwise-deterministic across vLLM batch/versions; normalize int-vs-float knob formatting in the prompt.
 
 ---
 
@@ -142,13 +155,13 @@ The fixture set doubles as the **paper's evaluation matrix**: each fixture = one
 
 | Risk | Likelihood | Mitigation |
 |---|---|---|
-| Veth counters too coarse / slow for loss measurement | Med | M0 item 4 decides early; fallback = declare P4 counters (mechanical P4 edit + recompile — observability only, not SFC semantics) |
-| `table_modify` semantics differ from expectation | Low | M0 item 2; fallback `table_delete`+`table_add` (brief in-flight gap — measure it) |
-| BMv2 instability over long runs | Med | M0 item 5 + M6 soak; watchdog in `launch_network.py` restarting a dead switch = a rung-1 system fault the loop already handles (nice demo, actually) |
-| Namespace access (`mnexec`) unavailable out-of-process | Low | Fallback: resident `launch_network.py` exposes a tiny local command socket for `tc` ops |
+| Veth counters too coarse / slow for loss measurement | ~~Med~~ **Resolved** | M0 C6: veth sysfs chosen, parses live (`parse_ping`/`parse_qdisc`/counters verified on real output). P4-counter fallback unused. |
+| `table_modify` semantics differ from expectation | ~~Low~~ **Resolved** | M0 C1b: both `=>` and bare forms accepted; deployer unchanged. |
+| BMv2 instability over long runs | **Med — CONFIRMED** | Switches **crash under table churn** (M0 item 4); `launch_network.py` has no watchdog yet. Action: add the watchdog (restarting a dead switch = a rung-1 fault the loop self-heals) **before the M6 soak**; the ≥1h soak is still owed. |
+| Namespace access (`mnexec`) unavailable out-of-process | ~~Low~~ **Resolved** | M0 C3: `sudo mnexec -a <pid>` reaches namespaces; it is `NodeRunner.run_host`. |
 | GPU/serving availability on controller-node | Med | M7 is last and optional-for-baseline; M6 is a complete deterministic system either way |
 | Contract drift with Kiran | Med | M-K starts now; `contracts.py` is the single source both sides import |
-| Scenario fixtures diverge from real testbed behavior | Med | M6 runs the same scenarios live; divergences feed back into fixtures (and are findings for the paper) |
+| Scenario fixtures diverge from real testbed behavior | **Med — CONFIRMED** | Live bounds gap: LowLatency's 20 ms is unachievable (~40 ms primary / ~52 ms backup) → real-monitor episodes escalate. Calibrate bounds to hardware or expect escalation (design §6). Throughput/harm need continuous traffic (§5.2). These are paper findings. |
 
 ---
 
@@ -158,3 +171,39 @@ The fixture set doubles as the **paper's evaluation matrix**: each fixture = one
 2. Every terminal outcome writes a `Verdict`/`EscalationTicket` + trace to the KG, and switch status in the KG is monitor-computed — `SCENARIO_STATE` is no longer in the loop.
 3. Tier-2 regen demonstrably proposes, is gate-checked, and deploys at least one recovered episode — and the system demonstrably survives the LLM being unavailable (M7).
 4. Reproducibility kit: pinned model revision + serving stack, greedy constrained decoding, fixture matrix, soak log — enough for a reviewer to re-run.
+
+---
+
+## 7. Node bring-up findings (M0 → M6, 2026-06-14 → -15)
+
+Empirical results from migrating to the Chameleon network-node and running on real BMv2 — the things that weren't knowable off-box. Design-doc sections carry the detail; this is the index.
+
+**Mechanics that changed the design:**
+1. **Reroute is five-part, not three** (design §10.1). The documented 3-step flip gives 100% loss live: the destination relay needs the edge-identity entry (a primary SFC's `s3` has no `0c` entry → frame dropped there), and the edge must re-ARP the drones after its interface is flushed. Fix: `config.RELAY_EDGE` + the deployer's per-switch `_ensure_forward`; verified to drop exactly one in-flight packet.
+2. **Qdisc ownership = "Model B"** (design §10.2). A TUNE's `tc qdisc replace … root` wipes the scenario `netem`, so the target drone-`eth0` is wholly deployer-owned (just the knob) and the **environment lives switch-side** (`s1-eth{N}`), where the monitor reads it and the deployer never writes. Reversibility via `config.SFC_QOS_BASELINE` (binding `qos` overrides).
+3. **`system_sound` semantics** (design §5.5). Rung-1 bails the episode, so unsound must mean *no path exists*: **s1 Failed or both relays Failed**. A single relay death stays sound → the loop reroutes to the survivor. (An "any switch alive" rule was wrong and is fixed.)
+4. **Idempotent `deploy`/`re_push` + versioned handles** (design §10.5). BMv2 re-issues large versioned handles after churn; a blind re-install hits `DUPLICATE_ENTRY`. Both now reset-from-live-dump before installing. Never roll back across a re_push (re-baseline instead).
+
+**Constraints for live evaluation (not bugs — calibrate the tests to them):**
+5. **SLA bounds must match hardware** (design §6). Measured ~40 ms primary / ~52 ms backup → LowLatency's 20 ms is unachievable; real-monitor episodes for it *correctly escalate*. Pick reachable bounds, expect escalation, or recalibrate.
+6. **Throughput/harm need continuous traffic** (design §5.2). Idle fabric reads 0 Mbps → every field unmet at baseline → harm never fires. Keep representative `iperf` load running through baseline **and** observation.
+
+**Operational:**
+7. **BMv2 crashes under churn; no watchdog yet** (design §10.7 item 4) — the launcher stays "up" while its switches die. Add a switch watchdog before the M6 soak; `NodeRunner` already surfaces a dead switch as a `RunnerError` (thrift-down), and `system_monitor` maps it to `Failed` → rung-1.
+8. **KG + persistent network confirmed** (design §13.5–6): `bolt://controller-node:7687` reachable, `neo4j` 6.2.0 installed; `launch_network.py` holds the topology resident. Relaunch hygiene: `pkill -9 -f launch_network; pkill -9 simple_switch; mn -c` (verify 0 leftover veths) before relaunching.
+
+**The loop is wired** over the real stack in `tools/run_episode.py` (`build_and_run` + `--monitor model|real`), proven live by a path-quality-fault episode that drove a real reroute to a healthy commit.
+
+**M5 monitor (real sampler) findings:**
+9. **The monitor measures access-link throughput (drone→s1), UPSTREAM of the shared relay bottleneck** (design §5.2). So shared-link contention is **invisible to per-field throughput** (both fields read full demand regardless of shaping) — it manifests as **loss/latency** (drops + queuing at the bottleneck), read via ping. Consequence: the contention-harm scenario is calibrated on **latency**, not bandwidth (F2 RTT ~246 ms congested vs ~55 ms relieved).
+10. **Exogenous-shift must read the RELAY links too** (design §5.7). The sampler first read only the drone links (`s1-eth4..10`); a path-quality fault degrades a *relay* link (`s1-eth11/12`), so it read `exogenous_shift=False` and rung-3 would wrongly roll back instead of reroute. Fixed to include the relay links.
+11. **`system_sound` from switch_status, not "any alive"** (finding #3 above) — verified live: kill s2 → `Failed` + sound stays True → loop reroutes.
+12. **Best-effort KG writes** — `RuntimeManager._kg_write` swallows + counts Neo4j failures (a soak must survive a KG hiccup). Field-id translation at the `kg_client` read boundary (`F1↔Field_1`, design §8).
+
+**M6 watchdog + soak findings:**
+13. **rung-1 recovery must restore the CURRENT config, per-switch** (design §10.5). `re_push`/`restart_switch` reinstall the *base* binding, dropping a committed reroute's entries. The watchdog recipe (validated): `switch_control.restart_switch` (process) + `Deployer.recover_switch` (table state from `last_good`, **diffed by KEY not handle** — a restart re-numbers handles). `restart_switch` retries (port TIME_WAIT/BMv2-crash flake) and reaps all duplicates.
+14. **Soak resilience** — iperf can die mid-run → throughput floors → every field reads unmet; `soak.py` adds a per-episode traffic health-check + restart, and reaps zombie wrappers (`os.waitpid`). A 3-min soak: commits + watchdog recoveries, 0 errors, 0 KG-fail, 0 zombies. Diagnostic note: count switches with `pgrep -xc simple_switch`/`switch_pids`, NOT loose `pgrep -f` (matches the `sudo` wrapper + own shell).
+
+**Review-#8 (whole-codebase, 2026-06-15) — see design §13 "Known issues & hardening backlog":**
+15. Safety holds (dominates uses smoothed booleans; monitor+rollback catches blackholes; window-averaged metrics; escalation fail-safe), so the rest is near-bound inefficiency / M7-time / M-K — not unsafety.
+16. **Fixed:** regen proposer now catches `generate()` exceptions (§7.4 fail-safe for a real endpoint). **M7 prereqs:** plumb `gbnf()` into the decoder; decide gate L3; grammar over-accepts vs gate (wasted K-cap). **Gap:** rung-1 re_push not wired into the live loop (watchdog covers switch-death only). **M-K:** outbound KG ids are runtime F-ids (planner maps); `jsonable` is one-way.

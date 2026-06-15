@@ -145,6 +145,24 @@ def test_deploy_tracks_handles_and_active_path(tmp_path):
     assert {sw for sw, _ in runner.cli_calls} == {"s1", "s2", "s3"}
 
 
+def test_deploy_is_idempotent_clears_residual_first(tmp_path):
+    """Episode-start deploy is safe on a resident network (M4-node): residual
+    entries are cleared from a live dump before installing, so a re-deploy onto
+    already-populated switches can't hit DUPLICATE_ENTRY."""
+    def handler(switch, text):
+        if text.startswith("table_dump forward_table") and switch == "s2":
+            return FORWARD_DUMP                        # s2 still holds 2 entries
+        if text.startswith("table_dump"):
+            return ""
+        return auto_handles()(switch, text)
+    runner = ScriptedRunner(handler)
+    d = Deployer(runner, host_map={"F1": ["d4"]})
+    d.deploy(make_spec(tmp_path))                       # must not raise
+    deletes = [c for sw, c in runner.cli_calls if sw == "s2" and "table_delete" in c]
+    assert any("table_delete forward_table 1" in c for c in deletes)
+    assert any("table_delete forward_table 2" in c for c in deletes)
+
+
 def test_deploy_with_mismatched_handle_count_fails(tmp_path):
     handler = lambda sw, text: "Entry has been added with handle 0"   # always 1
     runner = ScriptedRunner(handler)
@@ -164,23 +182,69 @@ def test_apply_tune_targets_the_specs_hosts(tmp_path):
     assert d.state["knobs"]["tbf_rate_mbit"] == 45
 
 
-def test_apply_reroute_is_the_three_part_action(tmp_path):
-    """milestone-II-latest mechanics (§10.1): switch entry for the backup
-    edge identity + edge interface rebind + drone ARP repoint."""
+def test_deploy_falls_back_to_sfc_qos_baseline(tmp_path):
+    """Issue-2 / Model B: with no binding qos, deploy installs the per-SFC
+    baseline knob (make_spec's SFC is LowLatency -> pfifo_limit 20) on the field
+    hosts, so the drone-eth0 qdisc is deployer-owned and a TUNE is reversible."""
+    d, runner, _ = rig(tmp_path)                          # no qos passed
+    assert d.state["knobs"] == {"pfifo_limit": 20}
+    pushed = [c for _, c in runner.host_calls if "pfifo limit 20" in c]
+    assert len(pushed) == 2                               # d4, d5
+
+
+def test_tune_rolls_back_to_sfc_baseline_without_binding_qos(tmp_path):
+    """The Issue-2 fix: a TUNE over the fallback baseline is reverted to it on
+    rollback even though the binding carried no qos (previously the knob would
+    persist because the baseline snapshot had no entry to revert to)."""
+    d, runner, _ = rig(tmp_path)                          # baseline pfifo_limit 20
+    snap = d.capture()
+    d.apply(Candidate(TUNE, ("pfifo_limit", 40)))
+    assert d.state["knobs"]["pfifo_limit"] == 40
+    d.rollback(snap)
+    assert d.state["knobs"] == {"pfifo_limit": 20}
+    assert any("pfifo limit 20" in c for _, c in runner.host_calls[-2:])
+
+
+def test_apply_reroute_is_the_multi_switch_action(tmp_path):
+    """milestone-II-latest mechanics (§10.1) + M0/C2: the reroute is
+    multi-switch — s1 entry for the backup edge identity AND the destination
+    relay (s3) entry for it — plus edge interface rebind + drone ARP repoint.
+    Without the s3 entry the frame dies at s3 (a primary SFC's s3 lacks 0c)."""
     d, runner, _ = rig(tmp_path)
-    n_host = len(runner.host_calls)
+    n_host, n_cli = len(runner.host_calls), len(runner.cli_calls)
     d.apply(Candidate(REROUTE, (BACKUP,)))
-    # (1) the 0c identity gets its s1 entry (low_latency rules lack it)
-    switch, cmd = runner.cli_calls[-1]
-    assert (switch, cmd) == ("s1", "table_add forward_table forward 00:00:00:00:00:0c => 12")
+    cli = runner.cli_calls[n_cli:]
+    # (1) the 0c identity gets its s1 entry (low_latency rules lack it) ...
+    assert ("s1", "table_add forward_table forward 00:00:00:00:00:0c => 12") in cli
     assert any(e.key == "00:00:00:00:00:0c" and e.args == ("12",)
                for e in d.table_state()["s1"])
-    # (2) edge binds 10.0.0.100 to edge-eth1; (3) drones repoint ARP at 0c
+    # (2) ... and the destination relay s3 learns it too (port 2 = edge)
+    assert ("s3", "table_add forward_table forward 00:00:00:00:00:0c => 2") in cli
+    assert any(e.key == "00:00:00:00:00:0c" and e.args == ("2",)
+               for e in d.table_state()["s3"])
+    # (3) edge binds 10.0.0.100 to edge-eth1; (4) drones repoint ARP at 0c
     swap = runner.host_calls[n_host:]
     assert ("edge", "ip route replace 10.0.0.0/24 dev edge-eth1 src 10.0.0.100") in swap
     assert ("d1", "arp -s 10.0.0.100 00:00:00:00:00:0c") in swap
     assert ("d10", "arp -s 10.0.0.100 00:00:00:00:00:0c") in swap
     assert d.state["path"] == BACKUP
+
+
+def test_apply_reroute_relay_is_path_specific(tmp_path):
+    """The relay-switch step is path-specific: backup learns 0c on s3, primary
+    keeps 0b on s2. s2 already has 0b=>2 from the rules, so primary's relay step
+    is correctly idempotent (no spurious CLI), but the end state is guaranteed."""
+    d, runner, _ = rig(tmp_path)
+    d.apply(Candidate(REROUTE, (BACKUP,)))
+    assert any(e.key == "00:00:00:00:00:0c" and e.args == ("2",)
+               for e in d.table_state()["s3"])
+    n_cli = len(runner.cli_calls)
+    d.apply(Candidate(REROUTE, (PRIMARY,)))
+    # s2 (primary relay) already forwards 0b=>2 from the rules: idempotent no-op
+    assert not any(sw == "s2" for sw, _ in runner.cli_calls[n_cli:])
+    assert any(e.key == "00:00:00:00:00:0b" and e.args == ("2",)
+               for e in d.table_state()["s2"])
+    assert d.state["path"] == PRIMARY
 
 
 def test_apply_regen_refreshes_tables_from_dump(tmp_path):
@@ -212,10 +276,15 @@ def test_rollback_restores_semantics(tmp_path):
 
     d.rollback(snap)
     assert d.state == {"path": PRIMARY, "knobs": {"tbf_rate_mbit": 80}}
+    # both switches the reroute touched are restored to snapshot semantics
     assert entry_semantics(d.table_state()["s1"]) \
         == entry_semantics(snap.switch_table_dumps["s1"])
-    # the reroute-added 0c entry (handle 3) is deleted again...
-    assert "table_delete forward_table 3" in runner.cli_calls[-1][1]
+    assert entry_semantics(d.table_state()["s3"]) \
+        == entry_semantics(snap.switch_table_dumps["s3"])
+    # the reroute-added 0c entries on s1 (handle 3) and s3 (handle 1) are deleted
+    deletes = [cmd for _, cmd in runner.cli_calls if "table_delete" in cmd]
+    assert any("table_delete forward_table 3" in c for c in deletes)   # s1
+    assert any("table_delete forward_table 1" in c for c in deletes)   # s3
     # ...the qos restored, and the edge identity swapped back to primary
     assert any("rate 80mbit" in cmd for _, cmd in runner.host_calls)
     assert runner.host_calls[-1] == ("edge", "arp -s 10.0.0.10 00:00:00:00:00:0a")
@@ -272,10 +341,48 @@ def test_re_push_reinstalls_everything(tmp_path):
     d, runner, snap = rig(tmp_path, qos={"tbf_rate_mbit": 80})
     n_cli, n_host = len(runner.cli_calls), len(runner.host_calls)
     d.re_push(snap)
-    assert len(runner.cli_calls) == n_cli + 3         # all three switches
+    # one install batch (table_add text) per switch; dumps are empty here so no
+    # deletes — the reset is a no-op on an already-empty (restarted) switch
+    installs = [c for sw, c in runner.cli_calls[n_cli:] if c.startswith("table_add")]
+    assert len(installs) == 3
     after = runner.host_calls[n_host:]
     assert any("rate 80mbit" in cmd for _, cmd in after)        # qos re-applied
     assert any("edge-eth0" in cmd for _, cmd in after)          # path re-bound
+
+
+def test_recover_switch_restores_committed_state_after_restart(tmp_path):
+    """M6 watchdog: after a switch restarts with EMPTY tables (dump returns
+    nothing), recover_switch re-adds the snapshot's committed entries — only that
+    switch, and the snapshot's state, not the base binding."""
+    d, runner, snap = rig(tmp_path, qos={"tbf_rate_mbit": 80})
+    want = snap.switch_table_dumps["s1"]
+    assert len(want) >= 1
+    n_cli = len(runner.cli_calls)
+    d.recover_switch("s1", snap)                          # dump now empty -> re-add all
+    batch = [c for sw, c in runner.cli_calls[n_cli:] if sw == "s1" and "table_add" in c]
+    assert len(batch) == 1
+    assert batch[0].count("table_add") == len(want)
+    assert all(sw == "s1" for sw, _ in runner.cli_calls[n_cli:])   # other switches untouched
+
+
+def test_re_push_clears_residual_entries_first(tmp_path):
+    """The M4-node fix: re_push is idempotent. If a switch kept its tables
+    (only some restarted), the residual entries are deleted from a live dump
+    before reinstalling, so BMv2 never sees a DUPLICATE_ENTRY re-add."""
+    def handler(switch, text):
+        if text.startswith("table_dump forward_table") and switch == "s1":
+            return FORWARD_DUMP                        # 2 stale entries: handles 1,2
+        if text.startswith("table_dump"):
+            return ""
+        return auto_handles()(switch, text)
+    runner = ScriptedRunner(handler)
+    d = Deployer(runner, host_map={"F1": ["d4"]})
+    snap = d.deploy(make_spec(tmp_path, qos={"tbf_rate_mbit": 80}))
+    n_cli = len(runner.cli_calls)
+    d.re_push(snap)
+    deletes = [c for sw, c in runner.cli_calls[n_cli:] if "table_delete" in c]
+    assert any("table_delete forward_table 1" in c for c in deletes)
+    assert any("table_delete forward_table 2" in c for c in deletes)
 
 
 def test_table_state_is_isolated_from_mutation(tmp_path):

@@ -91,12 +91,18 @@ build_bmv2_from_source() {
   local src=/tmp/behavioral-model
   rm -rf "$src"
   git clone --depth 1 https://github.com/p4lang/behavioral-model.git "$src"
+  # Ubuntu 24.04 (noble) marks the system Python as externally-managed (PEP 668).
+  # BMv2's bundled PI/P4Runtime component runs a system-wide `pip install` of its
+  # Python bindings during `make install`, which PEP 668 blocks — aborting the
+  # install before simple_switch is staged. Allow it for this build; the only
+  # system-wide pip package involved is the PI binding.
   ( cd "$src"
+    export PIP_BREAK_SYSTEM_PACKAGES=1
     ./install_deps.sh
     ./autogen.sh
     ./configure
     make -j"$(nproc)"
-    sudo make install
+    sudo PIP_BREAK_SYSTEM_PACKAGES=1 make install
     sudo ldconfig )
 }
 
@@ -163,6 +169,7 @@ if [[ "$DO_SMOKE" == "1" ]]; then
   echo "tearing down…"
   cleanup
   trap - EXIT
+  [[ "$ok" == "1" ]] || die "smoke failed: not all thrift ports came up (see /tmp/testbed_smoke.log, /tmp/s*.log)"
 else
   say "Step 5 — skipped (pass --smoke to launch + verify the topology)"
 fi

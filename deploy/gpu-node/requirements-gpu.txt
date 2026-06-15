@@ -1,0 +1,40 @@
+# NetPrompt GPU-node serving deps — tuned for a Tesla P100 (Pascal, sm_60, 16 GB).
+#
+# Install with:   pip install -r requirements-gpu.txt
+# (setup_gpu_node.sh does this inside a fresh venv.)
+#
+# WHY THIS DIFFERS FROM network/.../requirements-runtime.txt:
+#   * torch is pinned to a cu121 build that still ships Pascal (sm_60) kernels.
+#   * bitsandbytes is REMOVED. Its 4-bit/int8 kernels need compute capability
+#     >= 7.5 (Turing); the P100 is 6.0. Qwen2.5-1.5B in FP16 is ~3 GB and fits
+#     in 16 GB many times over, so run FP16 and set NETPROMPT_LLM_USE_4BIT=0.
+#   * vLLM is intentionally absent — it requires CC >= 7.0, so it will not run
+#     on this node. Serving is plain transformers (+ optional grammar processor).
+
+# torch must come from the PyTorch CUDA 12.1 index (cu121 wheel = Pascal-capable);
+# everything else resolves from PyPI.
+--index-url https://download.pytorch.org/whl/cu121
+--extra-index-url https://pypi.org/simple
+
+# --- core serving stack (loads Qwen2.5-1.5B-Instruct + the LoRA adapter, FP16) ---
+torch==2.3.1            # cu121 build includes sm_60; 2.3.x is the last comfortable Pascal tier
+numpy==1.26.4           # <2.0: torch 2.3 predates full NumPy-2 support
+transformers==4.46.3    # >=4.37 needed for Qwen2.5; 4.46.3 is a tested pin
+peft==0.13.2            # loads netprompt_qwen_kg_rag_orchestrator/final_adapter
+accelerate==1.0.1       # required for device_map={"":0}
+safetensors==0.4.5
+
+# --- KG + data (orchestrator reads Neo4j + the results CSV) ---
+neo4j==5.27.0           # match this to your Neo4j server's supported driver range
+pandas==2.2.3
+
+# --- M7 grammar-constrained decoding (RECOMMENDED path; drop if you go llama.cpp) ---
+# Brings llama.cpp-style GBNF grammars to HF transformers as a logits processor,
+# so runtime/regen/grammar.py:gbnf() can constrain generation directly.
+# If it conflicts with the transformers pin above, relax it or upgrade together.
+transformers-cfg>=0.2.5,<0.3
+
+# --- bitsandbytes: intentionally OMITTED (unsupported on sm_60). ---
+# Do NOT uncomment on a P100 — it will fail or silently misbehave. Only enable
+# if you move to a Turing+ GPU (T4/A10/L4/A100) and want 4-bit/8-bit:
+# bitsandbytes==0.44.1

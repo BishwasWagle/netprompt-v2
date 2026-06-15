@@ -4,15 +4,19 @@
 **Owner:** Kevin. **Planner boundary:** unchanged — nothing here touches Kiran's files or responsibilities.
 
 > **Status (2026-06-15, branch `Run-time-Manager`, on the Chameleon network-node, 166 unit + 10 integration tests green).**
-> Local track complete and **node bring-up nearly done**: M1 ✅ · M2 ✅ · M3 ✅ ·
+> Local track complete and **node bring-up complete (M0–M6)**: M1 ✅ · M2 ✅ · M3 ✅ ·
 > **M0 ✅ RUN & PASSED** (spike findings folded into the design doc) · **M4 ✅**
 > (real `NodeRunner` + Deployer fixes, the full deploy→flip→rollback→re_push exit
 > verified live) · **M5 ✅** (real `network_monitor`/`system_monitor` sampler,
 > induced-fault exit tests, `kg_client` wired into the loop — all live) ·
-> **M6 ◐** (all **3 acceptance scenarios pass LIVE** — reroute-and-commit,
+> **M6 ✅** (all **3 acceptance scenarios pass LIVE** — reroute-and-commit,
 > ddil-escalate, contention-harm-tune-commit; watchdog + soak harness built &
-> validated by a short soak; only the **≥1h soak run** remains) · M7 ◐ (regen
-> plumbing + stub done; real serving remains — see review-#8 prereqs in §M7) ·
+> validated by the **≥1h soak run: 351 episodes, 314 healthy / 37 marginal, 0
+> escalations, 17/17 watchdog recoveries from injected s3 kills, 0 errors, 0
+> KG-write failures, 0 zombies** — 2026-06-15 on the consolidated GPU node with a
+> local Neo4j KG) · M7 ◐ (regen
+> plumbing + stub done; real serving remains — see review-#8 prereqs in §M7,
+> scoped in [m7-implementation-plan.md](m7-implementation-plan.md)) ·
 > M-K ☐ awaiting Kiran (open items in design §13). The deterministic baseline
 > (M0–M6, Tier-2 stubbed) is demonstrated end-to-end on the live testbed.
 > See §7 "Node bring-up findings" + design §13 "Known issues & hardening backlog".
@@ -121,7 +125,7 @@ Bring up the existing multihop topology, pause before teardown, and verify by ha
 ### M6 · End-to-end deterministic system (node) — M
 Wire `runtime_manager.py` over real deployer + monitors + KG. Run the three acceptance scenarios from M3 **live**, plus a soak run (repeated episodes over hours — BMv2 stability per M0 item 5).
 **Exit:** design-doc Phase-3/4 exit criteria pass on the live testbed **with Tier-2 still stubbed**. This is the paper's deterministic baseline system.
-*Status: ◐ **IN PROGRESS — 2/3 acceptance scenarios pass LIVE 2026-06-15** (`tests/integration/test_m6_acceptance_node.py`, real deployer+monitor+KG over the loop): **reroute-and-commit** (relay fault → exogenous → Tier-1 reroute → commit, the first live commit, with KG Verdict+LastKnownGood) and **ddil-escalate** (both relays down → exhaust tiers → escalate + KG ticket). Bounds calibrated to measured path latency (§6). 165 unit + 9 integration green. **Watchdog + soak harness done** (`tools/soak.py`): episode loop with a switch watchdog (`switch_control.restart_switch` + `Deployer.recover_switch` — per-switch, key-based table restore of the CURRENT committed config). Validated by a soak (kill-every-3): commits + watchdog recoveries, 0 errors, 0 KG-write failures, 0 zombies — survives BMv2 crashes (C4) + KG hiccups. **All 3 acceptance scenarios pass LIVE** (`test_m6_acceptance_node.py`): reroute-and-commit, ddil-escalate, and **contention-harm → Tier-0 tune (harm relief) → commit** (calibrated on LATENCY, since the monitor measures access-link throughput upstream of the shared bottleneck — harm shows as F2 queuing delay). 165 unit + 10 integration green. Remaining: the **≥1h soak run** (`python3 -m runtime.tools.soak --minutes 60`).*
+*Status: ✅ **COMPLETE — 3/3 acceptance scenarios pass LIVE 2026-06-15** (`tests/integration/test_m6_acceptance_node.py`, real deployer+monitor+KG over the loop): **reroute-and-commit** (relay fault → exogenous → Tier-1 reroute → commit, the first live commit, with KG Verdict+LastKnownGood) and **ddil-escalate** (both relays down → exhaust tiers → escalate + KG ticket). Bounds calibrated to measured path latency (§6). 165 unit + 9 integration green. **Watchdog + soak harness done** (`tools/soak.py`): episode loop with a switch watchdog (`switch_control.restart_switch` + `Deployer.recover_switch` — per-switch, key-based table restore of the CURRENT committed config). Validated by a soak (kill-every-3): commits + watchdog recoveries, 0 errors, 0 KG-write failures, 0 zombies — survives BMv2 crashes (C4) + KG hiccups. **All 3 acceptance scenarios pass LIVE** (`test_m6_acceptance_node.py`): reroute-and-commit, ddil-escalate, and **contention-harm → Tier-0 tune (harm relief) → commit** (calibrated on LATENCY, since the monitor measures access-link throughput upstream of the shared bottleneck — harm shows as F2 queuing delay). 165 unit + 10 integration green. **≥1h soak DONE 2026-06-15** (consolidated GPU node + local Neo4j): `soak --minutes 60 --kill-every 20 --kill s3` → 351 episodes, 314 healthy / 37 marginal, 0 escalations, **17/17 watchdog recoveries** from injected s3 kills, 0 errors, 0 KG-write failures, 0 zombies. **M6 COMPLETE** — only M7 (Tier-2 real serving) remains.*
 
 ### M7 · Tier-2 regen + reproducibility (node + GPU) — L
 `regen/`: grammar (the two tables × existing actions — resolves open question §13.3), prompt template (violation, table dump, bounds, prior failures), `llm_client.py` against vLLM/llama.cpp serving Qwen-Coder (pinned revision, greedy, constrained). Gate L3 dry-install if M0 showed it's needed. Phase-5 hardening: structured logging of episodes/verdicts, multi-model comparison harness (Qwen vs DeepSeek-Coder vs Granite/StarCoder baseline) for the paper.

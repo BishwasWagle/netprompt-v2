@@ -69,14 +69,15 @@ class LocalHFClient:
     """
 
     def __init__(self, model=None, revision=None, device=None,
-                 max_new_tokens=None, grammar_str=None):
+                 max_new_tokens=None, grammar_str=None, switch="s1"):
         from runtime import config
         from runtime.regen.grammar import gbnf
         self.model_id = model or config.REGEN_MODEL
         self.revision = revision if revision is not None else config.REGEN_REVISION
         self.device_pref = device or config.REGEN_DEVICE
         self.max_new_tokens = max_new_tokens or config.REGEN_MAX_NEW_TOKENS
-        self.grammar_str = grammar_str or gbnf()
+        self.switch = switch
+        self.grammar_str = grammar_str or gbnf(switch)
         self._tok = self._model = self._proc = self._gen_cfg = self._device = None
 
     def _ensure_loaded(self):

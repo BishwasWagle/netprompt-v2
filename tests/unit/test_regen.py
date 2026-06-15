@@ -201,3 +201,30 @@ def test_localhfclient_conforms_to_generate_protocol():
     c = LocalHFClient(model="dummy/model", device="cpu")
     assert callable(c.generate)
     assert c._model is None                           # nothing loaded at construction
+
+
+# ---------------- grammar tightening (M7 #4: port + key-type) ----------------
+
+def test_gbnf_bounds_port_to_switch_ports():
+    """Port is constrained to the switch's valid egress ports, so the model
+    can't emit out-of-range / leading-zero ports (the over-accept #4 fixes)."""
+    from runtime.config import SWITCH_PORTS
+    g1 = gbnf("s1")
+    assert "port      ::=" in g1 and '"12"' in g1     # s1 reaches port 12
+    g2 = gbnf("s2")
+    assert '"12"' not in g2                            # s2 ports are {1, 2}
+    assert all(f'"{p}"' in g2 for p in SWITCH_PORTS["s2"])
+
+
+def test_validate_rejects_out_of_range_port():
+    assert validate("table_modify forward_table forward 1 => 12", "s1")
+    assert not validate("table_modify forward_table forward 1 => 13", "s1")   # > s1 max
+    assert validate("table_modify forward_table forward 1 => 2", "s2")
+    assert not validate("table_modify forward_table forward 1 => 5", "s2")    # not on s2
+
+
+def test_validate_enforces_key_type_per_table():
+    assert validate("table_add forward_table forward 00:00:00:00:00:01 => 1", "s1")
+    assert not validate("table_add forward_table forward 10.0.0.1 => 1", "s1")        # MAC table, IP key
+    assert validate("table_add relay_policy_table mark_reliable 10.0.0.1 => ", "s1")
+    assert not validate("table_add relay_policy_table mark_reliable 00:00:00:00:00:01 => ", "s1")

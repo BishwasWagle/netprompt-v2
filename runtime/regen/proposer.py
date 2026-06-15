@@ -46,7 +46,7 @@ class RegenProposer:
                 # the episode. Treat any generation failure as a rejected attempt.
                 rejected.append("(generation error)")
                 continue
-            if not validate(text):
+            if not validate(text, self.switch):
                 rejected.append(text or "(empty)")
                 continue
             cand = Candidate(REGEN, (self.switch, text))

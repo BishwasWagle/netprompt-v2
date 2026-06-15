@@ -166,3 +166,38 @@ def test_engine_escalates_safely_when_llm_is_down():
                 regen_proposer=make_proposer([]))   # nothing to say
     assert not res.success and budget.spent == 0
     assert deployer.applied == []                 # network untouched
+
+
+# ---------------- LocalHFClient output handling (M7, no GPU) ----------------
+
+def test_complete_lines_drops_trailing_partial():
+    """root::=line+ is unbounded, so greedy truncates mid-line at the token cap;
+    LocalHFClient must return only whole lines so validate() passes."""
+    from runtime.regen.llm_client import _complete_lines
+    raw = "table_modify forward_table forward 10 => 12\ntable_add forward_table forw"
+    out = _complete_lines(raw)
+    assert out == "table_modify forward_table forward 10 => 12"
+    assert validate(out)                              # the kept text is gate-valid
+
+
+def test_complete_lines_returns_empty_when_nothing_terminated():
+    """No newline yet == no complete command == treated as a failed attempt
+    (empty string fails validate -> proposer retries/escalates, never a
+    malformed candidate)."""
+    from runtime.regen.llm_client import _complete_lines
+    assert _complete_lines("table_modify forward_table forw") == ""
+    assert not validate(_complete_lines("partial"))
+
+
+def test_complete_lines_keeps_multiple_and_strips_blanks():
+    from runtime.regen.llm_client import _complete_lines
+    assert _complete_lines("\n\nx => 1\n\ny => 2\n") == "x => 1\ny => 2"
+
+
+def test_localhfclient_conforms_to_generate_protocol():
+    """Structural: the real client is a drop-in for StubLLMClient (same
+    .generate seam) and constructs without loading a model (lazy)."""
+    from runtime.regen import LocalHFClient
+    c = LocalHFClient(model="dummy/model", device="cpu")
+    assert callable(c.generate)
+    assert c._model is None                           # nothing loaded at construction

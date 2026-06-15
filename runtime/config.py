@@ -61,6 +61,15 @@ REGRESSION_EPS = 0.02          # rung-3 margin-drop deadband: a real (noisy) mon
                                #   (fixtures regress by ~1.0+, far above the floor)
 REGEN_MAX_REJECTS = 3          # K gate-rejections before Tier-2 returns None
 
+# --- Tier-2 regen serving (M7; design §7.3 — in-process HF transformers +
+#     transformers-cfg GBNF constrained decoding, FP16/greedy). The regen Coder
+#     model sits on the 2nd GPU so it doesn't contend with the orchestrator's
+#     Instruct model on cuda:0. Pin REVISION for reproducibility (DoD #4). ---
+REGEN_MODEL = os.environ.get("NETPROMPT_REGEN_MODEL", "Qwen/Qwen2.5-Coder-1.5B-Instruct")
+REGEN_REVISION = os.environ.get("NETPROMPT_REGEN_REVISION", "") or None  # "" -> latest
+REGEN_DEVICE = os.environ.get("NETPROMPT_REGEN_DEVICE", "cuda:1")
+REGEN_MAX_NEW_TOKENS = int(os.environ.get("NETPROMPT_REGEN_MAX_NEW_TOKENS", "64"))
+
 # --- tune knob quantization (design §7.3): knob -> step size ---
 KNOB_STEPS = {
     "tbf_rate_mbit": 10,

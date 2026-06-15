@@ -36,6 +36,10 @@ DO_SMOKE=0
 KG_PASS="${NEO4J_PASSWORD:-netprompt123}"   # local KG dev default (runtime/config.py)
 REQ="$HERE/requirements-gpu.txt"
 MODEL="Qwen/Qwen2.5-1.5B-Instruct"
+# Tier-2 regen (M7): a Coder model on the 2nd GPU, pinned for reproducibility.
+REGEN_MODEL="${NETPROMPT_REGEN_MODEL:-Qwen/Qwen2.5-Coder-1.5B-Instruct}"
+REGEN_REV="${NETPROMPT_REGEN_REVISION:-2e1fd397ee46e1388853d2af2c993145b0f1098a}"
+REGEN_DEV="${NETPROMPT_REGEN_DEVICE:-cuda:1}"
 
 while [[ $# -gt 0 ]]; do
   case "$1" in
@@ -134,6 +138,11 @@ export NETPROMPT_KG_PASS="$KG_PASS"
 export NEO4J_URI="bolt://localhost:7687"
 export NEO4J_USER="neo4j"
 export NEO4J_PASSWORD="$KG_PASS"
+# --- Tier-2 regen serving (M7): pinned Qwen-Coder on the 2nd GPU (DoD #4 repro) ---
+export NETPROMPT_REGEN_MODEL="$REGEN_MODEL"
+export NETPROMPT_REGEN_REVISION="$REGEN_REV"
+export NETPROMPT_REGEN_DEVICE="$REGEN_DEV"
+export NETPROMPT_REGEN_MAX_NEW_TOKENS="64"
 EOF
 echo "wrote $ENV_FILE"
 

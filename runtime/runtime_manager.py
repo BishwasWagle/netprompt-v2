@@ -51,12 +51,19 @@ class RuntimeManager:
             self._kg_write("write_verdict", result.verdict)   # a refusal is a verdict
             return result
 
+        # Tier-2 regen's gate check (L2 simulation) must see the LIVE switch
+        # tables, not a value frozen at construction. Refresh from the deployer
+        # each episode unless a static override was supplied (tests). [M7 #6]
+        current_tables = self.current_tables
+        if current_tables is None and hasattr(self.deployer, "table_state"):
+            current_tables = self.deployer.table_state()
+
         ctx = EvalContext(
             deployer=self.deployer, monitor=self.monitor, gate=self.gate,
             budget=Budget(self.budget_n),            # fresh budget per episode
             last_good=self.last_good,
             active_capacity_ok=self.active_capacity_ok,
-            current_tables=self.current_tables,
+            current_tables=current_tables,
             regen_proposer=self.regen_proposer,
             timestamp=timestamp,
         )

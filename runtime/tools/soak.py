@@ -102,7 +102,7 @@ def recover_dead_switches(sysmon, deployer, last_good, p4_json, rules_dir):
     return recovered
 
 
-def run_soak(minutes, kill_every, kill, tree):
+def run_soak(minutes, kill_every, kill, tree, with_regen=False):
     p4_json = f"{tree}/compiled_p4/low_latency.json"
     rules_dir = f"{tree}/p4_multihop_rules"
     cid = "SOAK"
@@ -116,7 +116,17 @@ def run_soak(minutes, kill_every, kill, tree):
     monitor = NetworkMonitor(NodeSampler(runner, DEFAULT_HOST_MAP, ping_count=2),
                              REQ, "F1", cid, k=2, m=2)
     monitor.capture_baseline()
-    rm = RuntimeManager(deployer, monitor, ValidationGate(), kg=kg)
+    regen_proposer = None
+    if with_regen:
+        # Tier-2 real serving (M7): constrained-decoding Qwen-Coder on the GPU.
+        # table_state_fn reads the deployer's LIVE tables for the prompt; the
+        # gate's L2 sees the same state (run_episode refreshes current_tables).
+        from runtime.regen import RegenProposer, LocalHFClient
+        regen_proposer = RegenProposer(LocalHFClient(),
+                                       table_state_fn=deployer.table_state, switch="s1")
+        print("soak: Tier-2 regen ENABLED (LocalHFClient on the GPU)", flush=True)
+    rm = RuntimeManager(deployer, monitor, ValidationGate(), kg=kg,
+                        regen_proposer=regen_proposer)
 
     stats = {"episodes": 0, "healthy": 0, "marginal": 0, "escalated": 0,
              "rollback": 0, "rejected": 0, "system_fault": 0,
@@ -167,9 +177,13 @@ def main():
                     help="inject a kill of --kill every N episodes (0 = off)")
     ap.add_argument("--kill", default="s3", help="which switch the injector kills")
     ap.add_argument("--tree", default=config.NODE_TREE_ROOT)
+    ap.add_argument("--with-regen", action="store_true",
+                    help="enable Tier-2 real-serving regen (loads the Qwen-Coder "
+                         "model on the GPU via LocalHFClient)")
     args = ap.parse_args()
-    print(f"soak: {args.minutes} min, kill-every={args.kill_every} ({args.kill})")
-    stats = run_soak(args.minutes, args.kill_every, args.kill, args.tree)
+    print(f"soak: {args.minutes} min, kill-every={args.kill_every} ({args.kill}), "
+          f"regen={'on' if args.with_regen else 'off'}")
+    stats = run_soak(args.minutes, args.kill_every, args.kill, args.tree, args.with_regen)
     print("SOAK DONE:", stats)
 
 

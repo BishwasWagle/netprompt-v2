@@ -15,7 +15,8 @@
 #   --smoke          After install, download the base model and run a 16-token
 #                    greedy generation on the GPU to prove the serving path.
 #   --venv DIR       Virtualenv location           (default: $HOME/netprompt-venv)
-#   --root DIR       netprompt-milestone-II tree    (default: $HOME/netprompt-milestone-II)
+#   --root DIR       netprompt-milestone-II tree    (default: the in-repo
+#                    network/milestone-II-latest/netprompt-milestone-II tree)
 #   --driver-pkg N   Driver apt package             (default: nvidia-driver-550-server)
 #
 # Idempotent: re-running reuses the venv and skips the driver if the GPU is already up.
@@ -23,12 +24,16 @@
 set -euo pipefail
 
 # ---------------------------------------------------------------- defaults / args
+HERE="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+REPO_ROOT="$(cd "$HERE/../.." && pwd)"
 VENV="${VENV:-$HOME/netprompt-venv}"
-NETPROMPT_ROOT="${NETPROMPT_ROOT:-$HOME/netprompt-milestone-II}"
+# Consolidated node: the milestone-II tree is vendored in-repo under network/,
+# not at ~/. Override with --root if your layout differs.
+NETPROMPT_ROOT="${NETPROMPT_ROOT:-$REPO_ROOT/network/milestone-II-latest/netprompt-milestone-II}"
 DRIVER_PKG="nvidia-driver-550-server"
 DO_DRIVER=0
 DO_SMOKE=0
-HERE="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+KG_PASS="${NEO4J_PASSWORD:-netprompt123}"   # local KG dev default (runtime/config.py)
 REQ="$HERE/requirements-gpu.txt"
 MODEL="Qwen/Qwen2.5-1.5B-Instruct"
 
@@ -120,10 +125,15 @@ export NETPROMPT_LLM_ADAPTER="\$NETPROMPT_ROOT/netprompt_qwen_kg_rag_orchestrato
 export NETPROMPT_LLM_DEVICE_MAP="cuda:0"
 export NETPROMPT_LLM_USE_4BIT="0"      # CRITICAL on P100: FP16, no bitsandbytes
 export NETPROMPT_LLM_MAX_NEW_TOKENS="128"
-# --- Neo4j (point at controller-node; do not commit a real password) ---
-export NEO4J_URI="bolt://controller-node:7687"
+# --- Neo4j KG: local instance on this consolidated node (bolt on localhost) ---
+# Runtime (runtime/config.py reads NETPROMPT_KG_*):
+export NETPROMPT_KG_URI="bolt://localhost:7687"
+export NETPROMPT_KG_USER="neo4j"
+export NETPROMPT_KG_PASS="$KG_PASS"
+# Orchestrator / milestone-II code reads NEO4J_*:
+export NEO4J_URI="bolt://localhost:7687"
 export NEO4J_USER="neo4j"
-# export NEO4J_PASSWORD="..."
+export NEO4J_PASSWORD="$KG_PASS"
 EOF
 echo "wrote $ENV_FILE"
 

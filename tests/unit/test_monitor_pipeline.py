@@ -186,3 +186,15 @@ def test_smoothed_met_overrides_verdict_but_not_margin():
     assert not r.target_sla_met                       # hysteresis says violating
     assert r.target.margin > 0                        # margin stays raw
     assert r.headroom == 0.0                          # no satisfied flows
+
+
+def test_parse_ping_clamps_negative_loss_on_duplicates():
+    # duplicate replies (rx > tx) must NOT yield negative loss (review C2)
+    assert parse_ping("10 packets transmitted, 12 received, +2 duplicates")[1] == 0.0
+    assert parse_ping("10 packets transmitted, 8 received, 20% loss")[1] == 20.0
+
+
+def test_parse_qdisc_normalizes_rate_units():
+    assert parse_qdisc("rate 5Mbit")["rate_mbit"] == 5.0
+    assert parse_qdisc("rate 500Kbit")["rate_mbit"] == 0.5     # was invisible (review C4)
+    assert parse_qdisc("rate 1Gbit")["rate_mbit"] == 1000.0    # was invisible

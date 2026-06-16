@@ -45,7 +45,9 @@ def _safe_rate(prev: dict, port, direction="tx") -> float:
     """throughput_mbps for one port, but never raises — a missing port or a
     degenerate dt (<=0) yields 0.0 so a rate computation can't crash the loop."""
     a, b = prev
-    if port not in a or port not in b:
+    # a/b may be None or {} when every veth on a switch has vanished (a dead
+    # switch — exactly the fault the monitor must survive to report).
+    if not a or not b or port not in a or port not in b:
         return 0.0
     try:
         return throughput_mbps(a[port], b[port], direction)
@@ -187,7 +189,8 @@ class NetworkMonitor:
         for _ in range(self.m):
             probe, c0, c1 = self._probe()
             samples.append(probe)
-            first_c = first_c or c0
+            if first_c is None:                 # NOT `or`: an empty {} counter
+                first_c = c0                    # dict (dead switch) is falsy but valid
             last_c = c1
         return samples, first_c, last_c
 
@@ -206,6 +209,11 @@ class NetworkMonitor:
 
     def _switch_status(self, first_c, last_c, smoothed: dict) -> dict:
         live = self.sampler.liveness()
+        # path_sla_ok is only consulted for a CARRYING switch (derive returns
+        # Standby otherwise). In this single-active-path topology the carrying
+        # relay always carries the TARGET, so target_ok is the right path verdict
+        # for it (and for s1). A multi-field-per-relay topology would need a
+        # per-relay verdict via port_map.
         target_ok = smoothed.get(self.target_field, False)
         carrying = {"s1": False, "s2": False, "s3": False}
         for port, switch in _RELAY_PORT_SWITCH.items():

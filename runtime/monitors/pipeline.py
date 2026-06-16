@@ -131,16 +131,21 @@ def parse_ping(text: str) -> tuple:
     loss = None
     if pkts:
         tx, rx = int(pkts.group(1)), int(pkts.group(2))
-        loss = round((tx - rx) / tx * 100, 2) if tx else None
+        # clamp: duplicate replies (rx > tx) would otherwise yield NEGATIVE loss,
+        # which inflates the loss margin and makes a flow look better than perfect.
+        loss = round(max(0, tx - rx) / tx * 100, 2) if tx else None
     return rtt_avg, loss
 
 
 _QDISC_PATTERNS = {
     "delay_ms": re.compile(r"delay ([\d.]+)ms"),
     "loss_percent": re.compile(r"loss ([\d.]+)%"),
-    "rate_mbit": re.compile(r"rate ([\d.]+)Mbit"),
     "limit_pkts": re.compile(r"limit (\d+)p?\b"),
 }
+# rate is unit-bearing; normalize K/M/G(bit) and bare bit to Mbit so a Kbit/Gbit
+# rate shift on an unmanaged link still registers as an exogenous change (§5.7).
+_RATE_RE = re.compile(r"rate ([\d.]+)([KMG]?)bit")
+_RATE_TO_MBIT = {"": 1e-6, "K": 1e-3, "M": 1.0, "G": 1e3}
 
 
 def parse_qdisc(text: str) -> dict:
@@ -150,6 +155,9 @@ def parse_qdisc(text: str) -> dict:
         m = pat.search(text)
         if m:
             out[key] = float(m.group(1))
+    rm = _RATE_RE.search(text)
+    if rm:
+        out["rate_mbit"] = float(rm.group(1)) * _RATE_TO_MBIT[rm.group(2)]
     return out
 
 

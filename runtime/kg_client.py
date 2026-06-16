@@ -94,12 +94,21 @@ class KGClient:
                 "MATCH (f:AgriculturalField) RETURN f.id AS id, "
                 "f.latency_requirement_ms AS lat, "
                 "f.bandwidth_requirement_mbps AS bw")
+            # Skip a field node missing a bound rather than build an Envelope with
+            # None bounds, which would TypeError deep in compute_flow_metrics and
+            # crash the whole monitor on one under-populated node.
             return {_from_kg_field(r["id"]): Envelope(
                         max_latency_ms=r["lat"], min_bandwidth_mbps=r["bw"],
                         max_loss_percent=config.DEFAULT_MAX_LOSS_PERCENT)
-                    for r in rows}
+                    for r in rows if r["lat"] is not None and r["bw"] is not None}
 
     def read_last_good(self, sfc: str) -> dict | None:
+        """Returns the LastKnownGood payload as a RAW DICT (jsonable is one-way:
+        tuples->lists, frozensets->lists), keyed by SFC NAME only — so two
+        deployments of the same SFC share one slot. Fine for the single-
+        deployment node; a multi-binding setup must key on (sfc, target_field)
+        and reconstruct a ConfigSnapshot. Not consumed by the live loop today
+        (the deployer holds its own ConfigSnapshot last_good)."""
         with self.driver.session() as s:
             row = s.run(
                 "MATCH (g:LastKnownGood {sfc:$sfc}) RETURN g.payload AS payload",
@@ -121,10 +130,15 @@ class KGClient:
 
     def write_verdict(self, v: Verdict) -> None:
         with self.driver.session() as s:
+            # MERGE on (correlation_id, timestamp): one node per episode, so a
+            # best-effort retry after a transient Neo4j error is idempotent
+            # rather than duplicating the verdict. (The soak writes many verdicts
+            # per correlation_id, distinguished by timestamp — so the key is both.)
             s.run(
-                "CREATE (n:Verdict {correlation_id:$cid, outcome:$outcome, "
-                "tier_reached:$tier, headroom:$headroom, trace:$trace, "
-                "timestamp:$ts, updated_by:'runtime-manager'})",
+                "MERGE (n:Verdict {correlation_id:$cid, timestamp:$ts}) "
+                "SET n.outcome=$outcome, n.tier_reached=$tier, "
+                "n.headroom=$headroom, n.trace=$trace, "
+                "n.updated_by='runtime-manager'",
                 cid=v.correlation_id, outcome=v.outcome, tier=v.tier_reached,
                 headroom=v.headroom, trace=json.dumps(jsonable(v.trace)),
                 ts=v.timestamp)
@@ -132,10 +146,10 @@ class KGClient:
     def write_escalation(self, t: EscalationTicket, timestamp: str) -> None:
         with self.driver.session() as s:
             s.run(
-                "CREATE (n:EscalationTicket {correlation_id:$cid, sfc:$sfc, "
-                "reason:$reason, observed:$observed, envelope:$envelope, "
-                "trace:$trace, timestamp:$ts, status:'open', "
-                "updated_by:'runtime-manager'})",
+                "MERGE (n:EscalationTicket {correlation_id:$cid, timestamp:$ts}) "
+                "SET n.sfc=$sfc, n.reason=$reason, n.observed=$observed, "
+                "n.envelope=$envelope, n.trace=$trace, n.status='open', "
+                "n.updated_by='runtime-manager'",
                 cid=t.correlation_id, sfc=t.sfc, reason=t.reason,
                 observed=json.dumps(jsonable(t.observed)),
                 envelope=json.dumps(jsonable(t.envelope)),

@@ -92,8 +92,19 @@ def wait_for_thrift(port, timeout=15):
 def install_rules(rules_file, port):
     if not wait_for_thrift(port):
         raise RuntimeError(f"thrift port {port} not reachable; see /tmp/s*.log")
-    subprocess.run(f"simple_switch_CLI --thrift-port {port} < {rules_file}",
-                   shell=True, check=True)
+    proc = subprocess.run(f"simple_switch_CLI --thrift-port {port} < {rules_file}",
+                          shell=True, check=True, capture_output=True, text=True)
+    out = proc.stdout or ""
+    # simple_switch_CLI exits 0 even when a table_add line is rejected, so the
+    # topology could come up silently under-configured and stay resident.
+    # Verify every table_add produced a handle, and surface a per-line error.
+    with open(rules_file) as fh:
+        n_add = sum(1 for l in fh if l.strip().startswith("table_add"))
+    n_handle = out.count("Entry has been added with handle")
+    if n_handle != n_add:
+        raise RuntimeError(
+            f"port {port}: {n_add} table_add rules but {n_handle} installed "
+            f"(see /tmp/s*.log) — tail: {out.strip()[-300:]}")
 
 
 def configure_hosts(net, path="primary"):

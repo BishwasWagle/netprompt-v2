@@ -123,7 +123,7 @@ def test_write_verdict_serializes_trace_as_json():
     driver = FakeDriver()
     KGClient(driver).write_verdict(Verdict("ep1", "escalated", 1, 0.0, trace, "t1"))
     q, p = driver.calls[0]
-    assert "CREATE (n:Verdict" in q and p["outcome"] == "escalated"
+    assert "MERGE (n:Verdict" in q and p["outcome"] == "escalated"
     parsed = json.loads(p["trace"])
     assert parsed[0]["candidate"]["params"] == ["backup"]
 
@@ -137,7 +137,7 @@ def test_write_escalation_serializes_envelope_with_frozensets():
     driver = FakeDriver()
     KGClient(driver).write_escalation(ticket, timestamp="t2")
     q, p = driver.calls[0]
-    assert "CREATE (n:EscalationTicket" in q and "status:'open'" in q
+    assert "MERGE (n:EscalationTicket" in q and "n.status='open'" in q
     assert json.loads(p["envelope"])["legal_tiers"] == ["tune"]
 
 

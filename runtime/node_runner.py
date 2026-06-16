@@ -81,7 +81,7 @@ class NodeRunner:
         if proc.returncode != 0:
             raise RunnerError(
                 f"{host}: {command[:60]!r} exit {proc.returncode}: "
-                f"{(proc.stderr or '').strip()[:200]}")
+                f"{((proc.stdout or '') + (proc.stderr or '')).strip()[:200]}")
         return proc.stdout or ""
 
     # ---- namespace pid resolution (anchored so d1 != d10) ----

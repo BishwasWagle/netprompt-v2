@@ -81,3 +81,35 @@ premature "safety core clean".
 - **node_runner `run_host` shell-injection** (suspected High, latent) — `sh -c` with interpolated
   values; all values are config constants today (no live injection). Would need an allowlist only
   if a MAC/host/path ever becomes planner/LLM-derived.
+
+---
+
+# Pass 3 — resolve the deferred items (2026-06-16)
+
+The Pass-1 deferred backlog is now closed:
+
+- **#7 improves() target-worsening** — RE-EXAMINED, REVERTED (the original is correct). The flagged
+  behavior is INTENDED: harm relief (§7.3) deliberately trades the target's margin to lift a *harmed*
+  neighbor, and it only fires when `displaced_harm` is present — so it cannot "improve" by trading
+  target margin for an already-satisfied neighbor. Gating headroom on target-not-worse broke the
+  harm-relief hill-climb (the **M6 contention test failed live**), so the change was reverted; a
+  clarifying comment was added instead.
+- **#3 _restore_tables by-handle** — FIXED in Pass 2 (diff by (table,key)).
+- **#8 test-harness robustness** — FIXED (high-value parts): pkill uses the `[i]perf` bracket trick
+  (no `sh -c` self-match) in M5/M6/M7 **and soak**; the M5/M6/M7 **test files** gained a raising
+  `_pid` (no `mnexec -a ''` mis-target) with `_testbed_up` catching it, plus a `_reap()` for the
+  iperf Popen zombies; the M6 contention teardown reuses the scoped `_stop_traffic()` instead of
+  `pkill -x iperf`. soak keeps its tolerant `_pid` (the soak loop must keep going, not raise) — it
+  has the bracket trick + already reaps. REMAINING (documented, not done): setup (`KGClient.connect`,
+  `deploy`, `_start_traffic`) still runs before `try:` in the M5/M6/M7 test functions, so a setup
+  failure (rare; testbed-up is the skip guard) leaks. Mechanical fix: `kg = deployer = None` before
+  `try`, move setup inside, guard the `finally` with `if deployer/kg`.
+  REMAINING (documented, not done): setup (`KGClient.connect`, `deploy`, `_start_traffic`) still
+  runs before `try:` in the M5/M6/M7 test functions, so a setup failure (rare; testbed-up is the
+  skip guard) leaks. Mechanical fix: `kg = deployer = None` before `try`, move setup inside, guard
+  the `finally` with `if deployer/kg`.
+- **#11 setup_testbed_node.sh apt key** — FIXED: p4lang key is `[signed-by=]`-scoped (not
+  trusted.gpg.d), and a failed apt install removes the list+key so a broken source can't poison
+  later `apt-get update`.
+- **#12 switch_control.restart_switch** — FIXED: verifies the rules reinstalled (rules file exists +
+  every table_add produced a handle) before counting a recovery, instead of returning True blindly.

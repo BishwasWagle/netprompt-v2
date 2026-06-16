@@ -48,14 +48,29 @@ def _sh(cmd):
 
 
 def _pid(host):
-    return _sh(f"pgrep -f 'mininet:{host}$' | head -1").strip()
+    p = _sh(f"pgrep -f 'mininet:{host}$' | head -1").strip()
+    if not p:                                   # empty pid -> mnexec -a '' mis-targets
+        raise RuntimeError(f"no namespace pid for {host!r} (is the testbed up?)")
+    return p
+
+
+def _reap():
+    """Drain zombie Popen wrappers (sh/sudo/iperf) the tests never wait() on."""
+    try:
+        while os.waitpid(-1, os.WNOHANG)[0]:
+            pass
+    except ChildProcessError:
+        pass
 
 
 def _testbed_up():
     if not shutil.which("simple_switch_CLI"):
         return False
-    out = _sh("echo 'table_dump forward_table' | simple_switch_CLI --thrift-port 9090")
-    return "TABLE ENTRIES" in out and _pid("d4") != ""
+    try:
+        out = _sh("echo 'table_dump forward_table' | simple_switch_CLI --thrift-port 9090")
+        return "TABLE ENTRIES" in out and bool(_pid("d4"))
+    except RuntimeError:
+        return False
 
 
 pytestmark = pytest.mark.skipif(
@@ -85,8 +100,13 @@ def _start_traffic():
 
 
 def _stop_traffic():
-    _sh("sudo pkill -f 'iperf -u -c 10.0.0.100'")
-    _sh(f"sudo mnexec -a {_pid('edge')} pkill iperf")
+    # bracket trick: the pattern must not match the `sh -c "...pkill..."` wrapper
+    _sh("sudo pkill -f '[i]perf -u -c 10.0.0.100'")
+    try:
+        _sh(f"sudo mnexec -a {_pid('edge')} pkill iperf")
+    except RuntimeError:
+        pass                                       # edge namespace already gone
+    _reap()
     time.sleep(1)
 
 
@@ -249,7 +269,7 @@ def test_contention_harm_tunes_target_down_and_commits_live():
         tuned = [a for a in result.verdict.trace if a.candidate.kind == TUNE]
         assert tuned and all(c.candidate.params[0] == "tbf_rate_mbit" for c in tuned)
     finally:
-        _sh("sudo pkill -x iperf")
+        _stop_traffic()                                  # scoped kill + reap (not pkill -x iperf)
         deployer.deploy(_spec(cid))                      # restore clean low_latency primary
         with kg.driver.session() as s:
             s.run("MATCH (n) WHERE n.correlation_id=$c AND "

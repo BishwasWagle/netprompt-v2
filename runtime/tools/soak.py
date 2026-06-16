@@ -67,7 +67,8 @@ def start_traffic(seconds):
 
 
 def stop_traffic():
-    _sh("sudo pkill -f 'iperf -u -c 10.0.0.100'")
+    # bracket trick: the pattern must not match the `sh -c "...pkill..."` wrapper
+    _sh("sudo pkill -f '[i]perf -u -c 10.0.0.100'")
     _sh(f"sudo mnexec -a {_pid('edge')} pkill iperf")
 
 

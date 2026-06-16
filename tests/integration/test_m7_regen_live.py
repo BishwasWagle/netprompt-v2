@@ -59,7 +59,19 @@ def _sh(cmd):
 
 
 def _pid(host):
-    return _sh(f"pgrep -f 'mininet:{host}$' | head -1").strip()
+    p = _sh(f"pgrep -f 'mininet:{host}$' | head -1").strip()
+    if not p:                                   # empty pid -> mnexec -a '' would mis-target
+        raise RuntimeError(f"no namespace pid for {host!r} (is the testbed up?)")
+    return p
+
+
+def _reap():
+    """Drain zombie Popen wrappers (sh/sudo/iperf) the tests never wait() on."""
+    try:
+        while os.waitpid(-1, os.WNOHANG)[0]:
+            pass
+    except ChildProcessError:
+        pass
 
 
 def _cli(cmd, port=9090):
@@ -69,7 +81,10 @@ def _cli(cmd, port=9090):
 def _testbed_up():
     if not shutil.which("simple_switch_CLI"):
         return False
-    return "TABLE ENTRIES" in _cli("table_dump forward_table") and _pid("d4") != ""
+    try:
+        return "TABLE ENTRIES" in _cli("table_dump forward_table") and bool(_pid("d4"))
+    except RuntimeError:
+        return False
 
 
 pytestmark = pytest.mark.skipif(
@@ -99,8 +114,13 @@ def _start_traffic():
 
 
 def _stop_traffic():
-    _sh("sudo pkill -f 'iperf -u -c 10.0.0.100'")
-    _sh(f"sudo mnexec -a {_pid('edge')} pkill iperf")
+    # bracket trick: the pattern must not match the `sh -c "...pkill..."` wrapper
+    _sh("sudo pkill -f '[i]perf -u -c 10.0.0.100'")
+    try:
+        _sh(f"sudo mnexec -a {_pid('edge')} pkill iperf")
+    except RuntimeError:
+        pass                                       # edge namespace already gone
+    _reap()
     time.sleep(1)
 
 

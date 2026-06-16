@@ -114,10 +114,16 @@ else
   echo "Trying the p4lang apt repo for Ubuntu ${VERSION_ID:-unknown}…"
   REPO_URL="https://download.opensuse.org/repositories/home:/p4lang/xUbuntu_${VERSION_ID}"
   if curl -fsSL "${REPO_URL}/Release.key" -o /tmp/p4lang.key 2>/dev/null; then
-    echo "deb ${REPO_URL}/ /" | sudo tee /etc/apt/sources.list.d/home-p4lang.list >/dev/null
-    gpg --dearmor < /tmp/p4lang.key | sudo tee /etc/apt/trusted.gpg.d/home-p4lang.gpg >/dev/null
-    sudo apt-get update || true
-    sudo apt-get install -y p4lang-bmv2 || warn "apt install p4lang-bmv2 failed."
+    sudo install -d -m 0755 /etc/apt/keyrings
+    # scope the key to THIS repo via [signed-by=...], NOT trusted.gpg.d (which
+    # would trust it for every repo on the box).
+    gpg --dearmor < /tmp/p4lang.key | sudo tee /etc/apt/keyrings/p4lang.gpg >/dev/null
+    echo "deb [signed-by=/etc/apt/keyrings/p4lang.gpg] ${REPO_URL}/ /" \
+      | sudo tee /etc/apt/sources.list.d/home-p4lang.list >/dev/null
+    if ! { sudo apt-get update && sudo apt-get install -y p4lang-bmv2; }; then
+      warn "apt p4lang-bmv2 failed — removing the repo so a broken source can't poison later apt runs."
+      sudo rm -f /etc/apt/sources.list.d/home-p4lang.list /etc/apt/keyrings/p4lang.gpg
+    fi
   else
     warn "no p4lang apt repo for xUbuntu_${VERSION_ID}."
   fi

@@ -213,8 +213,13 @@ class Deployer:
             (path,) = cand.params
             mac = config.EDGE_MACS[path]
             relay, relay_port = config.RELAY_EDGE[path]
-            self._ensure_forward("s1", mac, config.EDGE_PORTS[path])
+            # Order for consistency at every prefix: install the destination
+            # relay's edge-MAC entry FIRST (a forward the old path doesn't use —
+            # harmless), THEN repoint s1, THEN flip the host side. A failure
+            # partway leaves the still-working old path (a superset), not a
+            # blackhole; the engine then rolls back from the pre-apply snapshot.
             self._ensure_forward(relay, mac, relay_port)
+            self._ensure_forward("s1", mac, config.EDGE_PORTS[path])
             self._set_path(path)
         elif cand.kind == REGEN:
             switch, rules_text = cand.params
@@ -239,6 +244,10 @@ class Deployer:
             for knob, value in knobs.items():
                 if current.get(knob) != value:
                     self._set_knob(host, knob, value)
+            # The qdisc is 'replace root', so applying the snapshot's knob already
+            # overwrote any DIFFERENT live knob's root qdisc — sync the bookkeeping
+            # so self._qos can't retain a knob the live host no longer has.
+            self._qos[host] = dict(knobs)
         for switch, want_entries in snapshot.switch_table_dumps.items():
             self._restore_tables(switch, want_entries)
         if snapshot.active_path != self._path:
@@ -272,18 +281,23 @@ class Deployer:
         live = {(e.table, e.key): e for e in self._tables.get(switch, [])}
         want = {(e.table, e.key): e
                 for e in snapshot.switch_table_dumps.get(switch, [])}
-        commands = []
+        commands, n_adds = [], 0
         for tk, w in want.items():
             e = live.get(tk)
             if e is None:
                 commands.append(add_command(w.table, w.action, w.key, w.args))
+                n_adds += 1
             elif (e.action, tuple(e.args)) != (w.action, tuple(w.args)):
                 commands.append(modify_command(w.table, w.action, e.handle, w.args))
         for tk, e in live.items():
             if tk not in want:
                 commands.append(delete_command(e.table, e.handle))
         if commands:
-            self.runner.run_cli(switch, "\n".join(commands))
+            out = self.runner.run_cli(switch, "\n".join(commands))
+            if len(parse_handles(out)) != n_adds:     # catch a partial CLI apply
+                raise DeployError(
+                    f"{switch}: recover re-added {n_adds} entries but parsed "
+                    f"{len(parse_handles(out))} handles")
             self._refresh_tables(switch)                  # resync to fresh handles
 
     def _reset_switch(self, switch: str) -> None:
@@ -334,8 +348,10 @@ class Deployer:
             self._tables.setdefault(switch, []).append(TableEntry(
                 "forward_table", mac, "forward", args, handles[0]))
         elif entry.args != args:
-            self.runner.run_cli(switch, modify_command(
+            out = self.runner.run_cli(switch, modify_command(
                 entry.table, entry.action, entry.handle, args))
+            if any(m in out.lower() for m in ("invalid", "error", "no entry")):
+                raise DeployError(f"{switch}: forward modify failed: {out.strip()[:200]}")
             entry.args = args
 
     def _set_path(self, path: str, force: bool = False) -> None:
@@ -352,7 +368,10 @@ class Deployer:
             "ip link set dev edge-eth0 up || true",
             "ip link set dev edge-eth1 up || true",
             f"ip link set dev {iface} address {mac} || true",
-            f"ip addr add {config.EDGE_IP}/24 dev {iface}",
+            # `replace` (not `add`) is idempotent — `add` raises "File exists" and
+            # aborts _set_path mid-sequence (leaving stale routes/ARP) if the
+            # address is already present.
+            f"ip addr replace {config.EDGE_IP}/24 dev {iface}",
             f"ip route replace {config.SUBNET} dev {iface} src {config.EDGE_IP}",
         ):
             self.runner.run_host(edge, cmd)
@@ -376,24 +395,24 @@ class Deployer:
         self._tables[switch] = entries
 
     def _restore_tables(self, switch: str, want: list) -> None:
-        """Diff current vs snapshot entries; emit modify/delete/add. Re-added
-        entries get fresh handles (parsed from output) — semantics restored,
-        handle numbers not guaranteed."""
-        current = {e.handle: e for e in self._tables.get(switch, [])}
-        wanted = {e.handle: e for e in want}
+        """Diff current vs snapshot by (table, KEY) — NOT handle — and emit
+        modify/delete/add. Handles drift across a switch restart, so a
+        handle-based diff mis-pairs entries (the same rule recover_switch obeys).
+        Modify/delete use the LIVE handle; re-added entries get fresh handles."""
+        live = {(e.table, e.key): e for e in self._tables.get(switch, [])}
+        wanted = {(e.table, e.key): e for e in want}
 
         commands, readds = [], []
-        for h, e in current.items():
-            w = wanted.get(h)
-            if w is None or w.table != e.table or w.key != e.key:
-                commands.append(delete_command(e.table, h))
-            elif (w.action, tuple(w.args)) != (e.action, tuple(e.args)):
-                commands.append(modify_command(w.table, w.action, h, w.args))
-        for h, w in wanted.items():
-            e = current.get(h)
-            if e is None or e.table != w.table or e.key != w.key:
+        for tk, w in wanted.items():
+            e = live.get(tk)
+            if e is None:
                 commands.append(add_command(w.table, w.action, w.key, w.args))
                 readds.append(w)
+            elif (e.action, tuple(e.args)) != (w.action, tuple(w.args)):
+                commands.append(modify_command(w.table, w.action, e.handle, w.args))
+        for tk, e in live.items():
+            if tk not in wanted:
+                commands.append(delete_command(e.table, e.handle))
 
         if not commands:
             return
@@ -403,14 +422,10 @@ class Deployer:
             raise DeployError(
                 f"{switch}: rollback re-added {len(readds)} entries but "
                 f"parsed {len(new_handles)} handles")
-
-        rebuilt = []
-        for h, w in wanted.items():
-            e = current.get(h)
-            if e is not None and e.table == w.table and e.key == w.key:
-                rebuilt.append(TableEntry(w.table, w.key, w.action,
-                                          tuple(w.args), h))
-        for w, nh in zip(readds, new_handles):
-            rebuilt.append(TableEntry(w.table, w.key, w.action,
-                                      tuple(w.args), nh))
-        self._tables[switch] = rebuilt
+        # rebuild by key: kept/modified entries keep their LIVE handle; re-adds
+        # take the freshly parsed handles (same wanted-iteration order).
+        fresh = iter(new_handles)
+        self._tables[switch] = [
+            TableEntry(w.table, w.key, w.action, tuple(w.args),
+                       live[tk].handle if tk in live else next(fresh))
+            for tk, w in wanted.items()]

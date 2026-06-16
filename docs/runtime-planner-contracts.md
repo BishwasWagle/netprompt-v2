@@ -99,8 +99,8 @@ setup.
 ## 4. Implementation status (runtime side — already built)
 
 So you can see the shapes are real, not proposals: all types in this note exist in
-[`runtime/contracts.py`](../runtime/contracts.py) and are exercised by 129 unit
-tests on branch `Run-time-Manager`. Facts that affect your side:
+[`runtime/contracts.py`](../runtime/contracts.py) and are exercised by the unit
+suite on branch `Run-time-Manager`. Facts that affect your side:
 
 - **KG persistence format:** Verdicts, tickets, and snapshots are written with
   nested payloads (traces, envelopes) as **JSON-string properties** (Neo4j can't
@@ -121,3 +121,53 @@ tests on branch `Run-time-Manager`. Facts that affect your side:
 2. **Transport:** KG node + poll, or direct invocation?
 3. **Escalation acknowledgment:** after we write an `EscalationTicket` and stop, does the planner signal "re-planned, here's the new deployment" purely by issuing a fresh handoff (new `correlation_id`)? (We assume yes — keeps the seam stateless.)
 4. Any extra fields you want on `Verdict` for the learning loop (e.g., per-attempt token/cost stats for the LLM tier)?
+
+---
+
+## 6. Integration status — runtime-side handoff adapter BUILT (2026-06-16)
+
+The inbound handoff is wired on the runtime side, consuming your existing artifact
+**without touching any planner code** (your decision kernel — `validator` /
+`prompt_builder` / `kg_context` / `policy_compiler` — is untouched). What landed:
+
+- [`runtime/planner_adapter.py`](../runtime/planner_adapter.py) — turns your
+  `outputs/llm_generated_experiment_config.json` into our normalized
+  `DeploymentSpec`. Maps `selected_sfc → sfc`, the four rule/JSON paths → `binding`,
+  derives the `envelope` (from the KG, action space runtime-owned), and threads the
+  two runtime-supplied fields (below). 15 unit tests against synthetic *and* the
+  real committed artifact; full suite **199 green**.
+- [`runtime/tools/run_from_planner.py`](../runtime/tools/run_from_planner.py) — CLI.
+  Default is a **dry** run (normalize → gate `check_binding`, no deploy); `--no-kg`
+  gives a fully offline structural check. Verified end-to-end on this node against
+  the real artifact (`ReliableRelaySFC`, backup path) → gate **PASS**.
+
+**Decisions we adopted on our side (you can still steer 1–3):**
+
+1. **Transport = file** for now: we read the artifact you already write. It's the
+   lowest-coupling option and needs zero changes from you. We can move to a KG
+   `PlannedDeployment` node + poll later (question 2) — purely a runtime-side swap
+   behind the same adapter.
+2. **Two fields are runtime-supplied at invocation**, because the artifact doesn't
+   carry them (confirmed by grep — neither `correlation_id` nor `target_field`
+   appears anywhere in your output):
+   - `correlation_id` — we auto-generate `plan-<sfc>-<8hex>` if you don't supply one;
+   - `target_field` — passed in by whoever invokes the runtime (your artifact has
+     `mission_type` / `priority_class` / `connected_drone_ids`, but no single field).
+   **If you can add either field to the artifact, we'll consume it directly** — until
+   then the runtime fills them in. This is the one place a small planner-side add
+   would tighten the contract.
+3. **Path remap:** your artifact's paths are absolute under
+   `deployment.netprompt_root` (e.g. `/home/cc/netprompt-milestone-II/…`). We rebase
+   that prefix onto the runtime's tree root, so the same artifact installs on
+   whichever node runs it. Your `policy_type` is preserved **verbatim** — our
+   deployer reads `"…backup…"` out of it to select the active path.
+
+**One thing to confirm (relay-slot semantics).** In the sample artifact, for the
+backup deployment you set **both** `relay_rules` and `backup_rules` to the *s3*
+rule file (with `selected_relay: s3`, `unavailable_relays: [s2]`). Our deployer maps
+`relay_rules → s2` and `backup_rules → s3` and selects the active path from
+`policy_type`, so the **active backup path (s1→s3) is correct**, but s2 would be
+loaded with s3's content. For the backup path that's inert (s2 isn't on it). Before
+the live end-to-end slice we should agree whether `relay_rules` always means
+"the s2-slot file" (canonical per-switch) or "the active relay's file" — a one-line
+clarification that avoids a surprise if a deployment ever needs s2 populated.

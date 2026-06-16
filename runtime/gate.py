@@ -190,7 +190,9 @@ class ValidationGate:
         if action in PORT_ACTIONS:
             if len(args) != 1 or not args[0].isdigit():
                 return _reject(f"L0: {action} needs one numeric port arg, got {args}")
-            if int(args[0]) not in SWITCH_PORTS[switch]:
+            # exact-string match rejects leading zeros (e.g. '011', which
+            # simple_switch_CLI may read as octal 9 != the 11 we'd validate)
+            if args[0] not in {str(p) for p in SWITCH_PORTS[switch]}:
                 return _reject(f"L0: port {args[0]} not valid on {switch}")
         elif action in NOARG_ACTIONS and args:
             return _reject(f"L0: {action} takes no args, got {args}")

@@ -37,10 +37,11 @@ def _complete_lines(text: str) -> str:
     complete yet we return "" — which the proposer treats as a failed attempt
     (the §7.4 fail-safe path), never a malformed candidate.
     """
-    if "\n" not in text:
-        return ""
-    whole = text[: text.rindex("\n") + 1]
-    return "\n".join(l for l in whole.splitlines() if l.strip())
+    if "\n" in text:
+        text = text[: text.rindex("\n") + 1]   # drop a trailing partial line
+    # No interior newline => a single line: keep it and let validate() arbitrate
+    # (a clean one-command EOS has no trailing "\n" but is perfectly valid).
+    return "\n".join(l for l in text.splitlines() if l.strip())
 
 
 def _resolve_device(pref: str) -> str:
@@ -99,10 +100,13 @@ class LocalHFClient:
         self._proc = GrammarConstrainedLogitsProcessor(constraint)
         # Clean greedy config: clear sampling knobs the model card may set, so
         # decoding is deterministic for the reproducibility kit (DoD #4).
+        pad_id = self._tok.pad_token_id
+        if pad_id is None:
+            pad_id = self._tok.eos_token_id          # a swapped model may lack a pad token
         self._gen_cfg = GenerationConfig(
             do_sample=False, temperature=None, top_p=None, top_k=None,
             num_beams=1, max_new_tokens=self.max_new_tokens,
-            pad_token_id=self._tok.eos_token_id)
+            pad_token_id=pad_id)
 
     def generate(self, prompt: str) -> str:
         import torch

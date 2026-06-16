@@ -218,7 +218,17 @@ class Deployer:
             self._set_path(path)
         elif cand.kind == REGEN:
             switch, rules_text = cand.params
-            self.runner.run_cli(switch, rules_text)
+            out = self.runner.run_cli(switch, rules_text)
+            # simple_switch_CLI exits 0 even when a single line in the batch
+            # fails (printing the error to stdout); surface that so the engine
+            # rolls back rather than committing a partially-applied (possibly
+            # blackholing) config the gate proved safe only as a whole.
+            bad = next((l for l in out.splitlines()
+                        if any(m in l.lower() for m in
+                               ("invalid", "error", "exception",
+                                "does not exist", "already exists"))), None)
+            if bad:
+                raise DeployError(f"{switch}: regen apply error: {bad.strip()[:200]}")
             self._refresh_tables(switch)
         else:
             raise DeployError(f"unknown candidate kind {cand.kind!r}")

@@ -180,13 +180,15 @@ def test_complete_lines_drops_trailing_partial():
     assert validate(out)                              # the kept text is gate-valid
 
 
-def test_complete_lines_returns_empty_when_nothing_terminated():
-    """No newline yet == no complete command == treated as a failed attempt
-    (empty string fails validate -> proposer retries/escalates, never a
-    malformed candidate)."""
+def test_complete_lines_keeps_single_line_and_lets_validate_arbitrate():
+    """A clean one-command EOS has no trailing newline but is valid — keep it
+    (review #9). A truncated single line is also kept, but validate() rejects it,
+    so the proposer still treats it as a failed attempt — never a bad candidate."""
     from runtime.regen.llm_client import _complete_lines
-    assert _complete_lines("table_modify forward_table forw") == ""
-    assert not validate(_complete_lines("partial"))
+    one = "table_modify forward_table forward 10 => 12"
+    assert _complete_lines(one) == one and validate(one)
+    assert _complete_lines("table_modify forward_table forw") == "table_modify forward_table forw"
+    assert not validate("table_modify forward_table forw")
 
 
 def test_complete_lines_keeps_multiple_and_strips_blanks():
@@ -228,3 +230,24 @@ def test_validate_enforces_key_type_per_table():
     assert not validate("table_add forward_table forward 10.0.0.1 => 1", "s1")        # MAC table, IP key
     assert validate("table_add relay_policy_table mark_reliable 10.0.0.1 => ", "s1")
     assert not validate("table_add relay_policy_table mark_reliable 00:00:00:00:00:01 => ", "s1")
+
+
+def test_validate_rejects_leading_zero_port():
+    # '011' int-parses to 11 but the grammar can't emit it and simple_switch_CLI
+    # may read it as octal — validate/gate must reject it (review #10).
+    assert validate("table_modify forward_table forward 1 => 11", "s1")
+    assert not validate("table_modify forward_table forward 1 => 011", "s1")
+
+
+def test_validate_enforces_action_arg_shape():
+    # a port action needs exactly one port; a no-arg action takes none. gbnf now
+    # conditions args on action so the model can't waste the K-cap on these.
+    assert not validate("table_modify forward_table forward 1 => ", "s1")   # forward, no port
+    assert not validate("table_modify forward_table drop 1 => 5", "s1")     # drop, stray arg
+    assert validate("table_modify forward_table drop 1 => ", "s1")          # drop, no arg
+
+
+def test_gbnf_conditions_args_on_action():
+    g = gbnf("s1")
+    assert 'mod_op    ::= port_act " " num " => " port | noarg_act " " num " => "' in g
+    assert 'key_op_ip ::= noarg_act " " ipv4 " => "' in g       # ip tables: noarg only

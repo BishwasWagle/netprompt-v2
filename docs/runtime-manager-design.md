@@ -200,8 +200,8 @@ Path health → switch status is attributed via the flows currently *using* that
 Per-flow sliding-window state machine so noise never triggers action or a premature success call:
 
 ```
-ok → suspect → violating     (needs K-of-M consecutive bad probes)
-violating → recovering → ok  (needs K-of-M consecutive good probes)
+ok → suspect → violating     (needs K bad probes within the last M — windowed, not strictly consecutive)
+violating → recovering → ok  (needs K good probes within the last M — windowed, not strictly consecutive)
 ```
 
 `*.met` reflects the post-hysteresis state. The adapt engine's "re-observe over a full window" uses the same machine. *Node note:* `network_monitor.observe_window()` samples a **fresh** K-of-M window of M probes per call (each `observe` is independent), returning the sustained verdict for the current config — which matches the loop's one-observe-per-`apply` usage. (Probes are currently sampled back-to-back; spacing them by `PROBE_INTERVAL_S` is a fidelity refinement for flapping conditions, not needed for sustained faults.)

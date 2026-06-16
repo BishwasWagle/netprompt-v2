@@ -78,11 +78,13 @@ _HARM_KNOB = ("tbf_rate_mbit", "down")
 
 
 def _grid(lo: float, hi: float, step: float) -> list:
-    """Quantized values anchored at lo (design §7.3 implementation note)."""
-    vals, v = [], lo
-    while v <= hi + _EPS:
-        vals.append(v)
-        v += step
+    """Quantized values anchored at lo, INCLUSIVE of hi (design §7.3 impl note).
+    Index-based (no repeated += to avoid float drift); appends hi when it isn't
+    lo + k*step so the top of the knob range is always reachable."""
+    n = int((hi - lo) / step + _EPS)
+    vals = [lo + i * step for i in range(n + 1)]
+    if vals[-1] < hi - _EPS:
+        vals.append(hi)
     return vals
 
 
@@ -96,10 +98,16 @@ def _propose_tune(diag: Diagnosis, env: Envelope, state: dict, exclude: set):
     step = config.KNOB_STEPS.get(knob) or max((hi - lo) / 5, 1)
     grid = _grid(lo, hi, step)
     current = state["knobs"].get(knob)
+    if current is None:
+        # No recorded knob value: assume the extreme the direction steps AWAY
+        # from, so the first proposal moves the RIGHT way (harm relief steps down
+        # from the cap; a target fix steps up from the floor) — NOT to the
+        # opposite end, which would worsen the very thing we're fixing.
+        current = hi if direction == "down" else lo
     if direction == "down":              # most-conservative step first
-        options = [v for v in reversed(grid) if current is None or v < current]
+        options = [v for v in reversed(grid) if v < current]
     else:
-        options = [v for v in grid if current is None or v > current]
+        options = [v for v in grid if v > current]
     for v in options:
         cand = Candidate(TUNE, (knob, v))
         if cand not in exclude:

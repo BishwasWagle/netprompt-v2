@@ -171,3 +171,25 @@ def test_budget_exhaustion_leaves_best_achieved_dominating_state():
     # both attempts (75, 65) were non-improving -> rolled back to entry state
     assert deployer.state["knobs"]["tbf_rate_mbit"] == 80
     assert res.final_report.target_sla_met                   # never worse than entry
+
+
+def test_grid_is_inclusive_of_hi():
+    from runtime.adapt import _grid
+    assert _grid(5, 80, 10)[-1] == 80          # top of the range now reachable (review)
+    assert _grid(5, 40, 10)[-1] == 40
+    assert _grid(10, 50, 10) == [10, 20, 30, 40, 50]
+
+
+def test_harm_relief_steps_down_not_to_max_when_current_unknown():
+    from runtime.adapt import _propose_tune
+    from runtime.contracts import Envelope
+    # a harm diagnosis (who != "target") relieves the target's tbf grab; with no
+    # recorded current knob the FIRST proposal must step DOWN, not to the max.
+    class D:
+        who, metric, severity = "F2", "throughput", 0.5
+    env = Envelope(max_latency_ms=70, min_bandwidth_mbps=5, max_loss_percent=20,
+                   legal_tiers=frozenset((TUNE,)),
+                   knob_ranges={"tbf_rate_mbit": (5, 80)})
+    cand = _propose_tune(D(), env, {"path": PRIMARY, "knobs": {}}, set())
+    assert cand is not None and cand.kind == TUNE and cand.params[0] == "tbf_rate_mbit"
+    assert cand.params[1] < 80                 # steps down from the cap, not to it

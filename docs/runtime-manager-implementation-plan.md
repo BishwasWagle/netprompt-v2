@@ -14,11 +14,12 @@
 > validated by the **≥1h soak run: 351 episodes, 314 healthy / 37 marginal, 0
 > escalations, 17/17 watchdog recoveries from injected s3 kills, 0 errors, 0
 > KG-write failures, 0 zombies** — 2026-06-15 on the consolidated GPU node with a
-> local Neo4j KG) · M7 ◐ (regen
-> plumbing + stub done; real serving remains — see review-#8 prereqs in §M7,
-> scoped in [m7-implementation-plan.md](m7-implementation-plan.md)) ·
-> M-K ☐ awaiting Kiran (open items in design §13). The deterministic baseline
-> (M0–M6, Tier-2 stubbed) is demonstrated end-to-end on the live testbed.
+> local Neo4j KG) · **M7 ✅ COMPLETE 2026-06-16** (real GBNF-constrained Qwen-Coder
+> serving on cuda:1; live propose→gate→apply→observe + a committed recovered episode,
+> LLM-down fail-safe, multi-model comparison table, reproducibility kit — see
+> [m7-implementation-plan.md](m7-implementation-plan.md)) ·
+> M-K ☐ awaiting Kiran (open items in design §13). The full system (M0–M7, Tier-2
+> real serving) is demonstrated end-to-end on the live testbed.
 > See §7 "Node bring-up findings" + design §13 "Known issues & hardening backlog".
 
 ---

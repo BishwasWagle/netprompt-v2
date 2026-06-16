@@ -2,9 +2,14 @@
 
 **Companion to:** [runtime-manager-design.md](runtime-manager-design.md) §7.3/§11/§13b.B and
 [runtime-manager-implementation-plan.md](runtime-manager-implementation-plan.md) §M7.
-**Owner:** Kevin. **Status:** M0–M6 ✅ complete (incl. the ≥1h soak, 2026-06-15). M7 is the only
-milestone left. Tier-2 *plumbing* is done and green with a stub; this plan covers the **real
-serving swap** and the paper deliverables.
+**Owner:** Kevin. **Status: M7 ✅ COMPLETE (2026-06-16).** All work items landed and live-verified:
+#1/#2 LocalHFClient + GBNF decoding, #3 config, #4 grammar tightening, #5 gate L3 hook, #6 live
+wiring, #7 reproducibility kit, #8 multi-model comparison harness, #9 DoD demo. Exit criteria met —
+propose→gate→apply→observe + a committed **recovered episode** (test D, via the path), the **LLM-down
+fail-safe**, the **comparison table** ([m7-regen-comparison.md](m7-regen-comparison.md)), and the
+**reproducibility kit** (pinned model+rev, manifest, deterministic-candidate test). The real 1.5B
+Coder emitting the *exact* corrective row is the documented model-capability frontier (test C `xfail`).
+A latent gate bug (handle collision across tables) found and fixed along the way.
 
 ---
 

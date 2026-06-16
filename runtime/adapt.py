@@ -156,7 +156,14 @@ def dominates(post: MonitorReport, pre: MonitorReport) -> bool:
 
 
 def improves(post: MonitorReport, pre: MonitorReport) -> bool:
-    """Strict progress on some axis (design §7.2)."""
+    """Strict progress on some axis (design §7.2).
+
+    NB: a headroom rise that coincides with the target's own margin dropping is
+    INTENDED, not a bug — harm relief (§7.3) deliberately gives back the target's
+    grab (lowering its margin) to lift a harmed neighbor. It only fires when
+    displaced_harm is present, so it can't 'improve' by trading target margin for
+    an already-satisfied neighbour. (Gating headroom on target-not-worse breaks
+    the harm-relief hill-climb — caught by the M6 contention scenario.)"""
     return ((post.target_sla_met and not pre.target_sla_met)
             or len(post.displaced_harm) < len(pre.displaced_harm)
             or post.headroom > pre.headroom + config.EPS_IMPROVE)

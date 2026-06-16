@@ -113,10 +113,18 @@ def restart_switch(name: str, p4_json: str, rules_file: str, *,
             time.sleep(0.3)
             waited += 0.3
         if _thrift_up(port):
-            subprocess.run(
+            if not os.path.exists(rules_file):
+                break                                # nothing to reinstall -> fail
+            r = subprocess.run(
                 f"simple_switch_CLI --thrift-port {port} < {rules_file}",
-                shell=True, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL,
-                timeout=30)
-            return True
+                shell=True, capture_output=True, text=True, timeout=30)
+            with open(rules_file) as fh:
+                n_add = sum(1 for l in fh if l.strip().startswith("table_add"))
+            # only count a recovery if EVERY rule re-installed (simple_switch_CLI
+            # exits 0 on a per-line failure) — else retry, then fall through to
+            # False so the caller never treats a half-configured switch as healed.
+            if (r.returncode == 0 and
+                    (r.stdout or "").count("Entry has been added with handle") == n_add):
+                return True
     kill_switch(name)                                # don't leave a dud orphan
     return False

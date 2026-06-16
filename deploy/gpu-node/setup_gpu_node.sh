@@ -121,9 +121,22 @@ PY
 # ---------------------------------------------------------------- step 6: env template
 say "Step 6 — write env template"
 ENV_FILE="$HERE/gpu-node.env"
+# Don't clobber a customized KG password on re-run: if one was set (via
+# setup_kg_node.sh --password or by editing the env) and NEO4J_PASSWORD wasn't
+# re-exported, reuse the value already in the env file.
+if [[ -z "${NEO4J_PASSWORD:-}" && -f "$ENV_FILE" ]]; then
+  _existing="$(sed -n 's/^export NETPROMPT_KG_PASS="\(.*\)"$/\1/p' "$ENV_FILE" | head -1)"
+  if [[ -n "$_existing" && "$_existing" != "$KG_PASS" ]]; then
+    KG_PASS="$_existing"
+    warn "preserving existing NETPROMPT_KG_PASS from $ENV_FILE (export NEO4J_PASSWORD to override)"
+  fi
+fi
 cat > "$ENV_FILE" <<EOF
 # Source this before running the orchestrator on the GPU node:  source $ENV_FILE
 export NETPROMPT_ROOT="$NETPROMPT_ROOT"
+# Runtime reads NETPROMPT_TREE_ROOT for the P4 JSON + rule paths (same tree);
+# without it config.py falls back to a stale /home/cc/Run-time-Manager-2 default.
+export NETPROMPT_TREE_ROOT="\$NETPROMPT_ROOT"
 export NETPROMPT_LLM_MODEL="$MODEL"
 export NETPROMPT_LLM_ADAPTER="\$NETPROMPT_ROOT/netprompt_qwen_kg_rag_orchestrator/final_adapter"
 export NETPROMPT_LLM_DEVICE_MAP="cuda:0"

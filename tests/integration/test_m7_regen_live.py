@@ -278,3 +278,53 @@ def test_regen_recovers_table_fault_live():
         deployer.deploy(_regen_spec(cid))
         _kg_cleanup(kg, cid)
         kg.close()
+
+
+# ---------------- D: recovery PATH proven deterministically (DoD #3) -----------
+
+def _d4_handle(deployer):
+    return next(e.handle for e in deployer.table_state()["s1"]
+                if e.key.lower() == D4_MAC)
+
+
+def test_regen_recovers_via_path_live():
+    """Deploys >=1 RECOVERED episode via Tier-2 regen end-to-end (DoD #3),
+    deterministically. The fault (d4 mis-ported to a wrong-but-valid port) is
+    baked into the BASELINE, so it isn't a regression and the cheaper rung-3
+    rollback doesn't pre-empt Tier-2 (evaluator stage 3). A StubLLMClient feeds
+    the known-correct corrective row, so this proves the
+    propose->gate->apply->observe->COMMIT recovery PATH — independent of whether
+    the 1.5B model can emit that row (the xfail test above)."""
+    cid = "M7_PATH_TMP"
+    kg = KGClient.connect()
+    deployer = Deployer(NodeRunner(), host_map=DEFAULT_HOST_MAP)
+    deployer.deploy(_regen_spec(cid))
+    _start_traffic()
+    handle = _d4_handle(deployer)
+    try:
+        # Mis-port d4 (F1's ping target) BEFORE the baseline -> the violation is
+        # the steady state, not a regression -> the engine adapts to Tier-2.
+        _cli(f"table_modify forward_table forward {handle} => 5")    # d4 -> wrong port 5
+        deployer._refresh_tables("s1")                               # gate sees the live faulty state
+        monitor = NetworkMonitor(NodeSampler(NodeRunner(), DEFAULT_HOST_MAP, ping_count=2),
+                                 REQ, "F1", cid, k=2, m=2)
+        monitor.capture_baseline()                                   # baseline = F1 violating
+        assert monitor.observe_window().target_sla_met is False, "fault not present at baseline"
+
+        fix = f"table_modify forward_table forward {handle} => 4"    # the corrective row
+        proposer = RegenProposer(StubLLMClient([fix]),
+                                 table_state_fn=deployer.table_state, switch="s1")
+        rm = RuntimeManager(deployer, monitor, ValidationGate(), kg=kg, regen_proposer=proposer)
+        result = rm.run_episode(_regen_spec(cid), timestamp="tM7PATH")
+
+        applied = [a for a in result.verdict.trace if a.candidate.kind == REGEN and a.applied]
+        assert applied, "the Tier-2 regen candidate was not applied"
+        assert result.verdict.outcome in ("healthy", "marginal"), result.verdict.outcome
+        assert result.verdict.tier_reached == 2                      # recovered at Tier-2
+        assert D4_MAC in _live_routable(deployer)                    # d4 routed again, live
+    finally:
+        _cli(f"table_modify forward_table forward {handle} => 4")    # ensure d4 restored
+        _stop_traffic()
+        deployer.deploy(_regen_spec(cid))
+        _kg_cleanup(kg, cid)
+        kg.close()

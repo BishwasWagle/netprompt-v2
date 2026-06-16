@@ -102,6 +102,21 @@ def test_regen_l3_dry_install_hook(gate):
     assert not rejecting.check(blackhole, ENV, s1_tables()).reason.startswith("L3:")
 
 
+def test_regen_l2_handles_collide_across_tables(gate):
+    """BMv2 handles are NOT unique across tables — a priority_table entry can
+    share a handle value with a forward_table entry. L2's simulation must key by
+    (table, handle) so the forward entry isn't dropped (a false blackhole). Live
+    regression: this had silently rejected EVERY regen candidate on the node."""
+    fwd = [TableEntry("forward_table", f"00:00:00:00:00:{i:02x}", "forward", (str(i),), i - 1)
+           for i in range(1, 11)]
+    fwd.append(TableEntry("forward_table", EDGE_MAC, "forward", ("11",), 10))
+    fwd.append(TableEntry("priority_table", "10.0.0.100",          # handle 0 collides with d1
+                          "set_low_latency_class", (), 0))
+    cand = Candidate(REGEN, ("s1", "table_modify forward_table forward 0 => 2"))
+    r = gate.check(cand, ENV, {"s1": fwd})
+    assert r.ok, r.reason                          # d1 not dropped by the colliding handle
+
+
 def test_regen_modify_without_arrow_also_parses(gate):
     cand = Candidate(REGEN, ("s1", "table_modify forward_table forward 10 12"))
     assert gate.check(cand, ENV, s1_tables()).ok    # M0 spike pins exact syntax

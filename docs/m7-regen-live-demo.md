@@ -132,3 +132,27 @@ recovery is not yet.
 2. Write `test_m7_regen_live.py` (A, B; C as xfail-tolerant).
 3. Bring up the resident testbed, source `gpu-node.env`, run under sudo venv-python.
 4. Record results; fold a pass into the M7 status + DoD checklist.
+
+## 7c. DoD #3 RESOLVED — recovery path proven, plus a real gate bug (2026-06-16)
+
+The recovery is now demonstrated, after uncovering a latent gate bug.
+
+**The gate bug.** Building a scenario where Tier-2 actually *fires* (the fault baked into the
+BASELINE so rung-3 rollback doesn't pre-empt it — evaluator stage 3 only rolls back on a regression
+vs baseline) exposed that **every regen candidate was being gate-rejected on the live testbed** with
+a false `L2: <drone> not routable (blackhole)`. Cause: `gate._simulate` keyed its working set by
+`e.handle`, but **BMv2 handles are not unique across tables** — a `priority_table` entry collided
+with a `forward_table` entry, collapsing the dict and dropping a drone's forward entry. M6 never hit
+this (it stops at Tier-1); only a *passing* regen does. Fixed to key by `(table, handle)`; unit
+regression in `test_gate.py::test_regen_l2_handles_collide_across_tables`.
+
+**Recovery now proven.** `test_regen_recovers_via_path_live` (test **D**) deterministically deploys a
+recovered episode: d4 (F1's ping target) is mis-ported to a wrong-but-valid port *before* the
+baseline (so it's the steady state, not a regression), the ladder falls through to Tier-2, and a
+`StubLLMClient` feeds the known-correct corrective row → propose → gate → apply → observe → **COMMIT
+(marginal, tier 2)**, with d4's route restored on the live switch. This proves the Tier-2 recovery
+**path/machinery** end-to-end (DoD #3's "deploys ≥1 recovered episode"). Whether the 1.5B Coder
+*itself* emits that row is the separate, model-capability question — test **C** stays `xfail`.
+
+**Final live status:** A (propose→gate) ✅ · B (LLM-down fail-safe) ✅ · C (real-model recovery)
+xfail (model capability) · **D (recovery path) ✅ — DoD #3 met.**

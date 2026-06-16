@@ -212,32 +212,36 @@ class ValidationGate:
     def _simulate(self, commands, entries: list, switch: str) -> GateResult:
         """Apply commands to a copy of the switch's entries, then check that
         every required MAC is still forwarded to a valid port (L2)."""
-        by_handle = {e.handle: TableEntry(e.table, e.key, e.action, tuple(e.args), e.handle)
-                     for e in entries}
-        next_handle = max(by_handle, default=-1) + 1
+        # Key by (table, handle): BMv2 handles are NOT unique across tables, so a
+        # priority_table entry can share a handle value with a forward_table entry.
+        # Keying by handle alone collapses them and drops a forward entry -> a
+        # false blackhole rejection of an otherwise-valid regen candidate.
+        by_tk = {(e.table, e.handle): TableEntry(e.table, e.key, e.action,
+                                                 tuple(e.args), e.handle)
+                 for e in entries}
+        next_handle = max((h for (_, h) in by_tk), default=-1) + 1
 
         for c in commands:
             if c[0] == "add":
                 _, table, action, key, args = c
-                if any(e.table == table and e.key == key for e in by_handle.values()):
+                if any(e.table == table and e.key == key for e in by_tk.values()):
                     return _reject(f"L2: duplicate entry for {key} in {table}")
-                by_handle[next_handle] = TableEntry(table, key, action, args, next_handle)
+                by_tk[(table, next_handle)] = TableEntry(table, key, action, args, next_handle)
                 next_handle += 1
             elif c[0] == "modify":
                 _, table, action, handle, args = c
-                e = by_handle.get(handle)
-                if e is None or e.table != table:
+                e = by_tk.get((table, handle))
+                if e is None:
                     return _reject(f"L2: no entry with handle {handle} in {table}")
-                by_handle[handle] = TableEntry(table, e.key, action, args, handle)
+                by_tk[(table, handle)] = TableEntry(table, e.key, action, args, handle)
             elif c[0] == "delete":
                 _, table, handle = c
-                e = by_handle.get(handle)
-                if e is None or e.table != table:
+                if (table, handle) not in by_tk:
                     return _reject(f"L2: no entry with handle {handle} in {table}")
-                del by_handle[handle]
+                del by_tk[(table, handle)]
 
         # str() tolerance: real table dumps (M4) may carry ports as ints.
-        routable = {e.key for e in by_handle.values()
+        routable = {e.key for e in by_tk.values()
                     if e.table == "forward_table" and e.action == "forward"
                     and e.args and str(e.args[0]).isdigit()
                     and int(str(e.args[0])) in SWITCH_PORTS[switch]}

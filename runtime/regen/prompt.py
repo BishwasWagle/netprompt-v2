@@ -36,6 +36,16 @@ def render_tables(entries: list) -> str:
     return "\n".join(lines)
 
 
+def _fmt_knobs(knobs: dict) -> str:
+    """Type-stable knob rendering for reproducibility: an integral value renders
+    as an int, else a fixed-precision float — so 50 and 50.0 (which a dict repr
+    would print differently) produce the SAME prompt, hence the same candidate."""
+    def num(v):
+        f = float(v)
+        return str(int(f)) if f.is_integer() else f"{f:.3f}"
+    return "{" + ", ".join(f"{k}: {num(v)}" for k, v in sorted(knobs.items())) + "}"
+
+
 def build_prompt(diag, env, state, entries: list, rejected: list,
                  switch: str, tables_allowed) -> str:
     rejected_txt = "\n".join(f"- {r}" for r in rejected) if rejected else "(none)"
@@ -46,7 +56,7 @@ def build_prompt(diag, env, state, entries: list, rejected: list,
         min_bandwidth_mbps=env.min_bandwidth_mbps,
         max_loss_percent=env.max_loss_percent,
         path=state["path"],
-        knobs=dict(sorted(state["knobs"].items())),
+        knobs=_fmt_knobs(state["knobs"]),
         tables=render_tables(entries),
         rejected=rejected_txt,
         tables_allowed=", ".join(sorted(tables_allowed)),

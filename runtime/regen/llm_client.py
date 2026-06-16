@@ -123,3 +123,37 @@ class LocalHFClient:
         text = self._tok.decode(out[0][enc["input_ids"].shape[-1]:],
                                 skip_special_tokens=True)
         return _complete_lines(text)
+
+
+def manifest() -> dict:
+    """Reproducibility manifest (M7 DoD #4): everything needed to reproduce a
+    Tier-2 candidate from the same inputs — the pinned model+revision, decoding
+    params, library versions, and content hashes of the grammar and prompt
+    template. Lightweight: reads package versions without importing torch."""
+    import hashlib
+    from importlib.metadata import PackageNotFoundError, version
+    from runtime import config
+    from runtime.regen.grammar import gbnf
+    from runtime.regen.prompt import TEMPLATE
+
+    def _ver(dist):
+        try:
+            return version(dist)
+        except PackageNotFoundError:
+            return None
+
+    def _sha(s):
+        return hashlib.sha256(s.encode()).hexdigest()[:16]
+
+    return {
+        "model": config.REGEN_MODEL,
+        "revision": config.REGEN_REVISION,
+        "device": config.REGEN_DEVICE,
+        "max_new_tokens": config.REGEN_MAX_NEW_TOKENS,
+        "decoding": "greedy (do_sample=False, num_beams=1)",
+        "torch": _ver("torch"),
+        "transformers": _ver("transformers"),
+        "transformers_cfg": _ver("transformers-cfg"),
+        "gbnf_sha256_16": _sha(gbnf("s1")),
+        "prompt_template_sha256_16": _sha(TEMPLATE),
+    }

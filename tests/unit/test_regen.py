@@ -251,3 +251,24 @@ def test_gbnf_conditions_args_on_action():
     g = gbnf("s1")
     assert 'mod_op    ::= port_act " " num " => " port | noarg_act " " num " => "' in g
     assert 'key_op_ip ::= noarg_act " " ipv4 " => "' in g       # ip tables: noarg only
+
+
+def test_prompt_knob_formatting_is_type_stable():
+    # 50 and 50.0 must render identically so the prompt (-> candidate) is stable
+    from runtime.regen.prompt import _fmt_knobs
+    assert _fmt_knobs({"tbf_rate_mbit": 50}) == _fmt_knobs({"tbf_rate_mbit": 50.0})
+    assert _fmt_knobs({"tbf_rate_mbit": 50}) == "{tbf_rate_mbit: 50}"
+    assert _fmt_knobs({"a": 1.5}) == "{a: 1.500}"
+    assert _fmt_knobs({}) == "{}"
+
+
+def test_regen_manifest_is_complete_and_deterministic():
+    from runtime.regen.llm_client import manifest
+    m = manifest()
+    for k in ("model", "revision", "device", "max_new_tokens", "decoding",
+              "gbnf_sha256_16", "prompt_template_sha256_16"):
+        assert k in m, k                            # revision may be None if unpinned
+    for k in ("model", "device", "decoding", "gbnf_sha256_16", "prompt_template_sha256_16"):
+        assert m[k] is not None, k
+    assert len(m["gbnf_sha256_16"]) == 16
+    assert manifest() == m                          # deterministic

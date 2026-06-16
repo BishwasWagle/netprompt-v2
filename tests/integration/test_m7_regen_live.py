@@ -7,11 +7,12 @@ Three scenarios:
      (M7 exit #1, the deterministic half — apply/recover is test C).[must-pass]
   B  LLM-down fail-safe : same fault, an empty stub client -> proposer returns
      None -> the engine escalates, no regen applied (§7.4).         [must-pass]
-  C  committed recovery : a table-level fault (drone d10's forward entry deleted)
-     that a corrective regen entry can fix; assert the episode recovers and the
-     route is restored (DoD #3). Depends on the 1.5B Coder emitting the exact
-     corrective row, so it is xfail-tolerant and skipped entirely when
-     M7_REGEN_RECOVERY=0.                                   [stretch / togglable]
+  C  committed recovery : a table-level fault on the F1-MEASURED path (delete
+     d4's forward entry; d4 is F1's ping target) that a corrective regen entry
+     can fix; assert the episode recovers and the route is restored ON THE LIVE
+     SWITCH (DoD #3). Depends on the 1.5B Coder emitting the exact corrective
+     row, so it is xfail-tolerant and skipped when M7_REGEN_RECOVERY=0.
+                                                            [stretch / togglable]
 
 The ladder reaches Tier-2 because the spec makes tune + reroute exhaust:
 knob_ranges={} (nothing to tune) and legal_paths={PRIMARY} (no backup to flip).
@@ -49,7 +50,7 @@ TREE = os.environ.get(
 SENSING = ["d4", "d5", "d6", "d7", "d8", "d9", "d10"]
 REQ = {"F1": Envelope(max_latency_ms=70, min_bandwidth_mbps=5, max_loss_percent=20),
        "F2": Envelope(max_latency_ms=120, min_bandwidth_mbps=2, max_loss_percent=20)}
-D10_MAC = "00:00:00:00:00:0a"        # drone d10 -> port 10 (config.DRONE_MACS[-1])
+D4_MAC = "00:00:00:00:00:04"         # drone d4 -> port 4; d4 is F1's ping target
 ATTEMPT_RECOVERY = os.environ.get("M7_REGEN_RECOVERY", "1") != "0"
 
 
@@ -127,6 +128,14 @@ def _real_proposer(deployer):
 def _routable_macs(deployer):
     return {e.key.lower() for e in deployer.table_state()["s1"]
             if e.action == "forward" and e.args}
+
+
+def _live_routable(deployer):
+    """Resync the deployer cache to the ACTUAL switch first — raw _cli edits
+    (the fault injection) bypass the deployer, so table_state()'s cache is
+    otherwise stale and would report a deleted route as still present."""
+    deployer._refresh_tables("s1")
+    return _routable_macs(deployer)
 
 
 def _kg_cleanup(kg, cid):
@@ -209,7 +218,11 @@ def test_regen_llm_down_escalates_live():
 
 @pytest.mark.skipif(not ATTEMPT_RECOVERY,
                     reason="recovery attempt disabled (set M7_REGEN_RECOVERY=0)")
-@pytest.mark.xfail(reason="depends on the 1.5B Coder emitting the exact corrective row",
+@pytest.mark.xfail(reason="the engine recovers a deleted entry via the cheaper rung-3 "
+                          "ROLLBACK (restore last-known-good) before Tier-2 regen fires "
+                          "-> outcome='rollback', empty trace. A regen-DRIVEN recovery "
+                          "needs a fault in regen's narrow niche (exogenous + table-fixable "
+                          "+ not reroute-fixable), which a single injected delete isn't.",
                    strict=False)
 def test_regen_recovers_table_fault_live():
     cid = "M7_C_TMP"
@@ -221,20 +234,26 @@ def test_regen_recovers_table_fault_live():
         monitor = NetworkMonitor(NodeSampler(NodeRunner(), DEFAULT_HOST_MAP, ping_count=2),
                                  REQ, "F1", cid, k=2, m=2)
         monitor.capture_baseline()
-        # table-level fault: blackhole d10 by deleting its forward entry on s1.
-        handle = next(e.handle for e in deployer.table_state()["s1"]
-                      if e.key.lower() == D10_MAC)
+        assert monitor.observe_window().target_sla_met is True
+        # Table-level fault on the F1-MEASURED path: delete d4's forward entry
+        # (d4 is F1's ping target). edge->d4 replies then drop -> F1 loss
+        # violation -> ladder to Tier-2 -> regen must re-add the entry to recover.
+        handle = next((e.handle for e in deployer.table_state()["s1"]
+                       if e.key.lower() == D4_MAC), None)
+        assert handle is not None, "d4 forward entry absent at setup"
         _cli(f"table_delete forward_table {handle}")
+        assert D4_MAC not in _live_routable(deployer), "fault did not take on the live switch"
 
         rm = RuntimeManager(deployer, monitor, ValidationGate(), kg=kg,
                             regen_proposer=_real_proposer(deployer))
         result = rm.run_episode(_regen_spec(cid), timestamp="tM7C")
 
+        # recovery is judged against the LIVE switch, not the deployer cache.
         assert result.verdict.outcome in ("healthy", "marginal"), result.verdict.outcome
-        assert D10_MAC in _routable_macs(deployer), "regen did not restore d10's route"
+        assert D4_MAC in _live_routable(deployer), "regen did not restore d4's route"
     finally:
-        if D10_MAC not in _routable_macs(deployer):
-            _cli(f"table_add forward_table forward {D10_MAC} => 10")
+        if D4_MAC not in _live_routable(deployer):
+            _cli(f"table_add forward_table forward {D4_MAC} => 4")
         _stop_traffic()
         deployer.deploy(_regen_spec(cid))
         _kg_cleanup(kg, cid)

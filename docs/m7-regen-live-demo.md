@@ -105,6 +105,27 @@ the testbed clean for re-runs.
 | B LLM-down | escalates, no REGEN applied, network untouched | ✅ yes |
 | C recovery (stretch) | verdict healthy/marginal, route restored, KG `LastKnownGood` | ◇ stretch |
 
+## 7b. Live-run findings (2026-06-16)
+
+Built and run on the real testbed. **A (propose→gate) and B (LLM-down fail-safe) PASS.**
+**C (recovery) honestly XFAILs**, and the reason is a genuine design insight:
+
+- A first cut deleted **d10**, but F1 only measures **d4** (`host_map["F1"][0]`), so there was no
+  violation; combined with the recovery assertion reading the deployer's **stale cache** (the raw
+  `_cli` delete bypasses the deployer), C was a **false green**. Fixed: target **d4** and read the
+  **live** switch (`_live_routable` → `_refresh_tables`).
+- With the corrected fault, the episode returns **`outcome='rollback'`, `tier_reached=0`, empty
+  trace** — the engine recovers the deleted entry via the **cheaper rung-3 rollback** (restore
+  last-known-good), so **Tier-2 regen never fires**. The network recovers, but not via regen.
+
+**Implication:** Tier-2 regen has a *narrow* practical trigger. A deleted/edited entry reads as
+"our config regressed" → rollback. A link impairment → tune/reroute. Regen only fires for a fault
+that is exogenous (so no rollback), table-shaped (so reroute/tune can't fix it), and reaches Tier-2
+— which a single injected delete is not. Demonstrating a regen-*driven* committed recovery needs a
+purpose-built scenario in that niche (or temporarily disabling the rollback rung), and is left as
+the open item for DoD #3. propose→gate→apply→observe + the fail-safe are proven; regen-driven
+recovery is not yet.
+
 ## 8. Build order once approved
 
 1. Add the spec + Fault A inject/restore helpers (reuse `simple_switch_CLI` via the runner).

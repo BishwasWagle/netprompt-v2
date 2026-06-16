@@ -23,7 +23,7 @@ from pathlib import Path
 from runtime import config
 from runtime.contracts import (
     BACKUP, PRIMARY, REGEN, REROUTE, TUNE,
-    Candidate, ConfigSnapshot, DeploymentSpec, TableEntry,
+    Candidate, ConfigSnapshot, DeploymentSpec, GateResult, TableEntry,
 )
 
 
@@ -299,6 +299,26 @@ class Deployer:
                     f"{switch}: recover re-added {n_adds} entries but parsed "
                     f"{len(parse_handles(out))} handles")
             self._refresh_tables(switch)                  # resync to fresh handles
+
+    def dry_install(self, switch: str, rules_text: str) -> GateResult:
+        """Gate L3 hook: apply `rules_text` to the LIVE switch, check it installed
+        cleanly, then ROLL BACK — catches a real DUPLICATE_ENTRY / handle-drift
+        error the gate's L2 simulation can't. Briefly mutates the switch, so it is
+        only wired (ValidationGate(dry_install_fn=...)) when L3 is explicitly on."""
+        before = list(self.table_state().get(switch, []))
+        try:
+            out = self.runner.run_cli(switch, rules_text)
+        except Exception as e:                            # noqa: BLE001 (best-effort probe)
+            return GateResult(False, f"L3: dry-install failed on {switch}: {e}")
+        bad = next((l for l in out.splitlines()
+                    if any(m in l.lower() for m in
+                           ("invalid", "error", "exception",
+                            "does not exist", "already exists"))), None)
+        self._refresh_tables(switch)                      # see the post-apply state...
+        self._restore_tables(switch, before)              # ...then undo it
+        if bad:
+            return GateResult(False, f"L3: dry-install error on {switch}: {bad.strip()[:200]}")
+        return GateResult(True)
 
     def _reset_switch(self, switch: str) -> None:
         """Delete every entry currently on `switch`, read from a live dump so

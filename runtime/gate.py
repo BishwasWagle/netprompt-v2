@@ -57,9 +57,17 @@ def _reject(reason: str) -> GateResult:
 class ValidationGate:
 
     def __init__(self, required_macs: tuple = DRONE_MACS,
-                 edge_macs: tuple = tuple(EDGE_MACS.values())):
+                 edge_macs: tuple = tuple(EDGE_MACS.values()),
+                 dry_install_fn=None):
         self.required_macs = tuple(m.lower() for m in required_macs)
         self.edge_macs = tuple(m.lower() for m in edge_macs)
+        # L3 (node-only, default OFF): optional dry_install_fn(switch, rules_text)
+        # -> GateResult, run after L2 to catch real-install errors the simulation
+        # can't (DUPLICATE_ENTRY / handle drift). Off by default; the live loop is
+        # single-threaded and re-fetches table state per candidate, so L2 + the
+        # deployer's apply error-scan already cover it — the hook is here for a
+        # scratch-instance check or a future multi-writer setup.
+        self.dry_install_fn = dry_install_fn
 
     # ---------------- entry point 1: pre-deploy binding ----------------
 
@@ -143,7 +151,10 @@ class ValidationGate:
             # Sound = conservative: without state we cannot prove the
             # invariant, so we refuse rather than hope.
             return _reject("L2: no current table state for invariant check")
-        return self._simulate(commands, current_tables[switch], switch)
+        l2 = self._simulate(commands, current_tables[switch], switch)
+        if not l2.ok or self.dry_install_fn is None:
+            return l2
+        return self.dry_install_fn(switch, rules_text)             # L3 (node-only)
 
     def _parse_command(self, line: str, switch: str):
         """Returns a command tuple, or a GateResult rejection."""

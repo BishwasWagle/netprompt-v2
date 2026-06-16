@@ -80,6 +80,28 @@ def test_regen_valid_reroute_rules_pass(gate):
     assert gate.check(cand, ENV, s1_tables()).ok
 
 
+def test_regen_l3_dry_install_hook(gate):
+    """L3: an injected dry_install_fn runs after L2 and can reject a candidate
+    that passed L0-L2; with no fn (default) behavior is unchanged."""
+    from runtime.contracts import GateResult
+    cand = Candidate(REGEN, ("s1", "table_modify forward_table forward 10 => 12"))
+    assert gate.check(cand, ENV, s1_tables()).ok                  # L0-L2 pass, no L3
+
+    rejecting = ValidationGate(dry_install_fn=lambda sw, txt: GateResult(False, "L3: boom"))
+    r = rejecting.check(cand, ENV, s1_tables())
+    assert not r.ok and r.reason.startswith("L3:")               # L3 rejected it
+
+    seen = {}
+    accepting = ValidationGate(
+        dry_install_fn=lambda sw, txt: seen.update(sw=sw, txt=txt) or GateResult(True))
+    assert accepting.check(cand, ENV, s1_tables()).ok
+    assert seen["sw"] == "s1" and "table_modify" in seen["txt"]   # fn saw the live rules
+
+    # L3 is not reached when L2 already rejects (entry-deleting regen -> blackhole)
+    blackhole = Candidate(REGEN, ("s1", "table_modify forward_table drop 10 => "))
+    assert not rejecting.check(blackhole, ENV, s1_tables()).reason.startswith("L3:")
+
+
 def test_regen_modify_without_arrow_also_parses(gate):
     cand = Candidate(REGEN, ("s1", "table_modify forward_table forward 10 12"))
     assert gate.check(cand, ENV, s1_tables()).ok    # M0 spike pins exact syntax

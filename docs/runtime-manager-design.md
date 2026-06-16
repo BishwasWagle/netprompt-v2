@@ -49,6 +49,155 @@ Planner-territory files that **must not be modified**:
 
 ---
 
+## 1a. System Architecture
+
+This section gives the consolidated picture the rest of the document then specifies
+component-by-component. The system is a **two-loop control architecture around a central
+KG + Library hub**: a slow *outer* learning loop (the planner — out of scope, §1.2) and a fast
+*inner* runtime loop (the Runtime Manager — this document). The inner loop takes an
+already-validated SFC binding, gets it safely onto a **persistent** P4/BMv2 network, watches the
+result against a captured baseline, and decides — autonomously, within the SFC envelope — to
+commit, roll back, or adapt.
+
+```mermaid
+flowchart LR
+  subgraph OUTER["Outer loop · slow / learning — planner (OUT OF SCOPE, §1.2)"]
+    Intent(["Intent"]) --> Planner["Planner<br/>SFC selection + library"]
+    Analytics["Results + analytics"] --> Planner
+  end
+
+  subgraph HUB["KG + Library hub · Neo4j (§8)"]
+    KG[("Knowledge Graph")]
+    Base["BaselineSnapshot<br/>attribution (§5.3)"]
+    LKG["Last-known-good<br/>ConfigSnapshot (§10.5)"]
+  end
+
+  subgraph INNER["Inner loop · fast / runtime — Runtime Manager (THIS DOCUMENT)"]
+    RM["Runtime Manager<br/>state machine / orchestrator (§3)"]
+    Gate["Validation Gate<br/>L0–L3 · sound · pre-deploy (§11)"]
+    Dep["Deployer<br/>push · baseline snap · rollback (§10)"]
+    Net[("Running P4/BMv2 network<br/>Mininet · simple_switch")]
+    Sys["System monitor<br/>thrift / process / rules (§5.5)"]
+    NMon["Network monitor<br/>RTT / tput / loss · hysteresis (§5)"]
+    Eval["Post-deploy evaluator<br/>6-stage attribute + commit (§6)"]
+    Eng["Adaptation engine<br/>tune → reroute → regen (§7)"]
+    LLM["LLM serving · Tier 2 only<br/>Qwen-Coder · GBNF · cuda:1 (§4)"]
+  end
+
+  Planner -- "binding + envelope" --> RM
+  RM --> Gate --> Dep --> Net
+  Net --> Sys --> Eval
+  Net --> NMon --> Eval
+  Eval --> Eng --> RM
+  Eval --> RM
+  Eng <-- "regen candidate" --> LLM
+  Dep -- "capture" --> Base
+  Eval -- "read baseline / write verdict" --> KG
+  Eng -- "read last-good" --> LKG
+  Eval -- "commit healthy → promote" --> LKG
+  Eval == "escalate wrong-SFC" ==> Analytics
+  KG --- Base
+  KG --- LKG
+```
+
+**Four layers.** Read top-down, each layer only depends on the one below it — which is what keeps
+the LLM confined to a single, fail-safe tier:
+
+| Layer | Components | Property | Spec |
+|---|---|---|---|
+| **Knowledge** | KG: baselines, last-known-good, intent targets, verdict/trace records | persistent, bidirectional record/read | §8, §5.3 |
+| **Decision** | Post-deploy evaluator (6-stage ladder) + Adaptation engine (tiered) | one goal state; sound/noisy split | §6, §7 |
+| **Control** | Validation Gate (pre-deploy, sound) · Deployer (live re-install) · System + Network monitors | gate = authority; deploy reversible | §11, §10, §5 |
+| **Data plane** | Persistent Mininet + BMv2 `simple_switch`, driven out-of-band via thrift + `mnexec` | never torn down per iteration | §10.3, §13.5 |
+
+**Where the model sits.** The LLM is invoked **only in the top adaptation tier (regen, Tier 2)** and
+its output is doubly contained — grammar-constrained at decode time and re-checked by the gate
+before any rule reaches a switch (§4, §11). Tiers 0–1 are deterministic, so an unavailable model
+degrades capability (escalate sooner), never safety (§7.4).
+
+**Physical deployment (consolidated node).** In the Milestone-III bring-up all four layers run on a
+**single GPU node**: the persistent testbed (Mininet/BMv2), the Runtime Manager, a **local Neo4j**,
+and in-process LLM serving on the **second P100 (`cuda:1`)** via HF transformers + a transformers-cfg
+GBNF logits processor (vLLM is unsupported on the P100's `sm_60`, so there is no separate serving
+process). The earlier multi-node split (controller-node KG + network-node testbed) remains the
+logical reference; the consolidated node is the operational one.
+
+The autonomous actions and the planner boundary this architecture enforces are enumerated in §3; the
+per-component responsibilities are the §1.1 table.
+
+---
+
+## 1b. System Workflow
+
+This is the inner loop's behaviour for **one episode**, end to end: deploy → observe → attribute →
+act → commit-or-escalate. It consolidates the evaluator ladder (§6), the adaptation engine (§7), and
+the gate (§11) into one picture; the numbered stages below are exactly the evaluator's six stages.
+
+```mermaid
+flowchart TD
+  Deploy["Deploy binding<br/>+ capture BaselineSnapshot (§10)"] --> Obs["Observe window<br/>K-of-M hysteresis (§5.6)"]
+  Obs --> Rep["MonitorReport<br/>system (sound) + network (noisy)"]
+  Rep --> S1{"1 · system sound?"}
+  S1 -- no --> Fault["Tiered fault fix (§6)<br/>re_push → restart → recover"]
+  Fault --> Obs
+  S1 -- yes --> S2{"2 · SLA met + sustained?"}
+  S2 -- yes --> S5
+  S2 -- no --> S3{"3 · our change caused it?<br/>vs baseline, not exogenous (§5.7)"}
+  S3 -- "yes · regression" --> RB["Rollback to last-good"] --> Done(["episode end · verdict → KG"])
+  S3 -- "no / exogenous" --> S4{"4 · in-envelope fix<br/>within retry budget?"}
+  S4 -- no --> Esc["Escalate wrong-SFC → planner"] --> Done
+  S4 -- yes --> Ladder["Adapt engine (§7)<br/>tier 0 tune → 1 reroute → 2 regen"]
+  Ladder --> GateC{"Validation Gate<br/>L0–L3 (§11)"}
+  GateC -- reject --> Ladder
+  GateC -- accept --> Act["Deployer applies + spend budget<br/>re-observe window (§7.2)"]
+  Act --> Dom{"dominates + improves?<br/>guard (§7.2)"}
+  Dom -- "no · regression/no-op" --> Undo["rollback this step"] --> Ladder
+  Dom -- "yes · GOAL met" --> S5{"5 · no displaced harm?"}
+  Dom -- "yes · partial gain" --> Ladder
+  S5 -- "harm · budget left" --> Ladder
+  S5 -- "harm · budget out" --> Esc
+  S5 -- clean --> S6{"6 · headroom?"}
+  S6 -- "margin ok" --> CH["Commit · healthy<br/>promote last-good, re-baseline (§7.6)"] --> Done
+  S6 -- "thin / reached at Tier 2" --> CM["Commit · marginal<br/>flag planner (§7.6)"] --> Done
+```
+
+**Walk-through** (each step keyed to its section):
+
+1. **Deploy + baseline** — the gate vets the full binding pre-deploy (§11 entry 1); the deployer
+   pushes P4 + rules + QoS to the *live* network and captures a `BaselineSnapshot` of all flows for
+   later attribution (§10, §5.3).
+2. **Observe** — the monitors sample a full window with K-of-M hysteresis, producing one
+   `MonitorReport` (system = sound, network = noisy) (§5).
+3. **Stage 1 — system sound?** If a switch/process/rule-install is unhealthy, take the **tiered fault
+   fix** (re-push the same revision → restart → recover table state by key), then re-observe. Fault
+   fixes draw **no** retry budget (§6).
+4. **Stage 2 — SLA met & sustained?** If yes, jump straight to the **commit path** (stage 5). If no,
+   ask who caused it.
+5. **Stage 3 — did *we* cause it?** A regression vs the baseline **and** no exogenous shift → roll
+   back to last-known-good (§5.7, §6). A regression that coincides with an environment change is
+   attributed outward → fall through to adapt, not rollback.
+6. **Stage 4 — in-envelope fix left?** With budget remaining, enter the **adaptation engine**;
+   otherwise escalate wrong-SFC to the planner with the full trace.
+7. **Adapt ladder + gate** — the engine proposes one candidate at the current cost tier
+   (0 tune → 1 reroute → 2 regen), the **gate** (L0–L3) must accept it before it touches the
+   data plane; **gate rejects spend no budget** but join the finite `tried` set (and Tier 2 caps at
+   K rejects → escalate). An accepted candidate is applied, budget is spent, and the result is
+   re-observed (§7.1–7.3, §11).
+8. **Domination guard** — keep a step only if it **dominates and improves** (never regress the
+   target, never raise harm count); a regressing or no-op step is rolled back and the ladder
+   continues. On reaching the goal (target met *and* no harm) go to the commit path (§7.2, §7.4).
+9. **Stage 5 — displaced harm?** The goal already guarantees harm-free, so this passes by
+   construction on the adapt exit; on the direct stage-2 path it re-checks neighbours vs baseline.
+   Unrelieved harm with budget left re-enters the engine; with budget exhausted it escalates (§6, §7.3).
+10. **Stage 6 — headroom?** Comfortable margin → **commit healthy** (promote last-known-good,
+    re-baseline, reset budget). Thin margin — **or the goal was reached only at Tier 2** — →
+    **commit marginal** and flag the planner on the slow loop (§7.5, §7.6).
+
+Every terminal verdict (healthy, marginal, rollback, escalation) writes a `Verdict` + attribution
+`trace` to the KG, which `Results + analytics` aggregates for the planner's next outer-loop pass (§6, §8).
+
+---
+
 ## 2. Current System (as-is) and How It Maps to the Diagrams
 
 Today the Milestone II pipeline is a single linear shell script,

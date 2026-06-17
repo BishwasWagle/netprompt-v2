@@ -1,7 +1,15 @@
-# Runtime ⇄ Planner Contracts (for sign-off)
+# Runtime ⇄ Planner Contracts (now an internal integration spec)
 
-**From:** Kevin (Runtime Manager / inner loop) · **To:** Kiran (Planner / outer loop)
-**Purpose:** agree the *only two* messages that cross our boundary, plus the KG read/write split, so we can build independently. Everything else in [runtime-manager-design.md](runtime-manager-design.md) is runtime-internal.
+> **Ownership update (2026-06-17).** Kiran's network node expired; **we now own the
+> entire stack** (orchestrator/planner code, KG, testbed, runtime). This was a
+> two-party contract "for sign-off"; it is now our **internal integration spec**.
+> The "must not modify planner files" boundary (design §1.2) is lifted — we maintain
+> the orchestrator too — and every question that was "for Kiran" is ours to decide
+> (resolutions tracked in §6). The local Neo4j (`bolt://localhost:7687`) is the only
+> KG. The original two-party framing is kept below for provenance.
+
+**From:** Kevin (Runtime Manager / inner loop) · **To:** ~~Kiran (Planner / outer loop)~~ now self.
+**Purpose:** the *two* messages that cross the planner↔runtime seam, plus the KG read/write split. Everything else in [runtime-manager-design.md](runtime-manager-design.md) is runtime-internal.
 
 The single source of truth once agreed: [`runtime/contracts.py`](../runtime/contracts.py) — both sides import it (or mirror its field names exactly).
 
@@ -156,18 +164,38 @@ The inbound handoff is wired on the runtime side, consuming your existing artifa
    **If you can add either field to the artifact, we'll consume it directly** — until
    then the runtime fills them in. This is the one place a small planner-side add
    would tighten the contract.
-3. **Path remap:** your artifact's paths are absolute under
-   `deployment.netprompt_root` (e.g. `/home/cc/netprompt-milestone-II/…`). We rebase
-   that prefix onto the runtime's tree root, so the same artifact installs on
-   whichever node runs it. Your `policy_type` is preserved **verbatim** — our
-   deployer reads `"…backup…"` out of it to select the active path.
+3. **Canonical per-switch binding (was "path remap"; see D4' below).** We take only
+   the planner's *decisions* from the artifact — the SFC and the path — and
+   reconstruct the per-switch rule files from the SFC's canonical names under the
+   runtime tree root. `policy_type` is preserved **verbatim** (the deployer reads
+   `"…backup…"` out of it to select the active path).
 
-**One thing to confirm (relay-slot semantics).** In the sample artifact, for the
-backup deployment you set **both** `relay_rules` and `backup_rules` to the *s3*
-rule file (with `selected_relay: s3`, `unavailable_relays: [s2]`). Our deployer maps
-`relay_rules → s2` and `backup_rules → s3` and selects the active path from
-`policy_type`, so the **active backup path (s1→s3) is correct**, but s2 would be
-loaded with s3's content. For the backup path that's inert (s2 isn't on it). Before
-the live end-to-end slice we should agree whether `relay_rules` always means
-"the s2-slot file" (canonical per-switch) or "the active relay's file" — a one-line
-clarification that avoids a surprise if a deployment ever needs s2 populated.
+### 6a. Resolved (post-ownership-change, 2026-06-17)
+
+- **Relay-slot semantics — RESOLVED (D4').** The artifact labels rule files by the
+  *active relay* (a backup deployment sets `relay_rules` **and** `backup_rules` to
+  the *s3* file). But `deploy()` installs all three switches every time
+  (s1←access, s2←relay, s3←backup) and picks the path from `policy_type` — so the
+  s2 slot must hold the *s2* file, else s2 is loaded with s3's rules (a real bug,
+  not inert: s2's table is installed regardless of active path). `planner_adapter`
+  now **reconstructs canonical paths** (`<prefix>_s{1,2,3}_rules.txt`), so
+  `relay_rules → s2` file even when the artifact says s3. Verified on the real
+  artifact: `relay_rules` → `…_s2_rules.txt`, `backup_rules` → `…_s3_rules.txt`,
+  path = backup, gate **PASS**.
+- **KG populated — DONE (D12).** The local Neo4j is seeded with the strategic nodes
+  (`SFCTemplate` × 4, `AgriculturalField` × 5, drones) via our own
+  `controller/generate_kg.py` → `controller/import_kg.py`. `kg_client.build_envelope`
+  now resolves a real envelope live (e.g. `ReliableRelaySFC`/`Field_2` →
+  `lat≤50ms, bw≥20mbps`) instead of `LookupError`. Caveat (D12b, open):
+  `import_kg.py` does `MATCH (n) DETACH DELETE n` — re-seeding wipes runtime
+  records (`Verdict`/snapshots); make the strategic seed non-destructive before the
+  live episode writes records we want to keep.
+- **Escalation-ack — RESOLVED.** Stateless fresh-handoff: a new deployment is just a
+  new artifact with a new `correlation_id`. No ack node.
+- **`target_field` / `correlation_id`** — stay runtime-supplied at invocation. Since
+  we own the orchestrator now, adding them to the artifact is an optional polish, not
+  a cross-team ask.
+
+**Still open:** the live end-to-end slice (`--deploy`, needs the resident testbed),
+D12b (non-destructive strategic seed), and the outer-loop learning/verdict-consumption
+(deferred — not needed for the runtime to run real deployments).

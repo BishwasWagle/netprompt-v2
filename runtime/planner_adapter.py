@@ -19,15 +19,17 @@ supplied by the runtime at invocation:
   * ``correlation_id`` — the run id tying deploy → monitor → verdict → escalation;
                          auto-generated here when the caller doesn't supply one.
 
-**Path remap.** The artifact's file paths are absolute under the planner's
-``netprompt_root`` (e.g. ``/home/cc/netprompt-milestone-II/...``). We remap that
-prefix to the runtime's resolved tree root (``config.NODE_TREE_ROOT``) so the same
-artifact installs on whatever node runs it.
-
-**`policy_type` is preserved verbatim.** The deployer reads it to choose the active
-path (a ``"...backup..."`` policy deploys onto the backup relay — deployer.py). The
-runtime never re-selects the SFC, path, or relay; those are the planner's decision,
-encoded in the artifact (design §1.2).
+**Canonical per-switch binding (not the artifact's literal paths).** The deployer
+installs all three switches every deploy — s1←``access_rules``, s2←``relay_rules``,
+s3←``backup_rules`` (config.SWITCH_RULES_KEYS) — and then selects the active path
+from ``policy_type``. So each slot must hold *that switch's* rule file. We therefore
+**reconstruct** the four paths from the SFC's canonical names
+(``<prefix>_s{1,2,3}_rules.txt`` + ``<prefix>.json``) under ``config.NODE_TREE_ROOT``,
+rather than trusting the artifact's literal paths — the orchestrator labels rule
+files by the *active relay* (e.g. a backup deployment points ``relay_rules`` at the
+s3 file), which would load s2 with s3's rules. The planner's real decisions —
+*which SFC* and *which path* — are preserved (SFC name + ``policy_type`` verbatim);
+the runtime never re-selects them (design §1.2).
 """
 from __future__ import annotations
 
@@ -38,9 +40,15 @@ from pathlib import Path
 from runtime import config
 from runtime.contracts import DeploymentSpec, Envelope
 
-# Path components that anchor a rule/JSON file under the netprompt tree, used to
-# remap when the artifact carries no explicit `netprompt_root` to strip.
-_ANCHORS = ("compiled_p4", "p4_multihop_rules", "p4_single_switch_rules")
+# SFC -> canonical rule/JSON file prefix (matches launch_network.py / the on-node
+# tree). The per-switch files are `<prefix>_s{1,2,3}_rules.txt`; the P4 program is
+# `<prefix>.json`. Same map run_episode.real_binding uses.
+SFC_FILE_PREFIX = {
+    "LowLatencyVideoSFC": "low_latency",
+    "ReliableRelaySFC": "reliable_relay",
+    "BandwidthOptimizedSFC": "bandwidth_optimized",
+    "EnergyAwareSFC": "energy_aware",
+}
 
 # The binding keys the gate (BINDING_KEYS) and deployer (SWITCH_RULES_KEYS +
 # policy_type) require. Kept here so a contract drift surfaces as a test failure.
@@ -56,58 +64,40 @@ def load_artifact(path: str | Path) -> dict:
     return json.loads(Path(path).read_text())
 
 
-def _remap(path: str | None, new_root: str, old_root: str | None) -> str | None:
-    """Rebase an artifact path onto `new_root`.
-
-    Prefer stripping the planner's declared `old_root` (`deployment.netprompt_root`);
-    fall back to anchoring on a known subdir (`compiled_p4/…`) so a differing or
-    absent root still remaps. A path under neither is returned unchanged (it may
-    already be relative or intentionally external)."""
-    if not path:
-        return path
-    norm = path.replace("\\", "/")
-    if old_root and norm.startswith(old_root.replace("\\", "/").rstrip("/")):
-        tail = norm[len(old_root.rstrip("/")):].lstrip("/")
-        return str(Path(new_root) / tail)
-    parts = norm.split("/")
-    for anchor in _ANCHORS:
-        if anchor in parts:
-            return str(Path(new_root, *parts[parts.index(anchor):]))
-    return path
+def canonical_binding(sfc: str, policy_type: str,
+                      tree: str = config.NODE_TREE_ROOT) -> dict:
+    """The deployer-correct 5-key binding for `sfc`: per-switch rule files +
+    P4 program from the SFC's canonical names under `tree`. `policy_type` is carried
+    verbatim — the deployer reads `"...backup..."` out of it to pick the active path
+    (deployer.py). Raises ValueError for an SFC with no known rule-file prefix."""
+    prefix = SFC_FILE_PREFIX.get(sfc)
+    if prefix is None:
+        raise ValueError(f"no rule-file prefix for SFC {sfc!r}; "
+                         f"known: {sorted(SFC_FILE_PREFIX)}")
+    rules = Path(tree, "p4_multihop_rules")
+    return {
+        "policy_type": policy_type,
+        "p4_json":      str(Path(tree, "compiled_p4", f"{prefix}.json")),
+        "access_rules": str(rules / f"{prefix}_s1_rules.txt"),     # s1
+        "relay_rules":  str(rules / f"{prefix}_s2_rules.txt"),     # s2
+        "backup_rules": str(rules / f"{prefix}_s3_rules.txt"),     # s3
+    }
 
 
 def binding_from_artifact(artifact: dict, tree: str = config.NODE_TREE_ROOT) -> dict:
-    """The 5-key `binding` the gate + deployer consume, mapped from the artifact.
+    """The 5-key `binding` the gate + deployer consume, derived from the artifact.
 
-    `policy_type` is taken verbatim (drives the deployer's path choice); the four
-    file paths are remapped onto `tree`. Raises ValueError if the artifact yields an
-    incomplete binding (e.g. a single-switch handoff with null relay/backup rules —
-    not yet supported by the multihop deployer)."""
-    dep = artifact.get("deployment") or {}
-    old_root = dep.get("netprompt_root")
-
-    def pick(key: str):
-        # prefer the top-level key, fall back to the `deployment` subdict
-        v = artifact.get(key)
-        return v if v is not None else dep.get(key)
-
+    Takes the planner's *decisions* — the SFC (`selected_sfc`) and the path
+    (`policy_type`/`selected_policy`, verbatim) — and reconstructs the canonical
+    per-switch binding (see module docstring on why we don't trust the artifact's
+    literal rule paths)."""
+    sfc = artifact.get("selected_sfc")
+    if not sfc:
+        raise ValueError("artifact missing selected_sfc")
     policy = artifact.get("policy_type") or artifact.get("selected_policy")
     if not policy:
         raise ValueError("artifact missing policy_type / selected_policy")
-
-    binding = {
-        "policy_type": policy,                                    # verbatim
-        "p4_json":      _remap(pick("p4_json"), tree, old_root),
-        "access_rules": _remap(pick("access_rules"), tree, old_root),
-        "relay_rules":  _remap(pick("relay_rules"), tree, old_root),
-        "backup_rules": _remap(pick("backup_rules"), tree, old_root),
-    }
-    missing = [k for k in _BINDING_KEYS if not binding.get(k)]
-    if missing:
-        raise ValueError(
-            f"artifact yields incomplete binding (missing/null {missing}); "
-            "single-switch / non-multihop handoffs are not yet supported")
-    return binding
+    return canonical_binding(sfc, policy, tree)
 
 
 def new_correlation_id(artifact: dict) -> str:

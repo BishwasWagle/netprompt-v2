@@ -36,7 +36,9 @@ def _artifact(**over):
         "selected_path": "backup",
         "p4_json": f"{PLANNER_ROOT}/compiled_p4/reliable_relay.json",
         "access_rules": f"{PLANNER_ROOT}/p4_multihop_rules/reliable_relay_s1_rules.txt",
-        "relay_rules": f"{PLANNER_ROOT}/p4_multihop_rules/reliable_relay_s2_rules.txt",
+        # the orchestrator labels rule files by the ACTIVE relay — a backup
+        # deployment points relay_rules at the s3 file (the quirk D4' normalizes).
+        "relay_rules": f"{PLANNER_ROOT}/p4_multihop_rules/reliable_relay_s3_rules.txt",
         "backup_rules": f"{PLANNER_ROOT}/p4_multihop_rules/reliable_relay_s3_rules.txt",
         "deployment": {"netprompt_root": PLANNER_ROOT},
     }
@@ -54,12 +56,22 @@ def _envelope(sfc="ReliableRelaySFC"):
 
 # ---------------- binding ----------------
 
-def test_binding_remaps_paths_onto_tree_root():
+def test_binding_is_canonical_per_switch():
+    # s1←access, s2←relay, s3←backup — each slot holds THAT switch's file, under tree
     b = binding_from_artifact(_artifact(), tree=TREE)
     assert b["p4_json"] == f"{TREE}/compiled_p4/reliable_relay.json"
     assert b["access_rules"] == f"{TREE}/p4_multihop_rules/reliable_relay_s1_rules.txt"
     assert b["relay_rules"] == f"{TREE}/p4_multihop_rules/reliable_relay_s2_rules.txt"
     assert b["backup_rules"] == f"{TREE}/p4_multihop_rules/reliable_relay_s3_rules.txt"
+
+
+def test_binding_ignores_artifact_literal_relay_path():
+    # the artifact's relay_rules points at the s3 file (active-relay labelling);
+    # the binding must still put the s2 file in the s2 slot (the D4' fix).
+    art = _artifact()
+    assert art["relay_rules"].endswith("reliable_relay_s3_rules.txt")     # quirk in
+    b = binding_from_artifact(art, tree=TREE)
+    assert b["relay_rules"].endswith("reliable_relay_s2_rules.txt")       # fixed out
 
 
 def test_binding_preserves_policy_type_verbatim():
@@ -69,25 +81,15 @@ def test_binding_preserves_policy_type_verbatim():
     assert "backup" in b["policy_type"].lower()
 
 
-def test_remap_anchors_when_root_absent():
-    # no deployment.netprompt_root → fall back to anchoring on the known subdir
-    art = _artifact(deployment={})
-    b = binding_from_artifact(art, tree=TREE)
-    assert b["access_rules"] == f"{TREE}/p4_multihop_rules/reliable_relay_s1_rules.txt"
-    assert b["p4_json"] == f"{TREE}/compiled_p4/reliable_relay.json"
-
-
 def test_binding_has_exactly_the_gate_keys():
     b = binding_from_artifact(_artifact(), tree=TREE)
     from runtime.gate import BINDING_KEYS
     assert BINDING_KEYS <= set(b)
 
 
-def test_incomplete_binding_raises():
-    art = _artifact(relay_rules=None, backup_rules=None,
-                    deployment={"netprompt_root": PLANNER_ROOT})
-    with pytest.raises(ValueError, match="incomplete binding"):
-        binding_from_artifact(art, tree=TREE)
+def test_unknown_sfc_has_no_prefix():
+    with pytest.raises(ValueError, match="no rule-file prefix"):
+        binding_from_artifact(_artifact(selected_sfc="MagicSFC"), tree=TREE)
 
 
 def test_missing_policy_raises():
@@ -165,8 +167,10 @@ def test_real_orchestrator_artifact_normalizes():
     spec = spec_from_artifact(art, target_field="Field_2",
                               envelope=_envelope(), tree=TREE)
     assert spec.sfc == "ReliableRelaySFC"
-    # the planner's broken root is gone; everything is under the runtime tree
-    assert spec.binding["access_rules"].startswith(TREE + "/")
-    assert "netprompt-milestone-II" not in spec.binding["access_rules"]
+    # the planner's broken root is gone; everything is canonical under the tree
+    assert spec.binding["access_rules"] == f"{TREE}/p4_multihop_rules/reliable_relay_s1_rules.txt"
+    # the real artifact's relay_rules is the s3 file; we install the s2 file on s2
+    assert spec.binding["relay_rules"].endswith("reliable_relay_s2_rules.txt")
+    assert spec.binding["backup_rules"].endswith("reliable_relay_s3_rules.txt")
     assert spec.binding["policy_type"] == "backup_path_reliable_relay"
     assert ValidationGate().check_binding(spec).ok

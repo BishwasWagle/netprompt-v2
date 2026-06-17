@@ -222,7 +222,19 @@ The inbound handoff is wired on the runtime side, consuming your existing artifa
 - **`target_field` / `correlation_id`** — stay runtime-supplied at invocation. Since
   we own the orchestrator now, adding them to the artifact is an optional polish.
 
-**Still open:** a multi-handoff integration soak (D14 — several artifacts back-to-back,
-KG-write resilience); and the outer-loop learning/verdict-consumption (deferred — not
-needed for the runtime to run real deployments). The single-episode chain (D1–D12, D9,
-**D11**) is complete and live-verified.
+- **Multi-handoff soak — DONE (D14, 2026-06-17).**
+  [`runtime/tools/planner_soak.py`](../runtime/tools/planner_soak.py) drives N handoffs
+  back-to-back (fresh `correlation_id` each), cycling the target field. 6 rounds on the
+  resident testbed → **6/6 verdicts written to the KG** (6 `Verdict`, 5 `EscalationTicket`,
+  6 `BaselineSnapshot`), no state bleed or crash across consecutive deploys. Verdict
+  **diversity** confirmed the loop evaluates each handoff live, not canned: 5 rounds
+  `escalated` (tier 2) but one `rollback` (tier 0, a causal regression vs baseline).
+  *Honest caveat:* `--alternate-path` flips `policy_type` backup↔primary, but the live
+  path stayed `backup` — the reliable_relay binding pins the backup edge identity (0c)
+  and the deployer's path detection is sticky to it once installed; a true primary
+  deployment needs a primary-flavored binding. The D14 property proven (back-to-back
+  handoffs + KG-write resilience) holds regardless.
+
+**Integration COMPLETE** (single- and multi-episode, live-verified). Deferred only:
+the outer-loop learning/verdict-consumption — not needed for the runtime to run real
+deployments.

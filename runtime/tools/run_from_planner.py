@@ -54,10 +54,21 @@ def main():
     ap.add_argument("--no-kg", action="store_true",
                     help="skip the KG; use a structural offline envelope (bounds "
                          "are placeholders, action space is real)")
+    ap.add_argument("--deploy", action="store_true",
+                    help="LIVE: deploy the binding on the resident testbed and run "
+                         "one episode (artifact -> deploy -> observe -> verdict -> KG). "
+                         "Requires the KG and a running launch_network.py topology.")
     args = ap.parse_args()
+    if args.deploy and args.no_kg:
+        ap.error("--deploy needs the KG for the envelope + field requirements; "
+                 "drop --no-kg")
 
     artifact = load_artifact(args.artifact)
 
+    if args.deploy:
+        return _run_live(artifact, args)
+
+    # ---- dry path: normalize -> gate.check_binding, no network ----
     if args.no_kg:
         env = _offline_envelope(artifact.get("selected_sfc", ""))
         spec = spec_from_artifact(artifact, target_field=args.target_field,
@@ -76,10 +87,16 @@ def main():
         env_src = "KG (kg_client.build_envelope)"
 
     gate = ValidationGate().check_binding(spec)
+    _print_spec(args.artifact, spec, env_src)
+    print("gate.check_binding:", "PASS" if gate.ok else f"REJECT — {gate.reason}")
+    if not gate.ok:
+        raise SystemExit(1)
 
-    print("planner artifact :", args.artifact)
+
+def _print_spec(artifact_path, spec, env_src):
+    print("planner artifact :", artifact_path)
     print("selected_sfc     :", spec.sfc)
-    print("target_field     :", spec.target_field, "(runtime-supplied)")
+    print("target_field     :", spec.target_field, "(runtime form)")
     print("correlation_id   :", spec.correlation_id)
     print("policy_type      :", spec.binding["policy_type"])
     print("envelope source  :", env_src)
@@ -88,9 +105,47 @@ def main():
              spec.envelope.max_loss_percent, sorted(spec.envelope.legal_tiers),
              sorted(spec.envelope.legal_paths)))
     print("binding          :", json.dumps(spec.binding, indent=2))
-    print("gate.check_binding:", "PASS" if gate.ok else f"REJECT — {gate.reason}")
-    if not gate.ok:
-        raise SystemExit(1)
+
+
+def _run_live(artifact, args):
+    """Deploy + run one episode on the resident testbed, writing verdict/records to
+    the KG. Reuses the M5/M6-tested assembly (run_episode.build_and_run)."""
+    from datetime import datetime, timezone
+
+    from runtime.kg_client import KGClient
+    from runtime.tools.run_episode import build_and_run, real_monitor_for
+
+    kg = KGClient.connect()
+    try:
+        spec = spec_from_artifact(artifact, target_field=args.target_field,
+                                  correlation_id=args.correlation_id,
+                                  kg=kg, tree=args.tree)
+        _print_spec(args.artifact, spec, "KG (kg_client.build_envelope)")
+
+        # Pre-flight: never touch the network with a binding the gate refuses.
+        gate = ValidationGate().check_binding(spec)
+        print("gate.check_binding:", "PASS" if gate.ok else f"REJECT — {gate.reason}")
+        if not gate.ok:
+            raise SystemExit(1)
+
+        # Per-field requirements (monitor) come from the KG, keyed by runtime field id.
+        requirements = kg.read_field_requirements()
+        monitor_for = real_monitor_for(requirements, spec.target_field,
+                                       spec.correlation_id)
+        ts = datetime.now(timezone.utc).isoformat()
+        print("\n--- deploying + running one live episode ---")
+        result, deployer = build_and_run(spec, monitor_for, timestamp=ts, kg=kg)
+    finally:
+        kg.close()
+
+    v = result.verdict
+    print(f"verdict       : {v.outcome}  (tier {v.tier_reached}, headroom {v.headroom:.3f})")
+    print(f"live path     : {deployer.state['path']}")
+    print(f"live knobs    : {deployer.state['knobs']}")
+    if result.ticket:
+        print(f"escalation    : {result.ticket.reason}")
+    print("records       : verdict + snapshots written to KG "
+          f"(correlation_id {spec.correlation_id})")
 
 
 if __name__ == "__main__":

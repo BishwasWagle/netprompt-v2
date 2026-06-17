@@ -183,19 +183,30 @@ The inbound handoff is wired on the runtime side, consuming your existing artifa
   artifact: `relay_rules` → `…_s2_rules.txt`, `backup_rules` → `…_s3_rules.txt`,
   path = backup, gate **PASS**.
 - **KG populated — DONE (D12).** The local Neo4j is seeded with the strategic nodes
-  (`SFCTemplate` × 4, `AgriculturalField` × 5, drones) via our own
-  `controller/generate_kg.py` → `controller/import_kg.py`. `kg_client.build_envelope`
+  (`SFCTemplate` × 4, `AgriculturalField` × 5, drones). `kg_client.build_envelope`
   now resolves a real envelope live (e.g. `ReliableRelaySFC`/`Field_2` →
-  `lat≤50ms, bw≥20mbps`) instead of `LookupError`. Caveat (D12b, open):
-  `import_kg.py` does `MATCH (n) DETACH DELETE n` — re-seeding wipes runtime
-  records (`Verdict`/snapshots); make the strategic seed non-destructive before the
-  live episode writes records we want to keep.
+  `lat≤50ms, bw≥20mbps`) instead of `LookupError`.
+- **Non-destructive strategic seed — DONE (D12b).**
+  [`runtime/tools/seed_kg.py`](../runtime/tools/seed_kg.py) MERGEs the strategic graph
+  idempotently (KG creds from `runtime.config`, not hardcoded) — unlike the legacy
+  `controller/import_kg.py`, which opens with `MATCH (n) DETACH DELETE n` and would
+  wipe runtime records. Proven: a planted `Verdict` canary survives a re-seed.
+  `--reset-strategic` does a clean reseed that deletes only strategic labels (never
+  `Verdict`/snapshots/`ProgrammableSwitch`).
+- **Field-id convention.** Planner/KG ids are `Field_<n>`; the runtime-internal form
+  (host_map + monitor requirement keys) is `F<n>`. The adapter normalizes
+  `target_field` to `F<n>` so the spec is runtime-canonical (`build_envelope` maps it
+  back to `Field_<n>` for KG reads).
+- **`--deploy` driver — WIRED (D9).**
+  [`run_from_planner.py`](../runtime/tools/run_from_planner.py) `--deploy` builds the
+  spec (KG envelope), pre-flight-gates the binding, then reuses the M5/M6-tested
+  `build_and_run` to deploy + run one episode + write the verdict/snapshots to the KG.
+  Running it needs the resident testbed (D11).
 - **Escalation-ack — RESOLVED.** Stateless fresh-handoff: a new deployment is just a
   new artifact with a new `correlation_id`. No ack node.
 - **`target_field` / `correlation_id`** — stay runtime-supplied at invocation. Since
-  we own the orchestrator now, adding them to the artifact is an optional polish, not
-  a cross-team ask.
+  we own the orchestrator now, adding them to the artifact is an optional polish.
 
-**Still open:** the live end-to-end slice (`--deploy`, needs the resident testbed),
-D12b (non-destructive strategic seed), and the outer-loop learning/verdict-consumption
+**Still open:** the live end-to-end RUN (`--deploy` on the resident testbed — D11),
+then a multi-handoff soak (D14); and the outer-loop learning/verdict-consumption
 (deferred — not needed for the runtime to run real deployments).

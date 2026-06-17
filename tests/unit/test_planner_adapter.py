@@ -16,6 +16,7 @@ from runtime.contracts import Envelope
 from runtime.gate import ValidationGate
 from runtime.planner_adapter import (
     binding_from_artifact, load_artifact, new_correlation_id, spec_from_artifact,
+    to_runtime_field,
 )
 
 TREE = "/opt/node/netprompt"          # a stand-in runtime tree root for assertions
@@ -101,11 +102,17 @@ def test_missing_policy_raises():
 
 # ---------------- spec ----------------
 
+def test_to_runtime_field_normalizes_both_forms():
+    assert to_runtime_field("Field_2") == "F2"     # planner/KG form -> runtime form
+    assert to_runtime_field("F2") == "F2"           # already runtime form (idempotent)
+    assert to_runtime_field("Field_10") == "F10"
+
+
 def test_spec_passes_gate_binding_check():
     spec = spec_from_artifact(_artifact(), target_field="Field_2",
                               envelope=_envelope(), tree=TREE)
     assert spec.sfc == "ReliableRelaySFC"
-    assert spec.target_field == "Field_2"
+    assert spec.target_field == "F2"               # normalized to runtime form
     assert ValidationGate().check_binding(spec).ok
 
 
@@ -155,7 +162,7 @@ def test_kg_path_calls_build_envelope():
             return _envelope(sfc)
     kg = FakeKG()
     spec = spec_from_artifact(_artifact(), target_field="Field_2", kg=kg, tree=TREE)
-    assert kg.seen == ("ReliableRelaySFC", "Field_2")      # delegated to the KG
+    assert kg.seen == ("ReliableRelaySFC", "F2")           # normalized, then delegated
     assert ValidationGate().check_binding(spec).ok
 
 

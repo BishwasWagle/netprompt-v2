@@ -34,11 +34,24 @@ the runtime never re-selects them (design §1.2).
 from __future__ import annotations
 
 import json
+import re
 import uuid
 from pathlib import Path
 
 from runtime import config
 from runtime.contracts import DeploymentSpec, Envelope
+
+# Planner/KG field ids are ``Field_<n>``; the runtime-internal form (host_map,
+# monitor requirement keys) is ``F<n>``. The spec we hand the runtime must use the
+# runtime form so the deployer's host_map + the monitor's requirement lookup align.
+_KG_FIELD = re.compile(r"^Field_(\d+)$", re.IGNORECASE)
+
+
+def to_runtime_field(field_id: str) -> str:
+    """Normalize a field id to the runtime-internal ``F<n>`` form. Accepts either the
+    planner/KG ``Field_<n>`` form or the runtime ``F<n>`` form (idempotent)."""
+    m = _KG_FIELD.match(field_id.strip())
+    return f"F{m.group(1)}" if m else field_id
 
 # SFC -> canonical rule/JSON file prefix (matches launch_network.py / the on-node
 # tree). The per-switch files are `<prefix>_s{1,2,3}_rules.txt`; the P4 program is
@@ -129,11 +142,12 @@ def spec_from_artifact(artifact: dict, *, target_field: str,
         raise ValueError(f"unknown SFC {sfc!r}; known: {sorted(KNOWN_SFCS)}")
     if not target_field:
         raise ValueError("target_field is required (artifact carries no field id)")
+    target_field = to_runtime_field(target_field)        # spec is runtime-canonical
 
     if envelope is None:
         if kg is None:
             raise ValueError("provide either envelope= or kg= to derive the envelope")
-        envelope = kg.build_envelope(sfc, target_field)
+        envelope = kg.build_envelope(sfc, target_field)  # build_envelope maps F<n>→Field_<n>
 
     return DeploymentSpec(
         sfc=sfc,

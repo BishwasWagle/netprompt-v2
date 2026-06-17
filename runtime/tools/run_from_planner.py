@@ -113,7 +113,8 @@ def _run_live(artifact, args):
     from datetime import datetime, timezone
 
     from runtime.kg_client import KGClient
-    from runtime.tools.run_episode import build_and_run, real_monitor_for
+    from runtime.tools.run_episode import (
+        DEFAULT_HOST_MAP, build_and_run, real_monitor_for)
 
     kg = KGClient.connect()
     try:
@@ -129,9 +130,18 @@ def _run_live(artifact, args):
             raise SystemExit(1)
 
         # Per-field requirements (monitor) come from the KG, keyed by runtime field id.
-        requirements = kg.read_field_requirements()
+        # The KG carries ALL fields (F1..F5); the testbed only realizes the host_map's
+        # fields, so restrict requirements to those — else the monitor probes a field
+        # with no host (KeyError). This is the field-presence seam on a partial testbed.
+        host_map = DEFAULT_HOST_MAP
+        requirements = {f: e for f, e in kg.read_field_requirements().items()
+                        if f in host_map}
+        if spec.target_field not in requirements:
+            raise SystemExit(
+                f"target_field {spec.target_field} not present on the testbed "
+                f"(host_map fields: {sorted(host_map)})")
         monitor_for = real_monitor_for(requirements, spec.target_field,
-                                       spec.correlation_id)
+                                       spec.correlation_id, host_map)
         ts = datetime.now(timezone.utc).isoformat()
         print("\n--- deploying + running one live episode ---")
         result, deployer = build_and_run(spec, monitor_for, timestamp=ts, kg=kg)

@@ -201,12 +201,28 @@ The inbound handoff is wired on the runtime side, consuming your existing artifa
   [`run_from_planner.py`](../runtime/tools/run_from_planner.py) `--deploy` builds the
   spec (KG envelope), pre-flight-gates the binding, then reuses the M5/M6-tested
   `build_and_run` to deploy + run one episode + write the verdict/snapshots to the KG.
-  Running it needs the resident testbed (D11).
+- **Live end-to-end episode — DONE (D11, 2026-06-17).** Ran the real planner artifact
+  (`ReliableRelaySFC`, backup) through `--deploy` on the resident testbed (3× BMv2 +
+  iperf load). Full chain executed: artifact → KG envelope (`lat≤50/bw≥20`) → gate
+  PASS → deploy(backup) → live monitor → adapt ladder (tune→reroute→regen) → verdict.
+  **KG records written** under the run's `correlation_id`: `Verdict`
+  (outcome=`escalated`, tier_reached=2), `EscalationTicket` (reason="all tiers
+  exhausted"), `BaselineSnapshot`, and monitor-computed `ProgrammableSwitch.status`
+  (s1=Degraded, s2=Standby, s3=Degraded — the live replacement for the hardcoded
+  `update_topology_state.py`). The **escalation is the expected outcome**: F2's ≤50 ms
+  bound is borderline-unachievable on the ~52 ms backup path (the documented
+  bounds-vs-hardware gap, design §6), ReliableRelay has no tune knobs, and Tier-2
+  regen is stubbed in this assembly — so the ladder legitimately exhausts. The point
+  proven is the **integration**, not a healthy verdict.
+  *Live-only fix this run surfaced:* the KG carries all 5 fields but a partial testbed
+  realizes only the host_map's fields, so `_run_live` restricts the monitor's
+  requirements to host_map fields (else it probes a hostless field → KeyError).
 - **Escalation-ack — RESOLVED.** Stateless fresh-handoff: a new deployment is just a
   new artifact with a new `correlation_id`. No ack node.
 - **`target_field` / `correlation_id`** — stay runtime-supplied at invocation. Since
   we own the orchestrator now, adding them to the artifact is an optional polish.
 
-**Still open:** the live end-to-end RUN (`--deploy` on the resident testbed — D11),
-then a multi-handoff soak (D14); and the outer-loop learning/verdict-consumption
-(deferred — not needed for the runtime to run real deployments).
+**Still open:** a multi-handoff integration soak (D14 — several artifacts back-to-back,
+KG-write resilience); and the outer-loop learning/verdict-consumption (deferred — not
+needed for the runtime to run real deployments). The single-episode chain (D1–D12, D9,
+**D11**) is complete and live-verified.

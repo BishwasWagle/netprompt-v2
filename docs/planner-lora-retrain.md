@@ -207,11 +207,52 @@ flowchart TD
   to behave; training *moves the weights* toward the policy. The oracle gives clean,
   balanced supervision the base model never had.
 
-## 11. Pending (to append on completion)
+## 11. Results (2026-06-19)
 
-- Evaluate the retrained adapter on the held-out mission battery
-  (`emergency_alert_relay`, `bulk_data_transfer`, `real_time_video`,
-  `soil_moisture_survey`) — does it now pick mission-appropriately, with
-  `llm_parse_status: parsed_json`?
-- Side-by-side vs the original (`--adapter-path final_adapter_original_backup`).
-- Decide whether to promote `final_adapter_retrained` to the default adapter.
+Trained: 640 examples (160/SFC), 3 epochs, final mean loss **0.0066**, ~52 min on the
+P100. Adapter saved to `final_adapter_retrained/` (and committed; original preserved).
+Evaluated with constrained decoding on (the production setting) — every output was a
+valid 6-key decision (`parsed_json`); the question is *which* SFC.
+
+| Mission (telemetry) | Expected (oracle) | Original | Retrained |
+|---|---|---|---|
+| `emergency_alert_relay` | ReliableRelaySFC | LowLatency ✗ | **ReliableRelaySFC ✓** |
+| `bulk_data_transfer` (bw 80) | BandwidthOptimizedSFC | LowLatency ✗ | **BandwidthOptimizedSFC ✓** |
+| `real_time_pest_detection` (delay 6) | LowLatencyVideoSFC | LowLatency ✓* | **LowLatencyVideoSFC ✓** |
+| `long_term_soil_monitoring` (batt 25) | EnergyAwareSFC | LowLatency ✗ | **EnergyAwareSFC ✓** |
+| novel name `real_time_video` (delay 10) | LowLatencyVideoSFC | LowLatency | BandwidthOptimizedSFC ✗ |
+| novel name `soil_moisture_survey` (batt 25) | EnergyAwareSFC | LowLatency | BandwidthOptimizedSFC ✗ |
+| generic mission, delay 5 | LowLatencyVideoSFC | LowLatency | BandwidthOptimizedSFC ✗ |
+| generic mission, batt 20 | EnergyAwareSFC | LowLatency | BandwidthOptimizedSFC ✗ |
+
+\* the original only ever emits LowLatency, so it "passes" the LowLatency rows by accident.
+
+**What worked.** The retrain **broke the always-LowLatency collapse**. Across the four
+*known* mission types the model now picks correctly — effectively **4/4 vs the original's
+1-mode behaviour**. Decisions are mission-sensitive and (via §7.2) always valid.
+
+**What didn't.** The model learned **mission-name → SFC** associations more than the
+underlying **telemetry reasoning**. For novel/generic missions where the correct answer
+depends on numbers (delay ≤ 10 → LowLatency, battery < 40 → EnergyAware) it defaults to
+**BandwidthOptimizedSFC** rather than reading telemetry. Likely causes: telemetry digits
+sit deep in a ~2400-token prompt the 1.5B model under-attends to, and name is the easier
+signal to fit.
+
+**Promotion is a real trade-off — left to a separate decision (not auto-promoted).** The
+default adapter is unchanged (`NETPROMPT_LLM_ADAPTER` still → `final_adapter`); the
+retrained one is opt-in via `--adapter-path`. Subtlety: with the *original* adapter the
+LLM output is invalid, so the **deterministic fallback always wins** — i.e. the system
+already decides correctly for *every* mission. Promoting the retrained adapter makes the
+LLM output *valid and therefore used*, which is a **win on known missions but a regression
+on generic/telemetry-only missions** (the model's wrong BandwidthOptimized choice would
+override the fallback's correct one). So:
+- **Keep original default** → safest (fallback decides all; retrained available for demos).
+- **Promote retrained** → showcases a working LLM on the mission taxonomy, at the cost of
+  generic-mission accuracy.
+- **Improve first** → telemetry-weighted dataset (put telemetry up front / oversample
+  generic-mission examples / add a numeric-reasoning emphasis), or a larger model behind
+  the same constrained-decoding seam.
+
+Net: approach #3 **succeeded at its stated goal** (the model is no longer mode-collapsed
+and now makes mission-appropriate choices on the known taxonomy); robust telemetry
+generalization is the remaining gap.

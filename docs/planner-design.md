@@ -193,10 +193,16 @@ model behaves identically, and the original unconstrained output was already Low
 A 1.5B model doing one-shot JSON selection over a large structured input collapses to a
 single mode; prompting can't override it. Reverted. *(contracts §6d.)*
 
-### 7.4 LoRA retrain — decision quality (IN PROGRESS)
-Distill the deterministic `fallback_decision` oracle into a **fresh LoRA** on a balanced
-mission→decision dataset (original adapter preserved as `final_adapter_original_backup`).
-Full method, resources, and the launch→end workflow:
+### 7.4 LoRA retrain — decision quality (PARTIAL WIN)
+Distilled the deterministic `fallback_decision` oracle into a **fresh LoRA** (640 balanced
+examples, 3 epochs, loss 0.0066; original preserved as `final_adapter_original_backup`,
+retrained committed as `final_adapter_retrained`). **Result:** the always-LowLatency
+collapse is **fixed** — the model now picks correctly across all 4 *known* mission types
+(emergency→Reliable, bulk→Bandwidth, pest→LowLatency, soil→Energy). **Gap:** it learned
+mission-*name* associations more than *telemetry* reasoning, so novel/generic missions
+default to BandwidthOptimized. **Not promoted** (default stays `final_adapter`): the
+retrained LLM would be *used* and override the correct fallback on generic missions.
+Full method, eval table, and the promote trade-off:
 [planner-lora-retrain.md](planner-lora-retrain.md).
 
 ## 8. Known limitations & open items

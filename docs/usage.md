@@ -134,6 +134,15 @@ sudo -E ~/netprompt-venv/bin/python -m runtime.tools.soak \
 
 **Acceptance / regression:** unit suite + M6 acceptance — see §1.6.
 
+### 1.7 Planner analytics (close the loop)
+Aggregate the runtime's verdict/escalation history into a per-SFC reliability signal the
+planner can learn from ([components/planner-analytics.md](components/planner-analytics.md)):
+```bash
+cd "$NETPROMPT_ROOT"
+~/netprompt-venv/bin/python -m llm_orchestrator.analytics \
+  --neo4j-uri bolt://localhost:7687 --neo4j-password netprompt123   # report; --json / --write-kg
+```
+
 > **No LLM required.** With the default assembly, tier 2 is stubbed (`regen_proposer=None`),
 > so the RM escalates instead of calling a model — the whole inner loop is exercised by the
 > deterministic tiers. The tier-2 code model is wired only by `soak --with-regen` and the M7

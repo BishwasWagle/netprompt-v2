@@ -30,6 +30,7 @@ mission ─▶ SLOW PLANNER (outer loop) ─▶ artifact ─▶ RUNTIME MANAGER 
 | Component | Role |
 |---|---|
 | [slow-planner.md](slow-planner.md) | The LLM KG-RAG orchestrator: read KG + history → decide → validate → fallback → compile artifact. |
+| [planner-analytics.md](planner-analytics.md) | "Results + analytics": aggregates the runtime's verdicts/escalations into a per-SFC reliability signal. |
 
 ## The two models
 

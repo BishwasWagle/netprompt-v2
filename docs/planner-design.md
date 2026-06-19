@@ -223,8 +223,13 @@ Full method, eval table, and the corrected promote analysis:
 - **Trigger/transport.** The planner writes an artifact and stops; invoking the runtime
   off it is the file-transport adapter (`run_from_planner`) — the KG-`PlannedDeployment`
   node + poll transport remains a future option (contracts §5/§6a).
-- **Learning loop.** Consuming runtime `Verdict`/`EscalationTicket` records back into the
-  planner (the outer-loop analytics) is deferred — not needed to run deployments.
+- **Learning loop — analytics BUILT, consumption open.** The outer-loop "Results +
+  analytics" is implemented (`llm_orchestrator/analytics.py` →
+  [components/planner-analytics.md](components/planner-analytics.md)): it aggregates the
+  runtime's `Verdict`/`EscalationTicket` history into outcome/tier/headroom stats and a
+  **per-SFC reliability signal** (and can persist a `PlannerAnalytics` node). What remains
+  is *closing* the loop — having the planner read that signal at decision time to bias SFC
+  selection (today its RAG history comes from a results CSV).
 
 ## 9. Provenance & cross-references
 

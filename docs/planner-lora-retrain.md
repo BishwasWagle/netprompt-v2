@@ -113,7 +113,73 @@ source deploy/gpu-node/gpu-node.env
   --per-class 160 --epochs 3 --device cuda:0
 ```
 
-## 8. Resources
+## 8. System workflow (launch → end)
+
+End-to-end, what the single launch command sets in motion:
+
+```mermaid
+flowchart TD
+  U(["user: source gpu-node.env<br/>python train_decision_lora.py --per-class 160 --epochs 3 --device cuda:0"])
+  U --> SEED["seed RNG (--seed 0) — reproducible run"]
+  SEED --> KG["connect Neo4j → get_topology_snapshot()<br/>+ get_candidate_sfc_policy_set() → close"]
+  KG --> DBUILD["build_dataset() — generate-then-bin"]
+
+  subgraph LOOP1["dataset build · repeat until 160 per SFC"]
+    direction TB
+    A1["pick target SFC"] --> A2["sample telemetry for its oracle branch<br/>+ mission: 50% named / 50% generic"]
+    A2 --> A3["build_llm_input_object (fixed KG topology + candidates)"]
+    A3 --> A4["fallback_decision() → oracle label"]
+    A4 --> A5{"bin[label] &lt; 160?"}
+    A5 -- yes --> A6["keep (prompt, decision-JSON)"]
+    A5 -- no --> A1
+    A6 --> A1
+  end
+  DBUILD --> LOOP1 --> SHUF["shuffle → 640 balanced examples"]
+
+  SHUF --> LOAD["load tokenizer + base Qwen2.5-1.5B<br/>fp32 on cuda:0 · gradient checkpointing"]
+  LOAD --> WRAP["wrap FRESH LoRA (r16/α32, 7 modules) → 18.4M trainable"]
+  WRAP --> TOK["tokenize all · prompt masked (-100)<br/>loss on decision JSON + EOS only"]
+  TOK --> OPTM["AdamW lr 2e-4 on LoRA params"]
+
+  OPTM --> EP{"for epoch in 1..3"}
+  EP -- "shuffle, then each example (batch 1)" --> FB["forward → loss · backward (loss/8)"]
+  FB --> ACC{"every 8 examples?"}
+  ACC -- yes --> STEP["clip-grad 1.0 · AdamW.step() · zero_grad · log loss"]
+  ACC -- no --> FB
+  STEP --> FB
+  FB -- "epoch complete" --> EP
+  EP -- "3 epochs done" --> SAVE["save_pretrained + tokenizer<br/>→ final_adapter_retrained/"]
+  SAVE --> DONE(["end · adapter on disk (original untouched)"])
+  DONE -. next, separate step .-> EVAL["evaluate vs original on the mission battery → promote?"]
+```
+
+**Walk-through:**
+
+1. **Launch** — the user sources `gpu-node.env` (KG creds, tree root, device) and runs
+   `train_decision_lora.py` with the run knobs (`--per-class`, `--epochs`, `--device`).
+2. **Seed** — RNG + `torch` seeded from `--seed` so the dataset and run are reproducible.
+3. **KG read (once)** — pull the topology snapshot + candidate SFC/policy set, build the
+   compact context, then close the connection. This fixed context is reused for every
+   example (the topology doesn't change between samples).
+4. **Dataset build** — the generate-then-bin loop: sample a target SFC, synthesize
+   telemetry that lands on its oracle branch, attach a named or generic mission, build the
+   real input object, **label it with `fallback_decision`**, and keep it only while that
+   SFC's bin is under 160. Result: 640 balanced, oracle-correct `(prompt, decision)` pairs,
+   shuffled.
+5. **Model + LoRA** — load the tokenizer and the **fp32** base model on `cuda:0` with
+   gradient checkpointing, then attach a **fresh** LoRA (original hyperparams) — 18.4 M
+   trainable params.
+6. **Tokenize** — prompt tokens masked to `-100`; loss is computed only over the decision
+   JSON + EOS, so the model learns to *generate* the decision and *stop*.
+7. **Train** — three epochs, batch 1 with gradient accumulation of 8: forward→loss,
+   backward (scaled), and every 8 examples clip-grad + `AdamW.step()` + zero-grad; loss is
+   logged every 80 examples and at each epoch boundary.
+8. **Save & end** — `save_pretrained` writes the adapter to `final_adapter_retrained/`
+   (the original `final_adapter`/backup are untouched). Evaluation and the promote
+   decision are a **separate** step (§11), so a run can never silently replace the adapter
+   in use.
+
+## 9. Resources
 
 - **GPU:** 1× Tesla P100-16GB on `cuda:0` (the other P100, `cuda:1`, is reserved for M7
   Tier-2 regen serving). Training holds **~11 GB**, util pinned at **100%**.
@@ -122,7 +188,7 @@ source deploy/gpu-node/gpu-node.env
 - **KG:** local Neo4j `bolt://localhost:7687` (read once for context).
 - **Throughput:** ≈ **1.8 s/example** (fp32 + ~2400-token prompts) → 640×3 ≈ **~55 min**.
 
-## 9. Insights / gotchas so far
+## 10. Insights / gotchas so far
 
 - **Loss falls fast:** `0.33 → 0.17 → 0.12` within the first 240 examples — the targets
   are short, structured, and oracle-consistent, so the mapping is easy to fit. (Watch for
@@ -141,7 +207,7 @@ source deploy/gpu-node/gpu-node.env
   to behave; training *moves the weights* toward the policy. The oracle gives clean,
   balanced supervision the base model never had.
 
-## 10. Pending (to append on completion)
+## 11. Pending (to append on completion)
 
 - Evaluate the retrained adapter on the held-out mission battery
   (`emergency_alert_relay`, `bulk_data_transfer`, `real_time_video`,

@@ -70,25 +70,42 @@ Three probe sets: **(A)** known mission names, **(B)** novel mission names (OOD)
   guarantees a valid, complete 6-key decision regardless of adapter — every row above is
   `parsed_json`.
 
-## 4. Promotion trade-off (why the default is unchanged)
+## 4. The default-config interaction (corrected after the 2026-06-19 review)
 
-The default adapter remains `final_adapter` (`NETPROMPT_LLM_ADAPTER`); the retrained one is
-opt-in via `--adapter-path`. The reason this is a *decision*, not an automatic upgrade:
+> **Correction.** An earlier version of this section claimed "keep the original adapter —
+> the fallback decides every mission correctly." **That is false under the production
+> default** (constrained decoding ON). Constrained decoding only lets the *fallback* win
+> when the LLM output is **invalid**; the grammar makes the output **always valid**, so the
+> LLM's choice is **used** and the fallback is **bypassed**. Verified below.
 
-- With the **original** adapter the LLM output is *invalid*, so the deterministic
-  **fallback always wins** → the system already decides **correctly for every mission**
-  (including B/C).
-- **Promoting** the retrained adapter makes the LLM output *valid and therefore used* →
-  a **win on known missions** but a **regression on generic/telemetry-only missions**
-  (its wrong BandwidthOptimized choice overrides the fallback's correct one).
+For `emergency_alert_relay` (correct = ReliableRelaySFC):
 
-Options:
-1. **Keep original default** — safest; fallback decides all; retrained stays available for demos/eval.
-2. **Promote retrained** — showcases a working LLM on the mission taxonomy, at the cost of generic-mission accuracy.
-3. **Improve first** — a telemetry-weighted retrain (telemetry up front, oversample
-   generic-mission examples, numeric-reasoning emphasis) or a larger model behind the same
-   constrained-decoding seam.
+| | constrained **OFF** | constrained **ON** (default) |
+|---|---|---|
+| **original** (`final_adapter`) | invalid JSON → fallback → ReliableRelaySFC ✓ | **LowLatencyVideoSFC ✗** (valid, used) |
+| **retrained** (`final_adapter_retrained`) | — | **ReliableRelaySFC ✓** (valid, used) |
 
-**Bottom line:** approach #3 met its stated goal — the planner LLM is no longer
-mode-collapsed and now makes mission-appropriate choices on the known taxonomy. Robust
-**telemetry generalization** is the remaining gap and the natural next target.
+So the **current shipped default — original adapter + constrained decoding — emits the
+wrong SFC** (its mode-collapsed LowLatency) for every non-LowLatency mission, because the
+grammar validates that wrong choice and it bypasses the fallback. The retrained adapter is
+the one that is *correct under the production setting*.
+
+**Implications / options:**
+1. **Promote the retrained adapter (recommended).** Under constrained-on it is correct on
+   all known mission types; the original is wrong on all non-LowLatency ones. This is the
+   right default for "LLM in the loop." Residual gap: generic/telemetry-only missions
+   (sets B/C) still resolve to BandwidthOptimized.
+2. **Original + constrained decoding OFF** — the only config where the fallback decides
+   *every* mission correctly (LLM output invalid → fallback). But then the LLM is never
+   actually used (defeats the KG-RAG purpose) and the §6c format guarantee is off.
+3. **Improve the retrain** — telemetry-weighted dataset (telemetry up front, oversample
+   generic-mission examples) or a larger model behind the same constrained-decoding seam,
+   to close the B/C gap so the promoted adapter is correct everywhere.
+
+The default has **not** been auto-changed in code — promotion is the user's call
+(`NETPROMPT_LLM_ADAPTER` / `--adapter-path`) — but the review's recommendation is **option
+1 (promote)**, since the status quo is strictly the worst of the three for decision quality.
+
+**Bottom line:** approach #3 met its goal — the planner LLM is no longer mode-collapsed and
+is now the **only** adapter that decides correctly under the production (constrained-on)
+default. Robust telemetry generalization (sets B/C) is the remaining gap.

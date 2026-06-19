@@ -312,6 +312,14 @@ Conclusion: a 1.5B model doing one-shot JSON selection over a large structured i
 decision quality needs **approach #3 (retrain the LoRA on balanced mission→SFC targets)**
 or a larger model. The prompt changes were **reverted** (they added tokens for zero
 benefit). What stands: **constrained decoding (#1)** makes every LLM decision *valid and
-deployable*, and the **deterministic fallback** already encodes the correct mission→SFC
-policy (emergency→Reliable, bulk→Bandwidth, …) — so it remains the trustworthy
-decision-maker until the model is retrained.
+deployable*.
+
+> **Correction (2026-06-19 review):** an earlier note here said the deterministic fallback
+> "remains the trustworthy decision-maker." That holds only with constrained decoding
+> **off** — the fallback wins solely when the LLM output is *invalid*, and the grammar
+> makes it always valid, so under the production default the LLM's choice is **used** and
+> the fallback is **bypassed**. With the *original* (mode-collapsed) adapter that means the
+> wrong SFC ships for non-LowLatency missions. The retrain (#3 —
+> [planner-lora-eval.md](planner-lora-eval.md), [planner-lora-retrain.md](planner-lora-retrain.md))
+> is what makes the *used* decision correct on the known mission taxonomy — hence the
+> recommendation to promote it.

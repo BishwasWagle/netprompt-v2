@@ -241,20 +241,16 @@ depends on numbers (delay ≤ 10 → LowLatency, battery < 40 → EnergyAware) i
 sit deep in a ~2400-token prompt the 1.5B model under-attends to, and name is the easier
 signal to fit.
 
-**Promotion is a real trade-off — left to a separate decision (not auto-promoted).** The
-default adapter is unchanged (`NETPROMPT_LLM_ADAPTER` still → `final_adapter`); the
-retrained one is opt-in via `--adapter-path`. Subtlety: with the *original* adapter the
-LLM output is invalid, so the **deterministic fallback always wins** — i.e. the system
-already decides correctly for *every* mission. Promoting the retrained adapter makes the
-LLM output *valid and therefore used*, which is a **win on known missions but a regression
-on generic/telemetry-only missions** (the model's wrong BandwidthOptimized choice would
-override the fallback's correct one). So:
-- **Keep original default** → safest (fallback decides all; retrained available for demos).
-- **Promote retrained** → showcases a working LLM on the mission taxonomy, at the cost of
-  generic-mission accuracy.
-- **Improve first** → telemetry-weighted dataset (put telemetry up front / oversample
-  generic-mission examples / add a numeric-reasoning emphasis), or a larger model behind
-  the same constrained-decoding seam.
+**Promotion — see the corrected analysis in [planner-lora-eval.md §4](planner-lora-eval.md).**
+The default adapter is unchanged in code (`NETPROMPT_LLM_ADAPTER` → `final_adapter`); the
+retrained one is opt-in via `--adapter-path`. **Important correction (2026-06-19 review):**
+constrained decoding lets the fallback win *only when the LLM output is invalid* — but the
+grammar makes it **always valid**, so under the production default (constrained-on) the LLM
+choice is **used** and the fallback is **bypassed**. Therefore the current default
+(original + constrained-on) **ships the wrong SFC** (mode-collapsed LowLatency) for every
+non-LowLatency mission. The recommendation is now to **promote the retrained adapter** (the
+only one correct under constrained-on); residual gap is the generic/telemetry-only cases,
+to be closed by a telemetry-weighted retrain or a larger model.
 
 Net: approach #3 **succeeded at its stated goal** (the model is no longer mode-collapsed
 and now makes mission-appropriate choices on the known taxonomy); robust telemetry

@@ -200,17 +200,22 @@ retrained committed as `final_adapter_retrained`). **Result:** the always-LowLat
 collapse is **fixed** — the model now picks correctly across all 4 *known* mission types
 (emergency→Reliable, bulk→Bandwidth, pest→LowLatency, soil→Energy). **Gap:** it learned
 mission-*name* associations more than *telemetry* reasoning, so novel/generic missions
-default to BandwidthOptimized. **Not promoted** (default stays `final_adapter`): the
-retrained LLM would be *used* and override the correct fallback on generic missions.
-Full method, eval table, and the promote trade-off:
-[planner-lora-retrain.md](planner-lora-retrain.md).
+default to BandwidthOptimized. The default adapter is unchanged **in code**, but the
+2026-06-19 review shows the retrained adapter **should be promoted**: under the production
+constrained-on default the *original* adapter ships its mode-collapsed LowLatency choice
+(valid → used → fallback bypassed), whereas the retrained one is correct on the known
+taxonomy. Full method, eval table, and the corrected promote analysis:
+[planner-lora-retrain.md](planner-lora-retrain.md) · [planner-lora-eval.md §4](planner-lora-eval.md).
 
 ## 8. Known limitations & open items
 
-- **LLM decision quality is the weak link.** Until 7.4 lands, the **deterministic
-  fallback** is the real decision-maker — it already encodes the correct mission→SFC
-  policy, so the *system* decides well even though the *model* doesn't. Constrained
-  decoding guarantees every shipped decision is valid + deployable regardless.
+- **LLM decision quality is the weak link — and the fallback does NOT backstop it under
+  constrained decoding.** Constrained decoding (§7.2) lets the deterministic fallback win
+  *only when the LLM output is invalid*; since the grammar makes output always valid, the
+  LLM's choice is used. So decision quality rests on the *adapter*: the original is
+  mode-collapsed (wrong on non-LowLatency missions), the retrained one is correct on the
+  known mission taxonomy (§7.4) — hence the promote recommendation. The fallback only
+  decides everything when constrained decoding is *off* (then the LLM is unused).
 - **Model scale.** 1.5B is the floor for this structured reasoning; a larger model behind
   the same constrained-decoding seam is the cheapest path to better judgment if the
   retrain underperforms.

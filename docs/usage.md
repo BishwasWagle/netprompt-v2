@@ -6,7 +6,8 @@ pieces are, see [runtime-manager-design.md](runtime-manager-design.md) (fast loo
 [runtime-planner-contracts.md](runtime-planner-contracts.md) (the handoff). For a
 **per-component reference** (one card each: runtime manager, gate, deployer, monitors,
 evaluator, adapt engine, KG client, slow planner, and both LLMs) see
-[components/](components/README.md).
+[components/](components/README.md). For what's left to build + the gotchas to remember see
+[future-work.md](future-work.md).
 
 **The system has two loops and two LLMs:**
 - **Slow planner** (outer loop) — an LLM **decision model** (`Qwen2.5-1.5B-Instruct` + LoRA)

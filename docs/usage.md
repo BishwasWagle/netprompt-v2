@@ -3,14 +3,23 @@
 How to run the system end-to-end and each of its two LLMs individually. For *what* the
 pieces are, see [runtime-manager-design.md](runtime-manager-design.md) (fast loop),
 [planner-design.md](planner-design.md) (slow loop), and
-[runtime-planner-contracts.md](runtime-planner-contracts.md) (the handoff).
+[runtime-planner-contracts.md](runtime-planner-contracts.md) (the handoff). For a
+**per-component reference** (one card each: runtime manager, gate, deployer, monitors,
+evaluator, adapt engine, KG client, slow planner, and both LLMs) see
+[components/](components/README.md).
 
 **The system has two loops and two LLMs:**
 - **Slow planner** (outer loop) — an LLM **decision model** (`Qwen2.5-1.5B-Instruct` + LoRA)
   that selects an SFC/policy/path and emits a deployment artifact. Runs on **`cuda:0`**.
 - **Runtime Manager** (inner loop) — deploys + adapts on the live P4/BMv2 network. Its
-  Tier-2 adaptation uses a separate **code model** (`Qwen2.5-Coder-1.5B-Instruct`) that
+  Tier-2 adaptation *can call* a separate **code model** (`Qwen2.5-Coder-1.5B-Instruct`) that
   regenerates P4 table rules. Runs on **`cuda:1`**.
+
+> **The Tier-2 regen LLM is NOT the Runtime Manager.** The Runtime Manager is a
+> *mostly-deterministic control system* (deploy → observe → evaluate → adapt). The code
+> model is just a **component it can reach for** at the top of its adapt ladder
+> (tier 0 tune → tier 1 reroute → **tier 2 regen = the LLM**), as a gated last resort. The
+> RM runs fine with no LLM at all (Tier-2 stubbed → escalate). See §2.
 
 ## 0. Prerequisites (every session)
 
@@ -99,7 +108,38 @@ sudo -E env NETPROMPT_TREE_ROOT="$NETPROMPT_ROOT" NETPROMPT_KG_URI=bolt://localh
 
 ---
 
-## 2. Planner LLM — the decision model (`Qwen2.5-1.5B-Instruct` + LoRA)
+## 2. Runtime Manager — the inner-loop control system (mostly deterministic)
+
+The RM runs one **episode**: deploy a binding, observe a window, run the 6-stage evaluator,
+and adapt within the SFC envelope (tier 0 tune → tier 1 reroute → tier 2 regen), then commit /
+rollback / escalate. It is deterministic except for the optional tier-2 LLM (§4).
+See [runtime-manager-design.md](runtime-manager-design.md).
+
+**Run an episode — scenario-driven** (no planner; a fixture drives the situation):
+```bash
+cd ~/Run-time-Manager
+# 'model' = instant scenario-modelled monitor; 'real' = live NetworkMonitor over the testbed
+sudo -E ~/netprompt-venv/bin/python -m runtime.tools.run_episode \
+  --scenario relay_failure --monitor real          # needs the resident testbed + traffic
+```
+
+**Run an episode — planner-driven:** see §1.4 (`run_from_planner --deploy`).
+
+**Soak** (repeated episodes + injected switch kills + watchdog recovery; `--with-regen`
+wires in the real tier-2 model):
+```bash
+sudo -E ~/netprompt-venv/bin/python -m runtime.tools.soak \
+  --minutes 60 --kill-every 20 --kill s3            # add --with-regen to exercise tier-2
+```
+
+**Acceptance / regression:** unit suite + M6 acceptance — see §1.6.
+
+> **No LLM required.** With the default assembly, tier 2 is stubbed (`regen_proposer=None`),
+> so the RM escalates instead of calling a model — the whole inner loop is exercised by the
+> deterministic tiers. The tier-2 code model is wired only by `soak --with-regen` and the M7
+> live tests (§4).
+
+## 3. Planner LLM — the decision model (`Qwen2.5-1.5B-Instruct` + LoRA)
 
 Selects `selected_sfc/policy/path/relay/priority/deployment_mode` from mission + telemetry +
 KG context. Runs in `llm_orchestrator` on **`cuda:0`**. See [planner-design.md](planner-design.md).
@@ -141,7 +181,7 @@ BandwidthOptimized on novel/telemetry-only missions.
 
 ---
 
-## 3. Tier-2 regen LLM — the code model (`Qwen2.5-Coder-1.5B-Instruct`)
+## 4. Tier-2 regen LLM — the code model (`Qwen2.5-Coder-1.5B-Instruct`)
 
 The runtime's **last-resort adaptation tier**: when tune (tier 0) and reroute (tier 1) can't
 meet SLA, it **regenerates P4 table rules** under GBNF-constrained decoding, validated by the
@@ -182,7 +222,7 @@ escalates with the network untouched (capability degrades, safety doesn't).
 
 ---
 
-## 4. Two-model summary
+## 5. Two-model summary
 
 | | Planner (decision) | Tier-2 regen (code) |
 |---|---|---|

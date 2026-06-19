@@ -209,6 +209,9 @@ flowchart TD
 
 ## 11. Results (2026-06-19)
 
+> Standalone eval (method, full table, reproducible commands, promotion trade-off):
+> **[planner-lora-eval.md](planner-lora-eval.md)**. Summary below.
+
 Trained: 640 examples (160/SFC), 3 epochs, final mean loss **0.0066**, ~52 min on the
 P100. Adapter saved to `final_adapter_retrained/` (and committed; original preserved).
 Evaluated with constrained decoding on (the production setting) — every output was a

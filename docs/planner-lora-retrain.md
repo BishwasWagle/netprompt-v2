@@ -242,8 +242,9 @@ sit deep in a ~2400-token prompt the 1.5B model under-attends to, and name is th
 signal to fit.
 
 **Promotion — see the corrected analysis in [planner-lora-eval.md §4](planner-lora-eval.md).**
-The default adapter is unchanged in code (`NETPROMPT_LLM_ADAPTER` → `final_adapter`); the
-retrained one is opt-in via `--adapter-path`. **Important correction (2026-06-19 review):**
+**Promoted 2026-06-19:** `gpu-node.env` now sets `NETPROMPT_LLM_ADAPTER →
+final_adapter_retrained` (original preserved + tracked for rollback). **Important
+correction (2026-06-19 review):**
 constrained decoding lets the fallback win *only when the LLM output is invalid* — but the
 grammar makes it **always valid**, so under the production default (constrained-on) the LLM
 choice is **used** and the fallback is **bypassed**. Therefore the current default

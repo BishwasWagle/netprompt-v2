@@ -200,11 +200,12 @@ retrained committed as `final_adapter_retrained`). **Result:** the always-LowLat
 collapse is **fixed** — the model now picks correctly across all 4 *known* mission types
 (emergency→Reliable, bulk→Bandwidth, pest→LowLatency, soil→Energy). **Gap:** it learned
 mission-*name* associations more than *telemetry* reasoning, so novel/generic missions
-default to BandwidthOptimized. The default adapter is unchanged **in code**, but the
-2026-06-19 review shows the retrained adapter **should be promoted**: under the production
-constrained-on default the *original* adapter ships its mode-collapsed LowLatency choice
+default to BandwidthOptimized. **Promoted 2026-06-19** (`gpu-node.env`
+`NETPROMPT_LLM_ADAPTER → final_adapter_retrained`): under the production constrained-on
+default the *original* adapter ships its mode-collapsed LowLatency choice
 (valid → used → fallback bypassed), whereas the retrained one is correct on the known
-taxonomy. Full method, eval table, and the corrected promote analysis:
+taxonomy — so the retrained adapter is now the default (original preserved for rollback).
+Full method, eval table, and the corrected promote analysis:
 [planner-lora-retrain.md](planner-lora-retrain.md) · [planner-lora-eval.md §4](planner-lora-eval.md).
 
 ## 8. Known limitations & open items

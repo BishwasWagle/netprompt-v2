@@ -102,9 +102,10 @@ the one that is *correct under the production setting*.
    generic-mission examples) or a larger model behind the same constrained-decoding seam,
    to close the B/C gap so the promoted adapter is correct everywhere.
 
-The default has **not** been auto-changed in code — promotion is the user's call
-(`NETPROMPT_LLM_ADAPTER` / `--adapter-path`) — but the review's recommendation is **option
-1 (promote)**, since the status quo is strictly the worst of the three for decision quality.
+**PROMOTED (2026-06-19):** `gpu-node.env` now sets `NETPROMPT_LLM_ADAPTER →
+final_adapter_retrained` (option 1). Verified: with no `--adapter-path` the orchestrator
+loads the retrained adapter and decides emergency → ReliableRelaySFC (`parsed_json`).
+Rollback is a one-line env change back to `final_adapter` (preserved + tracked).
 
 **Bottom line:** approach #3 met its goal — the planner LLM is no longer mode-collapsed and
 is now the **only** adapter that decides correctly under the production (constrained-on)

@@ -9,6 +9,7 @@ checkpoint-*/
 *.pt
 *.safetensors
 
-# Retrained/backup LoRA adapter dirs (large binary build artifacts; see docs/planner-lora-retrain.md)
+# The retrained LoRA adapter IS version-controlled (rollback/compare baseline,
+# consistent with the tracked original final_adapter/) — force-added past *.safetensors.
+# The *_original_backup copy is redundant with the tracked original, so keep it ignored.
 final_adapter_original_backup/
-final_adapter_retrained/

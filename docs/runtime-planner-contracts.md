@@ -294,3 +294,24 @@ and a `bulk_data_transfer` mission (mission-insensitive). Constrained decoding c
 reasoning; improving *which* valid option it picks is approach #2 (prompt/few-shot) or
 #3 (retrain the LoRA). The grammar guarantees every decision is *safe and deployable*;
 making it *good* is the open item.
+
+### 6d. Decision quality — approach #2 (prompt/few-shot) is a NEGATIVE result (2026-06-17)
+
+Tried to make the model mission-sensitive without retraining: added a mission→SFC
+**rubric** to the system prompt, then **3 few-shot exemplars** (emergency→Reliable,
+bulk→Bandwidth, video→LowLatency). **It did not work** — across `emergency_alert_relay`,
+`bulk_data_transfer`, `real_time_video`, `soil_moisture_survey` the model still picks
+`LowLatencyVideoSFC` every time. Ruled out the usual culprits:
+- not truncation (prompt 2393 tok < 4096 cap; few-shot verified present),
+- not grammar ordering (SFCs listed alphabetically; LowLatency isn't first),
+- not the LoRA — the **base** Qwen2.5-1.5B-Instruct behaves identically,
+- not the grammar — the original **unconstrained** run also emitted `LowLatencyVideoSFC`.
+
+Conclusion: a 1.5B model doing one-shot JSON selection over a large structured input
+**collapses to a single mode** and prompt engineering can't override it. Mission-aware
+decision quality needs **approach #3 (retrain the LoRA on balanced mission→SFC targets)**
+or a larger model. The prompt changes were **reverted** (they added tokens for zero
+benefit). What stands: **constrained decoding (#1)** makes every LLM decision *valid and
+deployable*, and the **deterministic fallback** already encodes the correct mission→SFC
+policy (emergency→Reliable, bulk→Bandwidth, …) — so it remains the trustworthy
+decision-maker until the model is retrained.

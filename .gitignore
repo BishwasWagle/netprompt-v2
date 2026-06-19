@@ -8,3 +8,7 @@ FC_key.pem
 checkpoint-*/
 *.pt
 *.safetensors
+
+# Retrained/backup LoRA adapter dirs (large binary build artifacts; see docs/planner-lora-retrain.md)
+final_adapter_original_backup/
+final_adapter_retrained/

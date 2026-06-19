@@ -49,6 +49,11 @@ def build_runtime_input_object(
         topology_snapshot = kg_client.get_topology_snapshot()
         compact_topology = build_compact_llm_topology_context(topology_snapshot)
         candidate_actions = kg_client.get_candidate_sfc_policy_set()
+        # Close the learning loop: fold the runtime's per-SFC reliability (from its
+        # Verdict/EscalationTicket history) into the decision context. Best-effort —
+        # {} when there's no history or NETPROMPT_PLANNER_FEEDBACK=0.
+        from .analytics import feedback_for_planner
+        runtime_feedback = feedback_for_planner(kg_client.run_cypher)
     finally:
         kg_client.close()
 
@@ -71,7 +76,8 @@ def build_runtime_input_object(
         observed_throughput_mbps=observed_throughput_mbps,
     )
     historical_context = build_historical_context(current_row, history_df, top_k=3)
-    return build_llm_input_object(current_row, compact_topology, candidate_actions, historical_context)
+    return build_llm_input_object(current_row, compact_topology, candidate_actions,
+                                 historical_context, runtime_feedback)
 
 
 def run_pipeline(

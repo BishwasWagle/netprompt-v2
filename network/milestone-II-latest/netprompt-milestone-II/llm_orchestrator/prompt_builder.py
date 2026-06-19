@@ -33,6 +33,7 @@ def build_llm_input_object(
     compact_topology_context: Dict[str, Any],
     candidate_actions: List[Dict[str, Any]],
     historical_context: Dict[str, Any],
+    runtime_feedback: Dict[str, Any] = None,
 ) -> Dict[str, Any]:
     allowed_sfc_ids = sorted({item["sfc_id"] for item in candidate_actions})
     allowed_policy_types = sorted({item["policy_type"] for item in candidate_actions})
@@ -65,6 +66,8 @@ def build_llm_input_object(
         },
         "candidate_sfc_policy_set": candidate_actions,
         "kg_rag_historical_context": historical_context,
+        # The learning-loop signal: per-SFC reliability from the runtime's own outcomes.
+        "runtime_feedback": runtime_feedback or {},
         "orchestration_constraints": {
             "allowed_sfc_ids": allowed_sfc_ids,
             "allowed_policy_types": allowed_policy_types,

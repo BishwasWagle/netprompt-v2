@@ -223,13 +223,17 @@ Full method, eval table, and the corrected promote analysis:
 - **Trigger/transport.** The planner writes an artifact and stops; invoking the runtime
   off it is the file-transport adapter (`run_from_planner`) — the KG-`PlannedDeployment`
   node + poll transport remains a future option (contracts §5/§6a).
-- **Learning loop — analytics BUILT, consumption open.** The outer-loop "Results +
-  analytics" is implemented (`llm_orchestrator/analytics.py` →
-  [components/planner-analytics.md](components/planner-analytics.md)): it aggregates the
-  runtime's `Verdict`/`EscalationTicket` history into outcome/tier/headroom stats and a
-  **per-SFC reliability signal** (and can persist a `PlannerAnalytics` node). What remains
-  is *closing* the loop — having the planner read that signal at decision time to bias SFC
-  selection (today its RAG history comes from a results CSV).
+- **Learning loop — CLOSED (analytics → decision context).** The outer-loop "Results +
+  analytics" (`llm_orchestrator/analytics.py` →
+  [components/planner-analytics.md](components/planner-analytics.md)) aggregates the
+  runtime's `Verdict`/`EscalationTicket` history into a **per-SFC reliability signal**, and
+  `build_runtime_input_object` now **folds that signal back into every decision** as
+  `input_object.runtime_feedback` (best-effort; `NETPROMPT_PLANNER_FEEDBACK=0` to disable).
+  So the slow loop sees how its prior choices fared. *Honest caveat:* the current 1.5B
+  model doesn't yet *exploit* the signal (it wasn't trained on the field; verified it still
+  decides correctly with it present), and the escalation-rate conflates "wrong SFC" with
+  "unachievable SLA on this fabric" — so it's advisory. Truly *acting* on it needs a
+  feedback-aware retrain (or a stronger model); the feedback **path** is wired and robust.
 
 ## 9. Provenance & cross-references
 

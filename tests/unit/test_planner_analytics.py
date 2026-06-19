@@ -67,3 +67,26 @@ def test_format_report_is_text():
     r = an.format_report(an.collect(_fake_cypher))
     assert "Slow-Planner Analytics" in r
     assert "per-SFC reliability" in r and "escalations:" in r
+
+
+def test_reliability_summary_compact():
+    rs = an.reliability_summary(an.collect(_fake_cypher))
+    assert rs["total_episodes"] == 5
+    assert rs["per_sfc_reliability"]["ReliableRelaySFC"]["escalation_rate"] == 1.0
+    assert rs["per_sfc_reliability"]["LowLatencyVideoSFC"]["escalation_rate"] == 0.0
+
+
+def test_feedback_for_planner_is_graceful():
+    # a raising KG read must never break planning -> {}
+    def boom(query, params=None):
+        raise RuntimeError("kg down")
+    assert an.feedback_for_planner(boom) == {}
+    # disabled via env -> {}
+    import os
+    os.environ["NETPROMPT_PLANNER_FEEDBACK"] = "0"
+    try:
+        assert an.feedback_for_planner(_fake_cypher) == {}
+    finally:
+        del os.environ["NETPROMPT_PLANNER_FEEDBACK"]
+    # enabled (default) -> the compact signal
+    assert "per_sfc_reliability" in an.feedback_for_planner(_fake_cypher)

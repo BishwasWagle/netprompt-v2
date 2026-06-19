@@ -134,9 +134,12 @@ sudo -E ~/netprompt-venv/bin/python -m runtime.tools.soak \
 
 **Acceptance / regression:** unit suite + M6 acceptance — see §1.6.
 
-### 1.7 Planner analytics (close the loop)
-Aggregate the runtime's verdict/escalation history into a per-SFC reliability signal the
-planner can learn from ([components/planner-analytics.md](components/planner-analytics.md)):
+### 1.7 Planner analytics (the closed learning loop)
+The runtime's verdict/escalation history is aggregated into a per-SFC reliability signal
+([components/planner-analytics.md](components/planner-analytics.md)) and **fed back into
+every planner decision** as `input_object.runtime_feedback` (so the slow loop sees how its
+prior choices fared). Disable with `NETPROMPT_PLANNER_FEEDBACK=0`. Inspect the signal
+directly:
 ```bash
 cd "$NETPROMPT_ROOT"
 ~/netprompt-venv/bin/python -m llm_orchestrator.analytics \

@@ -83,6 +83,33 @@ def collect(run_cypher) -> dict:
     }
 
 
+def reliability_summary(stats: dict) -> dict:
+    """A compact, prompt-friendly slice of collect(): per-SFC episodes + escalation_rate +
+    marginal count. This is what the planner folds into its decision context."""
+    per = {}
+    for sfc, c in stats.get("per_sfc", {}).items():
+        eps = sum(c.values())
+        esc = c.get("escalated", 0)
+        per[sfc] = {"episodes": eps,
+                    "escalation_rate": round(esc / eps, 2) if eps else None,
+                    "marginal": c.get("marginal", 0)}
+    return {"total_episodes": stats.get("episodes", 0), "per_sfc_reliability": per}
+
+
+def feedback_for_planner(run_cypher) -> dict:
+    """The runtime-reliability block the orchestrator folds into its LLM input
+    (build_runtime_input_object). Graceful: returns {} if disabled
+    (NETPROMPT_PLANNER_FEEDBACK=0) or on any KG/aggregation error, so the planner runs
+    unchanged when there's no history."""
+    import os
+    if os.getenv("NETPROMPT_PLANNER_FEEDBACK", "1") != "1":
+        return {}
+    try:
+        return reliability_summary(collect(run_cypher))
+    except Exception:  # noqa: BLE001 — feedback is best-effort, never break planning
+        return {}
+
+
 def _rate(part, whole):
     return f"{(100.0 * part / whole):.0f}%" if whole else "—"
 

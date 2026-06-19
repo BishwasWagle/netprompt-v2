@@ -25,7 +25,7 @@ Read-only consumer of the runtime's KG records (the inner loop *writes* `Verdict
 - **The verdict has no SFC** — attribution is best-effort (join or `plan-` id). Ad-hoc correlation_ids (`soak-N`, manual) show up in totals but not the per-SFC table (`attributed N/total`).
 - **Read-only except `--write-kg`.** It never alters runtime records.
 - The signal is real: on the current fabric it shows `ReliableRelaySFC` escalating 100% (the documented ≤50 ms-bound-vs-~52 ms-backup gap) — exactly what a learning loop should flag.
-- **Open next step:** closing the loop — the planner *reading* `PlannerAnalytics` at decision time to bias SFC/field selection — is not yet wired (the orchestrator's RAG history today comes from a results CSV).
+- **Loop closed:** `build_runtime_input_object` folds `reliability_summary(collect(...))` into every decision as `input_object.runtime_feedback` (via `feedback_for_planner`, best-effort; `NETPROMPT_PLANNER_FEEDBACK=0` disables). The slow loop now *sees* prior outcomes. Caveat: the current model doesn't yet exploit it, and escalation-rate ≠ SFC-unsuitability (it can mean unachievable SLA bounds) — so it's advisory until a feedback-aware retrain.
 
 ## Usage
 ```bash

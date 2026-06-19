@@ -18,8 +18,12 @@
 > serving on cuda:1; live propose→gate→apply→observe + a committed recovered episode,
 > LLM-down fail-safe, multi-model comparison table, reproducibility kit — see
 > [m7-implementation-plan.md](m7-implementation-plan.md)) ·
-> M-K ☐ awaiting Kiran (open items in design §13). The full system (M0–M7, Tier-2
-> real serving) is demonstrated end-to-end on the live testbed.
+> **M-K (planner integration) ✅ BUILT + LIVE-VERIFIED 2026-06-17..19.** Kiran's node
+> expired, so we now own the whole stack (planner + runtime + KG). The slow planner ↔
+> runtime handoff is wired and proven end-to-end on hardware — see §8 below and
+> [runtime-planner-contracts.md](runtime-planner-contracts.md), [planner-design.md](planner-design.md),
+> [usage.md](usage.md). The full system (M0–M7 + slow-loop→fast-loop) is demonstrated
+> end-to-end on the live testbed.
 > See §7 "Node bring-up findings" + design §13 "Known issues & hardening backlog".
 
 ---
@@ -78,7 +82,7 @@ Effort tags: **S** ≈ a focused session, **M** ≈ a few sessions, **L** ≈ a 
 
 ### M-K · Contract sign-off with Kiran (parallel track) — S
 Extract §9 (`DeploymentSpec`, `EscalationTicket`, `Envelope`) + the §8 KG read/write split into a short contracts note; agree on field names, KG node labels, and who creates `DeploymentSpec`. **Exit:** both sides agree; `contracts.py` reflects the agreed schema.
-*Status: note drafted ([runtime-planner-contracts.md](runtime-planner-contracts.md)); awaiting Kiran's answers to its §4 questions.*
+*Status: **✅ REALIZED + LIVE-VERIFIED (see §8).** Kiran's node expired → we own the whole stack, so the contract is now an internal spec and every open question was decided by us. The handoff adapter is built and the slow→fast loop runs end-to-end on hardware.*
 
 ### M0 · On-node spike — S (needs node access; everything in §10.7)
 Bring up the existing multihop topology, pause before teardown, and verify by hand:
@@ -212,3 +216,49 @@ Empirical results from migrating to the Chameleon network-node and running on re
 **Review-#8 (whole-codebase, 2026-06-15) — see design §13 "Known issues & hardening backlog":**
 15. Safety holds (dominates uses smoothed booleans; monitor+rollback catches blackholes; window-averaged metrics; escalation fail-safe), so the rest is near-bound inefficiency / M7-time / M-K — not unsafety.
 16. **Fixed:** regen proposer now catches `generate()` exceptions (§7.4 fail-safe for a real endpoint). **M7 prereqs:** plumb `gbnf()` into the decoder; decide gate L3; grammar over-accepts vs gate (wasted K-cap). **Gap:** rung-1 re_push not wired into the live loop (watchdog covers switch-death only). **M-K:** outbound KG ids are runtime F-ids (planner maps); `jsonable` is one-way.
+
+---
+
+## 8. Planner integration (M-K) — realized & verified (2026-06-17 → -19)
+
+Kiran's network node expired, so the planner↔runtime boundary became an **internal**
+concern: we own the orchestrator, the KG, and the runtime. The handoff is now built and
+proven end-to-end. Full detail: [runtime-planner-contracts.md](runtime-planner-contracts.md)
+(the §6 integration log), [planner-design.md](planner-design.md),
+[planner-lora-retrain.md](planner-lora-retrain.md), [planner-lora-eval.md](planner-lora-eval.md),
+[usage.md](usage.md).
+
+**Inbound handoff (planner → runtime).**
+- `runtime/planner_adapter.py` — normalizes the orchestrator's
+  `llm_generated_experiment_config.json` into a `DeploymentSpec`. Maps `selected_sfc`,
+  reconstructs the **canonical per-switch binding** (the artifact labels rule files by the
+  active relay; the deployer needs s1/s2/s3 files — so we rebuild them and keep `policy_type`
+  verbatim for path selection), derives the envelope from the KG, and normalizes the field id
+  (`Field_<n>` → runtime `F<n>`). Transport = file; the two missing fields
+  (`correlation_id`, `target_field`) are runtime-supplied.
+- `runtime/tools/run_from_planner.py` — `--no-kg` dry (normalize → gate) and `--deploy` live
+  (deploy → observe → verdict → KG, reusing the M5/M6 `build_and_run`).
+- `runtime/tools/seed_kg.py` — non-destructive (MERGE) strategic-KG seed that preserves
+  runtime records; `controller/generate_kg.py` extended with the planner's switch topology
+  (`ProgrammableSwitch.role`, `PRIMARY_PATH`/`BACKUP_PATH`, `P4PolicyMapping`).
+
+**Slow-planner model work** (so the *planner* makes valid, mission-appropriate decisions):
+- **Constrained decoding** (`decision_grammar.py` + `llm_runner._grammar_processors`): forces a
+  complete, valid 6-key decision (the model otherwise emitted 4/6 keys and rambled).
+- **LoRA retrain** (`train_decision_lora.py`): distilled the rule-based oracle into a fresh
+  LoRA; fixed the always-LowLatency collapse on the known mission taxonomy. **Promoted** as the
+  default adapter (`gpu-node.env`). Gap: novel/telemetry-only missions still default to
+  BandwidthOptimized.
+
+**Key insight (review, 2026-06-19): constrained decoding bypasses the fallback.** The
+deterministic fallback only fires when the LLM output is *invalid*; the grammar makes it always
+valid, so the LLM's choice is **used**. Hence the original (mode-collapsed) adapter would ship
+the wrong SFC under the production default — the retrained adapter is the one correct under
+constrained-on, which is why it was promoted.
+
+**Verification (2026-06-19, live).** 206 unit tests; **M6 acceptance 3/3 live** (reroute /
+ddil-escalate / contention-harm); and a full **slow→fast episode**: the promoted planner
+generated an emergency artifact (`ReliableRelaySFC`, `parsed_json`) → `run_from_planner --deploy`
+→ KG envelope → gate PASS → deploy → episode → verdict + records in the KG. Operational lesson:
+**launch the testbed with the P4 program matching what you'll deploy** (the deployer installs
+rules, not the program), and run live tests with **detached (`setsid`) traffic**.

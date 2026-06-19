@@ -153,6 +153,57 @@ kg["knowledge_graph"]["relationships"].extend([
     }
 ])
 
+# --- Switch topology the LLM orchestrator reads (kg_context.get_topology_snapshot).
+# ProgrammableSwitch nodes need a `role` (access/primary_relay/backup_relay) so the
+# planner can classify relays + build allowed_relays; status drives availability
+# (active/standby/unavailable). s1 access, s2 primary relay, s3 backup relay — the
+# milestone-II 3-switch fabric. (The runtime monitor later overwrites `status` with
+# live readings — design §5.5 / the contract's monitor-computed status.)
+programmable_switches = [
+    {"id": "s1", "type": "ProgrammableSwitch", "role": "access_switch",
+     "status": "active", "thrift_port": 9090, "device_id": 1},
+    {"id": "s2", "type": "ProgrammableSwitch", "role": "primary_relay",
+     "status": "active", "thrift_port": 9091, "device_id": 2},
+    {"id": "s3", "type": "ProgrammableSwitch", "role": "backup_relay",
+     "status": "standby", "thrift_port": 9092, "device_id": 3},
+]
+kg["knowledge_graph"]["nodes"].extend(programmable_switches)
+
+# P4 policy mappings (SFCTemplate -[:REALIZED_BY_P4_POLICY]-> P4PolicyMapping) so the
+# planner's candidate set is KG-driven (get_candidate_sfc_policy_set), not the in-code
+# fallback. policy_type/path_preference match the milestone-II experiment labels.
+p4_policies = [
+    {"id": "policy_low_latency", "type": "P4PolicyMapping",
+     "policy_type": "primary_path_low_latency", "p4_program": "low_latency.p4",
+     "path_preference": "PrimaryPath"},
+    {"id": "policy_bandwidth", "type": "P4PolicyMapping",
+     "policy_type": "bandwidth_policy_table_bulk_marking",
+     "p4_program": "bandwidth_optimized.p4", "path_preference": "HighBandwidthPath"},
+    {"id": "policy_reliable_relay", "type": "P4PolicyMapping",
+     "policy_type": "backup_path_reliable_relay", "p4_program": "reliable_relay.p4",
+     "path_preference": "BackupPath"},
+    {"id": "policy_energy", "type": "P4PolicyMapping",
+     "policy_type": "energy_policy_table_essential_only", "p4_program": "energy_aware.p4",
+     "path_preference": "EssentialFlowsOnly"},
+]
+kg["knowledge_graph"]["nodes"].extend(p4_policies)
+
+# Forwarding topology + access links + SFC->policy edges.
+topology_rels = [
+    {"source": "s1", "relation": "PRIMARY_PATH", "target": "s2"},
+    {"source": "s1", "relation": "BACKUP_PATH", "target": "s3"},
+    {"source": "s2", "relation": "CONNECTED_TO_EDGE", "target": "edge-node"},
+    {"source": "s3", "relation": "CONNECTED_TO_EDGE", "target": "edge-node"},
+]
+for i in range(1, 11):                       # drones attach to the access switch s1
+    topology_rels.append({"source": f"Drone_{i}", "relation": "CONNECTED_TO", "target": "s1"})
+for sfc, pol in [("LowLatencyVideoSFC", "policy_low_latency"),
+                 ("BandwidthOptimizedSFC", "policy_bandwidth"),
+                 ("ReliableRelaySFC", "policy_reliable_relay"),
+                 ("EnergyAwareSFC", "policy_energy")]:
+    topology_rels.append({"source": sfc, "relation": "REALIZED_BY_P4_POLICY", "target": pol})
+kg["knowledge_graph"]["relationships"].extend(topology_rels)
+
 with open("drone_sfc_kg.json", "w") as f:
     json.dump(kg, f, indent=2)
 

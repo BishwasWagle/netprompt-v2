@@ -238,3 +238,35 @@ The inbound handoff is wired on the runtime side, consuming your existing artifa
 **Integration COMPLETE** (single- and multi-episode, live-verified). Deferred only:
 the outer-loop learning/verdict-consumption — not needed for the runtime to run real
 deployments.
+
+### 6b. The slow planner (outer-loop orchestrator) — runs locally (2026-06-17)
+
+The outer-loop LLM orchestrator (`llm_orchestrator/orchestrate.py`, fine-tuned
+Qwen2.5-1.5B-Instruct + LoRA, KG-RAG) **exists and now runs end-to-end on this node**:
+it reads the local KG, runs LLM inference, validates, and compiles a deployable
+artifact whose paths exist and which **feeds straight into `run_from_planner`**
+(gate PASS, canonical s2 binding). So the full slow-loop → fast-loop cycle is wired
+locally.
+
+**What it needed:** the local KG was missing the planner's topology model (it only had
+the strategic nodes the *runtime* reads). `kg_context.get_topology_snapshot` builds
+`allowed_relays` from `ProgrammableSwitch` nodes classified by a **`role`** property
+plus `PRIMARY_PATH`/`BACKUP_PATH` relations, and candidates from
+`SFCTemplate -[:REALIZED_BY_P4_POLICY]-> P4PolicyMapping`. None of that was seeded, so
+both the LLM and the fallback failed validation (`Invalid selected_relay`). Fixed by
+extending `controller/generate_kg.py` (→ `drone_sfc_kg.json`, applied via
+`seed_kg.py`) with: `ProgrammableSwitch` s1/s2/s3 (`role` access/primary_relay/
+backup_relay + status), `PRIMARY_PATH`/`BACKUP_PATH`/`CONNECTED_TO_EDGE`, drone→s1
+`CONNECTED_TO`, and 4 `P4PolicyMapping` nodes. (`ProgrammableSwitch` is a *shared*
+node — the seed sets `role`, the runtime monitor overwrites `status`; it's kept out of
+`seed_kg.py`'s `--reset-strategic` set for that reason.)
+
+**Honest caveat — the LLM brain is unreliable; the deterministic fallback carries it.**
+With the enriched KG the valid decision (`ReliableRelaySFC`/backup/s3/critical/
+multihop) is produced by the **rule-based fallback**, not the LLM. The fine-tuned model
+emits an **incomplete decision** — only 4 of 6 required keys (missing `priority_class`,
+`deployment_mode`), then rambles past the JSON (chat-template/EOS leakage), and even
+mis-picks `LowLatencyVideoSFC` for an emergency-relay mission. Raising `max_new_tokens`
+128→512 didn't help (not truncation). So: the planner **system** works (valid,
+KG-grounded, deployable artifacts), but making the **LLM itself** conform (retrain /
+prompt / constrained decoding / EOS fix) is a separate, open quality item.

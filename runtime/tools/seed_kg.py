@@ -29,7 +29,10 @@ from runtime.kg_client import KGClient
 
 # Labels authored by generate_kg.py — the strategic graph. The runtime writes none of
 # these, so deleting them (for --reset-strategic) can't clobber a Verdict/snapshot.
-STRATEGIC_LABELS = ("SFCTemplate", "AgriculturalField", "Drone",
+# NOTE: ProgrammableSwitch is deliberately EXCLUDED — it's a shared node (the seed
+# sets `role`, the runtime monitor overwrites `status`), so --reset-strategic must not
+# delete it. The seed still MERGEs role onto it (handled below regardless of label).
+STRATEGIC_LABELS = ("SFCTemplate", "AgriculturalField", "Drone", "P4PolicyMapping",
                     "CentralController", "ProgrammableNetworkNode", "EdgeComputeNode")
 
 # repo-root/controller/drone_sfc_kg.json

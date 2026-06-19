@@ -232,6 +232,58 @@
           "compress_payload",
           "forward_to_nearest_relay"
         ]
+      },
+      {
+        "id": "s1",
+        "type": "ProgrammableSwitch",
+        "role": "access_switch",
+        "status": "active",
+        "thrift_port": 9090,
+        "device_id": 1
+      },
+      {
+        "id": "s2",
+        "type": "ProgrammableSwitch",
+        "role": "primary_relay",
+        "status": "active",
+        "thrift_port": 9091,
+        "device_id": 2
+      },
+      {
+        "id": "s3",
+        "type": "ProgrammableSwitch",
+        "role": "backup_relay",
+        "status": "standby",
+        "thrift_port": 9092,
+        "device_id": 3
+      },
+      {
+        "id": "policy_low_latency",
+        "type": "P4PolicyMapping",
+        "policy_type": "primary_path_low_latency",
+        "p4_program": "low_latency.p4",
+        "path_preference": "PrimaryPath"
+      },
+      {
+        "id": "policy_bandwidth",
+        "type": "P4PolicyMapping",
+        "policy_type": "bandwidth_policy_table_bulk_marking",
+        "p4_program": "bandwidth_optimized.p4",
+        "path_preference": "HighBandwidthPath"
+      },
+      {
+        "id": "policy_reliable_relay",
+        "type": "P4PolicyMapping",
+        "policy_type": "backup_path_reliable_relay",
+        "p4_program": "reliable_relay.p4",
+        "path_preference": "BackupPath"
+      },
+      {
+        "id": "policy_energy",
+        "type": "P4PolicyMapping",
+        "policy_type": "energy_policy_table_essential_only",
+        "p4_program": "energy_aware.p4",
+        "path_preference": "EssentialFlowsOnly"
       }
     ],
     "relationships": [
@@ -334,6 +386,96 @@
         "source": "controller-node",
         "relation": "CONTROLS",
         "target": "network-node"
+      },
+      {
+        "source": "s1",
+        "relation": "PRIMARY_PATH",
+        "target": "s2"
+      },
+      {
+        "source": "s1",
+        "relation": "BACKUP_PATH",
+        "target": "s3"
+      },
+      {
+        "source": "s2",
+        "relation": "CONNECTED_TO_EDGE",
+        "target": "edge-node"
+      },
+      {
+        "source": "s3",
+        "relation": "CONNECTED_TO_EDGE",
+        "target": "edge-node"
+      },
+      {
+        "source": "Drone_1",
+        "relation": "CONNECTED_TO",
+        "target": "s1"
+      },
+      {
+        "source": "Drone_2",
+        "relation": "CONNECTED_TO",
+        "target": "s1"
+      },
+      {
+        "source": "Drone_3",
+        "relation": "CONNECTED_TO",
+        "target": "s1"
+      },
+      {
+        "source": "Drone_4",
+        "relation": "CONNECTED_TO",
+        "target": "s1"
+      },
+      {
+        "source": "Drone_5",
+        "relation": "CONNECTED_TO",
+        "target": "s1"
+      },
+      {
+        "source": "Drone_6",
+        "relation": "CONNECTED_TO",
+        "target": "s1"
+      },
+      {
+        "source": "Drone_7",
+        "relation": "CONNECTED_TO",
+        "target": "s1"
+      },
+      {
+        "source": "Drone_8",
+        "relation": "CONNECTED_TO",
+        "target": "s1"
+      },
+      {
+        "source": "Drone_9",
+        "relation": "CONNECTED_TO",
+        "target": "s1"
+      },
+      {
+        "source": "Drone_10",
+        "relation": "CONNECTED_TO",
+        "target": "s1"
+      },
+      {
+        "source": "LowLatencyVideoSFC",
+        "relation": "REALIZED_BY_P4_POLICY",
+        "target": "policy_low_latency"
+      },
+      {
+        "source": "BandwidthOptimizedSFC",
+        "relation": "REALIZED_BY_P4_POLICY",
+        "target": "policy_bandwidth"
+      },
+      {
+        "source": "ReliableRelaySFC",
+        "relation": "REALIZED_BY_P4_POLICY",
+        "target": "policy_reliable_relay"
+      },
+      {
+        "source": "EnergyAwareSFC",
+        "relation": "REALIZED_BY_P4_POLICY",
+        "target": "policy_energy"
       }
     ]
   }

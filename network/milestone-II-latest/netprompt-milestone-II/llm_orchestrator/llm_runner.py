@@ -1,8 +1,9 @@
 from __future__ import annotations
 
 import json
+import os
 from pathlib import Path
-from typing import Any, Dict, Optional
+from typing import Any, Dict, List, Optional
 
 import torch
 
@@ -157,14 +158,21 @@ class LLMOrchestrator:
         device = self._model_device()
         inputs = {k: v.to(device) for k, v in inputs.items()}
 
+        gen_kwargs: Dict[str, Any] = dict(
+            max_new_tokens=max_new_tokens or self.max_new_tokens,
+            do_sample=False,
+            use_cache=True,
+            pad_token_id=self.tokenizer.eos_token_id,
+        )
+        # Grammar-constrained decoding (default on): force a complete, valid 6-key
+        # decision JSON and stop at the closing brace — the model otherwise emits
+        # 4/6 keys and rambles. Degrades gracefully to unconstrained on any error.
+        processors = self._grammar_processors(input_object)
+        if processors:
+            gen_kwargs["logits_processor"] = processors
+
         with torch.no_grad():
-            outputs = self.model.generate(
-                **inputs,
-                max_new_tokens=max_new_tokens or self.max_new_tokens,
-                do_sample=False,
-                use_cache=True,
-                pad_token_id=self.tokenizer.eos_token_id,
-            )
+            outputs = self.model.generate(**inputs, **gen_kwargs)
 
         generated_tokens = outputs[0][inputs["input_ids"].shape[-1]:]
 
@@ -176,6 +184,26 @@ class LLMOrchestrator:
         (DEBUG_DIR / "debug_raw_model_output.txt").write_text(raw, encoding="utf-8")
 
         return raw
+
+    def _grammar_processors(self, input_object: Dict[str, Any]) -> List[Any]:
+        """Build a [GrammarConstrainedLogitsProcessor] for the decision JSON, or []
+        (unconstrained) if disabled via NETPROMPT_LLM_CONSTRAINED=0 or unavailable."""
+        if os.getenv("NETPROMPT_LLM_CONSTRAINED", "1") != "1":
+            return []
+        try:
+            from transformers_cfg.grammar_utils import IncrementalGrammarConstraint
+            from transformers_cfg.generation.logits_process import (
+                GrammarConstrainedLogitsProcessor)
+
+            from .decision_grammar import build_decision_gbnf
+
+            gbnf = build_decision_gbnf(input_object)
+            (DEBUG_DIR / "debug_decision_grammar.gbnf").write_text(gbnf, encoding="utf-8")
+            constraint = IncrementalGrammarConstraint(gbnf, "root", self.tokenizer)
+            return [GrammarConstrainedLogitsProcessor(constraint)]
+        except Exception as exc:  # noqa: BLE001 — never let constraining break generation
+            print(f"[WARN] constrained decoding unavailable; generating unconstrained: {exc}")
+            return []
 
     def generate_decision(self, input_object: Dict[str, Any]) -> Dict[str, Any]:
         raw = self.generate_raw(input_object)

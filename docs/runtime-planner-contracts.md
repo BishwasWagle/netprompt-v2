@@ -270,3 +270,27 @@ mis-picks `LowLatencyVideoSFC` for an emergency-relay mission. Raising `max_new_
 128→512 didn't help (not truncation). So: the planner **system** works (valid,
 KG-grounded, deployable artifacts), but making the **LLM itself** conform (retrain /
 prompt / constrained decoding / EOS fix) is a separate, open quality item.
+
+### 6c. Constrained decoding for the planner LLM (approach #1) — DONE (2026-06-17)
+
+Applied the M7 `transformers-cfg` GBNF machinery to the planner's generation
+(`llm_orchestrator/decision_grammar.py` + `llm_runner._grammar_processors`,
+default-on, `NETPROMPT_LLM_CONSTRAINED=0` to disable, graceful fallback if the lib is
+missing). The grammar is built **per-request from the same constraints the validator
+checks**, so a grammar-valid decision is validator-valid by construction: all six keys
+in order, `selected_sfc`+`selected_policy` bound as **valid pairs** (from
+`candidate_sfc_policy_set`), `selected_path`/`selected_relay` from the KG-derived
+allowed sets, fixed enums for `priority_class`/`deployment_mode`, and the object closes
+at `}` (the EOS leakage is gone).
+
+**Result — the LLM now drives the decision.** The fine-tuned model emits a complete,
+valid 6-key JSON that passes validation and is **used** (`llm_parse_status:
+parsed_json`), no fallback. The format problem is solved (4 unit tests in
+`tests/unit/test_decision_grammar.py`).
+
+**Remaining: decision *quality*, not format.** With the schema forced, the model's
+*choices* are weak — it picked `LowLatencyVideoSFC` for both an `emergency_alert_relay`
+and a `bulk_data_transfer` mission (mission-insensitive). Constrained decoding can't fix
+reasoning; improving *which* valid option it picks is approach #2 (prompt/few-shot) or
+#3 (retrain the LoRA). The grammar guarantees every decision is *safe and deployable*;
+making it *good* is the open item.

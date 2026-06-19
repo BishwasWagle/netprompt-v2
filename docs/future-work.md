@@ -15,45 +15,67 @@ Functionally complete for its milestones and live-verified on the consolidated G
 
 "Not broken anywhere," but not "nothing left to develop." See below.
 
-## Open work (priority order)
+## Open work (sorted cheapest → most expensive)
 
-### High leverage
+Effort scale: **Trivial < Small < Medium < Large**. **Cost ≠ value** — the two cheapest
+(CLI fix, bounds calibration) *and* the most expensive (retrain) are all high-value; items
+marked **[HIGH]** are worth doing regardless of where they fall on cost.
 
-1. **Calibrate SLA bounds to the hardware.** *(Design §6 blockquote / §13.7 — the biggest
-   gap.)* Almost every episode **escalates** because the bounds are physically unachievable
-   on this fabric (LowLatency 20 ms, F2 50 ms vs measured ~40 ms primary / ~52 ms backup).
-   This is why the demo shows "correctly escalates" not "adapts and commits." Fix: reconcile
-   the KG `AgriculturalField`/`SFCTemplate` bounds to measured path latency (or relax them),
-   then re-run M6 / a planner episode → expect healthy/marginal commits. Config + a
-   calibration pass, not new code; highest payoff for a compelling demo.
+| # | Item | Effort | Value |
+|---|---|---|---|
+| 1 | orchestrate CLI env-override fix | Trivial | low (papercut) |
+| 2 | Calibrate SLA bounds to hardware | Small | **HIGH** |
+| 3 | rung-1 `re_push` in the live loop | Small | medium |
+| 4 | Wire real Tier-2 regen into default loop | Small–Medium | low (per M7) |
+| 5 | Autonomous trigger / driver | Medium | **HIGH** |
+| 6 | KG `PlannedDeployment` transport | Medium | medium |
+| 7 | Hardening backlog / soaks / scale | Medium–Large | low–medium |
+| 8 | Feedback-aware + telemetry retrain | Large | **HIGH** |
 
-2. **Autonomous trigger / driver.** Today the loop is *manual* (run the planner, then
-   `run_from_planner --deploy`). There is no daemon that watches for a new artifact (or a KG
-   `PlannedDeployment` node) and runs the episode. Build a small driver to turn the assembled
-   pieces into a running system. (Relates to the contracts §5 transport question.)
+1. **orchestrate.py CLI env-override footgun — Trivial.** Its `--no-4bit` / `--device-map`
+   *defaults override the env* (`NETPROMPT_LLM_USE_4BIT` / `..._DEVICE_MAP`), so on the P100
+   you must pass them explicitly. One-line fix: make the CLI fall back to the env instead of
+   clobbering it.
 
-3. **Planner decision quality — feedback-aware + telemetry-weighted retrain.** The promoted
-   LoRA is correct on the known mission taxonomy but (a) defaults to BandwidthOptimized on
+2. **Calibrate SLA bounds to the hardware — Small. [HIGH]** *(Design §6 blockquote / §13.7 —
+   the biggest gap.)* Almost every episode **escalates** because the bounds are physically
+   unachievable on this fabric (LowLatency 20 ms, F2 50 ms vs measured ~40 ms primary /
+   ~52 ms backup). This is why the demo shows "correctly escalates" not "adapts and commits."
+   Fix: reconcile the KG `AgriculturalField`/`SFCTemplate` bounds to measured path latency
+   (or relax them), then re-run M6 / a planner episode → expect healthy/marginal commits.
+   Config + a calibration pass, not new code; **highest payoff-to-cost** for a compelling demo.
+
+3. **rung-1 `re_push` in the live loop — Small.** (design §13b backlog) — the watchdog only
+   covers switch-death; transient process/install faults aren't re-pushed in the live loop yet.
+   Wire the existing `re_push` primitive into the loop + a test.
+
+4. **Wire real Tier-2 regen into the default loop — Small–Medium.** Today stubbed → escalate;
+   runs only via `soak --with-regen` / M7 tests. Inject the existing `RegenProposer`/
+   `LocalHFClient` seam (loads the cuda:1 model). Caveat: M7 showed the small Coder models
+   emit 0% corrective rows ([m7-regen-comparison.md](m7-regen-comparison.md)) — limited payoff
+   without a better regen model.
+
+5. **Autonomous trigger / driver — Medium. [HIGH]** Today the loop is *manual* (run the
+   planner, then `run_from_planner --deploy`). There is no daemon that watches for a new
+   artifact (or a KG `PlannedDeployment` node) and runs the episode. Build a small driver over
+   `run_from_planner` to turn the assembled pieces into a running system. (Relates to the
+   contracts §5 transport question.)
+
+6. **KG `PlannedDeployment` transport — Medium.** Instead of file (the design's "KG-hub"
+   option; contracts §5/§6a): the planner writes a node, the runtime polls. The adapter seam
+   already isolates this from the rest of the runtime.
+
+7. **Hardening backlog / longer soaks / scale — Medium–Large.** (design §13b): longer regen
+   soaks, multi-handoff scale, the near-bound-inefficiency items. A collection of mostly-small
+   items; all polish, not unsafety.
+
+8. **Feedback-aware + telemetry-weighted planner retrain — Large. [HIGH]** The promoted LoRA
+   is correct on the known mission taxonomy but (a) defaults to BandwidthOptimized on
    novel/telemetry-only missions and (b) does **not exploit** the `runtime_feedback` we wired
    in. Retrain (`train_decision_lora.py`) with telemetry up front + `runtime_feedback` in the
    input, labeled to separate "wrong SFC" from "unachievable SLA" — or use a larger model
-   behind the same constrained-decoding seam. See [planner-lora-eval.md](planner-lora-eval.md).
-
-### Polish / research
-
-4. **Wire real Tier-2 regen into the default loop** (today stubbed → escalate; runs only via
-   `soak --with-regen` / M7 tests). Caveat: M7 showed the small Coder models emit 0%
-   corrective rows ([m7-regen-comparison.md](m7-regen-comparison.md)) — limited payoff without
-   a better regen model.
-5. **KG `PlannedDeployment` transport** instead of file (the design's "KG-hub" option;
-   contracts §5/§6a). The adapter seam already isolates this.
-6. **rung-1 `re_push` in the live loop** (design §13b backlog) — the watchdog only covers
-   switch-death; transient process/install faults aren't re-pushed in the live loop yet.
-7. **orchestrate.py CLI footgun** — its `--no-4bit` / `--device-map` *defaults override the
-   env* (`NETPROMPT_LLM_USE_4BIT` / `..._DEVICE_MAP`), so on the P100 you must pass them
-   explicitly. One-line fix: make the CLI fall back to the env instead of clobbering it.
-8. **Hardening backlog** (design §13b): longer regen soaks, multi-handoff scale, the
-   near-bound-inefficiency items. All polish, not unsafety.
+   behind the same constrained-decoding seam (~hour of training + eval iteration). See
+   [planner-lora-eval.md](planner-lora-eval.md).
 
 ## Key insights to remember (conceptual)
 

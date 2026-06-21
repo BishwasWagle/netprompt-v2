@@ -23,7 +23,7 @@ marked **[HIGH]** are worth doing regardless of where they fall on cost.
 
 | # | Item | Effort | Value |
 |---|---|---|---|
-| 1 | orchestrate CLI env-override fix | Trivial | low (papercut) |
+| 1 | ~~orchestrate CLI env-override fix~~ **✅ done 2026-06-21** | Trivial | low (papercut) |
 | 2 | Calibrate SLA bounds to hardware | Small | **HIGH** |
 | 3 | rung-1 `re_push` in the live loop | Small | medium |
 | 4 | Wire real Tier-2 regen into default loop | Small–Medium | low (per M7) |
@@ -32,10 +32,12 @@ marked **[HIGH]** are worth doing regardless of where they fall on cost.
 | 7 | Hardening backlog / soaks / scale | Medium–Large | low–medium |
 | 8 | Feedback-aware + telemetry retrain | Large | **HIGH** |
 
-1. **orchestrate.py CLI env-override footgun — Trivial.** Its `--no-4bit` / `--device-map`
-   *defaults override the env* (`NETPROMPT_LLM_USE_4BIT` / `..._DEVICE_MAP`), so on the P100
-   you must pass them explicitly. One-line fix: make the CLI fall back to the env instead of
-   clobbering it.
+1. **orchestrate.py CLI env-override footgun — Trivial. ✅ DONE (2026-06-21).** Its `--no-4bit`
+   was `store_true`, so it always passed a concrete bool to `from_env`, clobbering
+   `NETPROMPT_LLM_USE_4BIT` (the P100 footgun). `--device-map` already deferred to the env.
+   Fix: made 4-bit a tri-state selector (`--4bit` / `--no-4bit`, `store_const`, default `None`),
+   so omitting both defers to `NETPROMPT_LLM_USE_4BIT`. Verified: env-sourced run with no flags
+   loads FP16 and returns `ReliableRelaySFC` / `parsed_json`; 212 unit tests green.
 
 2. **Calibrate SLA bounds to the hardware — Small. [HIGH]** *(Design §6 blockquote / §13.7 —
    the biggest gap.)* Almost every episode **escalates** because the bounds are physically

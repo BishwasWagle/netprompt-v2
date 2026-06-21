@@ -155,7 +155,13 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--output-dir", default=None)
     parser.add_argument("--device-map", default=None, help="cuda:0, auto, or cpu")
     parser.add_argument("--max-new-tokens", type=int, default=None)
-    parser.add_argument("--no-4bit", action="store_true")
+    # Tri-state 4-bit selector. Omit BOTH flags to defer to NETPROMPT_LLM_USE_4BIT
+    # (resolved in RuntimeConfig.from_env). A plain store_true would always pass a
+    # concrete bool, clobbering the env — the P100 footgun this fixes.
+    parser.add_argument("--4bit", dest="use_4bit", action="store_const", const=True, default=None,
+                        help="Force 4-bit quantization (bitsandbytes; needs CC>=7.5 — NOT the P100).")
+    parser.add_argument("--no-4bit", dest="use_4bit", action="store_const", const=False,
+                        help="Force FP16 / no bitsandbytes. Omit both to defer to NETPROMPT_LLM_USE_4BIT.")
     parser.add_argument("--fallback-only", action="store_true", help="Do not load LLM; use deterministic fallback planner")
     parser.add_argument("--fallback-candidates", action="store_true", help="Use fallback candidate actions instead of KG mappings")
     parser.add_argument("--skip-artifact-check", action="store_true")
@@ -177,7 +183,7 @@ def main() -> None:
         output_dir=args.output_dir,
         device_map=args.device_map,
         max_new_tokens=args.max_new_tokens,
-        use_4bit=not args.no_4bit,
+        use_4bit=args.use_4bit,
     )
 
     input_object = build_runtime_input_object(

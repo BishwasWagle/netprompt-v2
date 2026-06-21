@@ -31,9 +31,10 @@ source deploy/gpu-node/gpu-node.env          # NETPROMPT_ROOT/TREE_ROOT, KG cred
 # Neo4j: local, bolt://localhost:7687 (neo4j / netprompt123) — must be running
 ```
 
-> **P100 footgun:** the orchestrator CLI defaults override the env, so on the P100 you must
-> pass **`--device-map cuda:0 --no-4bit`** to any `orchestrate.py` call (else it tries
-> bitsandbytes 4-bit and fails).
+> **P100 note:** run FP16, no bitsandbytes. `gpu-node.env` sets `NETPROMPT_LLM_USE_4BIT=0`
+> and `NETPROMPT_LLM_DEVICE_MAP=cuda:0`, and the orchestrator CLI now **defers to the env**
+> when `--4bit`/`--no-4bit`/`--device-map` are omitted — so sourcing the env is enough.
+> (Pass `--no-4bit` / `--device-map cuda:0` explicitly only to force them regardless of the env.)
 
 ---
 

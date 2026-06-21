@@ -28,6 +28,11 @@ safetensors==0.4.5
 neo4j==5.27.0           # match this to your Neo4j server's supported driver range
 pandas==2.2.3
 
+# --- test runner (the unit suite under tests/unit). Resolves from PyPI, not the
+#     cu121 torch index. Without it `python -m pytest tests/unit` fails with
+#     "No module named pytest". ---
+pytest>=8,<10
+
 # --- M7 grammar-constrained decoding (RECOMMENDED path; drop if you go llama.cpp) ---
 # Brings llama.cpp-style GBNF grammars to HF transformers as a logits processor,
 # so runtime/regen/grammar.py:gbnf() can constrain generation directly.

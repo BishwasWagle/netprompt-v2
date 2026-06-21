@@ -29,7 +29,29 @@ cd ~/Run-time-Manager/deploy/gpu-node
 
 # 4. Wire env (runtime + orchestrator) and validate the milestones (below)
 source ./gpu-node.env
+
+# 5. Seed the KG (only needed for the planner/orchestrator path; M6 + soak run on an empty KG)
+( cd ../../controller && ~/netprompt-venv/bin/python generate_kg.py )   # -> drone_sfc_kg.json
+~/netprompt-venv/bin/python -m runtime.tools.seed_kg                     # MERGE (non-destructive)
 ```
+
+## Fresh-instance / re-setup notes (things that bite after an instance is reimaged)
+
+- **Checkout directory name doesn't matter.** `gpu-node.env` is now *self-locating*
+  (`NETPROMPT_ROOT` is derived from the file's own path), so it works whether the repo is
+  `RuntimeManager`, `Run-time-Manager`, or anything else — **no symlink needed**. The
+  `~/Run-time-Manager` paths in the commands below are illustrative; substitute your checkout.
+- **`setup_gpu_node.sh` preserves an existing `gpu-node.env`.** It only writes the template
+  when the file is *missing*, so re-running it no longer reverts the promoted
+  `final_adapter_retrained` back to `final_adapter`. Delete the file first to regenerate.
+- **Run the three setup scripts sequentially.** They each `apt-get`; running them concurrently
+  used to abort the loser with an apt-lock error (exit 100). They now pass
+  `-o DPkg::Lock::Timeout=300` to wait the lock out, but sequential is still cleanest.
+- **`pytest` is in `requirements-gpu.txt`** (the unit suite needs it). On an older venv built
+  before this was added: `~/netprompt-venv/bin/pip install pytest`. Green baseline =
+  **212 passed** (`~/netprompt-venv/bin/python -m pytest tests/unit -q`).
+- **A fresh instance has no git identity.** Before committing:
+  `git config user.name "<you>" && git config user.email "<you@…>"`.
 
 ## Validation sequence (M0 → soak)
 

@@ -73,8 +73,8 @@ if command -v nvidia-smi >/dev/null 2>&1 && nvidia-smi >/dev/null 2>&1; then
   nvidia-smi --query-gpu=name,driver_version,memory.total --format=csv,noheader || true
 elif [[ "$DO_DRIVER" == "1" ]]; then
   echo "Installing $DRIVER_PKG (sudo)…"
-  sudo apt-get update
-  sudo apt-get install -y "$DRIVER_PKG"
+  sudo apt-get -o DPkg::Lock::Timeout=300 update
+  sudo apt-get -o DPkg::Lock::Timeout=300 install -y "$DRIVER_PKG"
   warn "Driver installed. REBOOT, then re-run this script WITHOUT --driver to finish."
   exit 0
 else
@@ -84,8 +84,11 @@ fi
 
 # ---------------------------------------------------------------- step 2: system deps
 say "Step 2 — system packages"
-sudo apt-get update
-sudo apt-get install -y python3-venv python3-pip build-essential git
+# Lock::Timeout makes apt WAIT for the dpkg/lists lock rather than failing with exit 100 when
+# another setup script is mid-apt. Run the setup scripts sequentially when you can; this just
+# keeps a concurrent run from aborting.
+sudo apt-get -o DPkg::Lock::Timeout=300 update
+sudo apt-get -o DPkg::Lock::Timeout=300 install -y python3-venv python3-pip build-essential git
 
 # ---------------------------------------------------------------- step 3: venv
 say "Step 3 — virtualenv at $VENV"
@@ -118,27 +121,33 @@ if cap < (7, 0):
     print(">> Correct config: FP16 + NETPROMPT_LLM_USE_4BIT=0 (already the default below).")
 PY
 
-# ---------------------------------------------------------------- step 6: env template
-say "Step 6 — write env template"
+# ---------------------------------------------------------------- step 6: env file
+say "Step 6 — env file"
 ENV_FILE="$HERE/gpu-node.env"
-# Don't clobber a customized KG password on re-run: if one was set (via
-# setup_kg_node.sh --password or by editing the env) and NEO4J_PASSWORD wasn't
-# re-exported, reuse the value already in the env file.
-if [[ -z "${NEO4J_PASSWORD:-}" && -f "$ENV_FILE" ]]; then
-  _existing="$(sed -n 's/^export NETPROMPT_KG_PASS="\(.*\)"$/\1/p' "$ENV_FILE" | head -1)"
-  if [[ -n "$_existing" && "$_existing" != "$KG_PASS" ]]; then
-    KG_PASS="$_existing"
-    warn "preserving existing NETPROMPT_KG_PASS from $ENV_FILE (export NEO4J_PASSWORD to override)"
-  fi
-fi
-cat > "$ENV_FILE" <<EOF
-# Source this before running the orchestrator on the GPU node:  source $ENV_FILE
-export NETPROMPT_ROOT="$NETPROMPT_ROOT"
+if [[ -f "$ENV_FILE" ]]; then
+  # The repo ships a committed, customized gpu-node.env: self-locating NETPROMPT_ROOT,
+  # the PROMOTED retrained adapter as the default, and the local KG creds. Re-running
+  # setup must NOT overwrite it — a blind rewrite silently reverts the adapter promotion
+  # (final_adapter_retrained -> final_adapter). Leave the existing file in place.
+  warn "preserving existing $ENV_FILE (delete it to regenerate from the template below)"
+else
+  # Fresh write only. Self-locating root (works regardless of the checkout dir name) and
+  # the promoted retrained adapter as the default; KG pass / regen model still overridable.
+  cat > "$ENV_FILE" <<EOF
+# Source this before running the orchestrator on the GPU node:
+#   source deploy/gpu-node/gpu-node.env        (from the repo root, or any path to this file)
+# Self-locating: NETPROMPT_ROOT is resolved from THIS file's location, so the env works no
+# matter what the checkout directory is named (RuntimeManager, Run-time-Manager, ...).
+_ENV_DIR="\$(cd "\$(dirname "\${BASH_SOURCE[0]:-\$0}")" && pwd)"
+export NETPROMPT_ROOT="\$(cd "\$_ENV_DIR/../.." && pwd)/network/milestone-II-latest/netprompt-milestone-II"
+unset _ENV_DIR
 # Runtime reads NETPROMPT_TREE_ROOT for the P4 JSON + rule paths (same tree);
 # without it config.py falls back to a stale /home/cc/Run-time-Manager-2 default.
 export NETPROMPT_TREE_ROOT="\$NETPROMPT_ROOT"
 export NETPROMPT_LLM_MODEL="$MODEL"
-export NETPROMPT_LLM_ADAPTER="\$NETPROMPT_ROOT/netprompt_qwen_kg_rag_orchestrator/final_adapter"
+# PROMOTED default: the retrained LoRA (the only adapter correct under constrained-on).
+# Rollback: point this at .../final_adapter (the original is preserved + tracked).
+export NETPROMPT_LLM_ADAPTER="\$NETPROMPT_ROOT/netprompt_qwen_kg_rag_orchestrator/final_adapter_retrained"
 export NETPROMPT_LLM_DEVICE_MAP="cuda:0"
 export NETPROMPT_LLM_USE_4BIT="0"      # CRITICAL on P100: FP16, no bitsandbytes
 export NETPROMPT_LLM_MAX_NEW_TOKENS="128"
@@ -157,7 +166,8 @@ export NETPROMPT_REGEN_REVISION="$REGEN_REV"
 export NETPROMPT_REGEN_DEVICE="$REGEN_DEV"
 export NETPROMPT_REGEN_MAX_NEW_TOKENS="64"
 EOF
-echo "wrote $ENV_FILE"
+  echo "wrote $ENV_FILE"
+fi
 
 # ---------------------------------------------------------------- step 7: smoke test
 if [[ "$DO_SMOKE" == "1" ]]; then

@@ -70,7 +70,10 @@ if ! command -v neo4j >/dev/null 2>&1; then
   sudo gpg --dearmor --yes -o /etc/apt/keyrings/neo4j.gpg /tmp/neo4j.key
   echo "deb [signed-by=/etc/apt/keyrings/neo4j.gpg] https://debian.neo4j.com stable 5" \
     | sudo tee /etc/apt/sources.list.d/neo4j.list >/dev/null
-  sudo apt-get update
+  # Lock::Timeout makes apt WAIT for the dpkg/lists lock instead of dying with exit 100
+  # when another setup script (e.g. setup_gpu_node.sh) is mid-apt. Prefer running the
+  # setup scripts sequentially, but this makes a concurrent run survive.
+  sudo apt-get -o DPkg::Lock::Timeout=300 update
 else
   echo "neo4j already installed: $(neo4j --version 2>/dev/null || echo present) — skipping repo add."
 fi
@@ -80,7 +83,7 @@ say "Step 2 — install Neo4j (community)"
 if command -v neo4j >/dev/null 2>&1; then
   echo "already installed: $(dpkg -l neo4j 2>/dev/null | awk '/^ii/{print $3}')"
 else
-  sudo apt-get install -y neo4j
+  sudo apt-get -o DPkg::Lock::Timeout=300 install -y neo4j
 fi
 command -v cypher-shell >/dev/null 2>&1 || die "cypher-shell missing after install"
 

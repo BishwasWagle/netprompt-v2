@@ -11,6 +11,7 @@ from __future__ import annotations
 
 import dataclasses
 from dataclasses import dataclass, field
+from typing import Protocol, runtime_checkable
 
 PRIMARY = "primary"
 BACKUP = "backup"
@@ -19,6 +20,36 @@ TUNE = "tune"
 REROUTE = "reroute"
 REGEN = "regen"
 TIER_OF = {TUNE: 0, REROUTE: 1, REGEN: 2}
+
+# Terminal Verdict.outcome vocabulary (design §6/§8). Bare-str constants, NOT an
+# enum: the value is compared by == (the §7.6 commit check, tests), keyed in
+# soak's counter dict, persisted to the KG, and round-tripped through jsonable()
+# — exactly like PRIMARY/TUNE above.
+HEALTHY = "healthy"
+MARGINAL = "marginal"
+ROLLBACK = "rollback"
+ESCALATED = "escalated"
+SYSTEM_FAULT = "system_fault"
+REJECTED = "rejected"                  # gate-refused, never deployed
+OUTCOMES = frozenset((HEALTHY, MARGINAL, ROLLBACK, ESCALATED, SYSTEM_FAULT, REJECTED))
+COMMIT_OUTCOMES = frozenset((HEALTHY, MARGINAL))   # the §7.6 promote/re-baseline pair
+
+# Switch status vocabulary (design §5.5): written by derive_switch_status, read
+# by the monitor's _system_sound / the watchdog.
+SW_FAILED = "Failed"                   # dead process or thrift
+SW_STANDBY = "Standby"                 # alive, idle (not carrying)
+SW_ACTIVE = "Active"                   # alive, carrying, SLA ok
+SW_DEGRADED = "Degraded"               # alive, carrying, SLA bad (not a fault)
+SWITCH_STATUSES = frozenset((SW_FAILED, SW_STANDBY, SW_ACTIVE, SW_DEGRADED))
+
+# Diagnosis vocabulary (design §7.3): the per-metric axes + the target sentinel.
+# These are also the keys of dimension_margins() below, which become
+# Diagnosis.metric via diagnose() — keep both ends on the same constants.
+TARGET = "target"                      # Diagnosis.who when the target itself violates
+LATENCY = "latency"
+THROUGHPUT = "throughput"
+LOSS = "loss"
+DIAGNOSIS_METRICS = frozenset((LATENCY, THROUGHPUT, LOSS))
 
 _EPS = 1e-9
 
@@ -71,16 +102,32 @@ class FlowMetrics:
     margin: float        # min normalized distance inside the bounds; <0 = violating
 
 
+def dimension_margins(fm: FlowMetrics) -> dict:
+    """Per-metric normalized SLA margins for one flow (design §5.4/§7.3).
+
+    Each entry is the signed distance INSIDE the bound, normalized by the bound,
+    so margins are comparable across dimensions; <0 means that dimension is
+    violating. FlowMetrics.margin is exactly min(this.values()). This is the one
+    definition both the evaluator (via compute_flow_metrics) and the adapt
+    engine's diagnose() consume — keeping them from diverging (the keys are the
+    DIAGNOSIS_METRICS constants, so diagnose()'s metric flows back unchanged)."""
+    r = fm.requirement
+    return {
+        LATENCY: (r.max_latency_ms - fm.rtt_avg_ms) / max(r.max_latency_ms, _EPS),
+        THROUGHPUT: (fm.throughput_mbps - r.min_bandwidth_mbps) / max(r.min_bandwidth_mbps, _EPS),
+        LOSS: (r.max_loss_percent - fm.loss_percent) / max(r.max_loss_percent, _EPS),
+    }
+
+
 def compute_flow_metrics(field_id: str, rtt_avg_ms: float, throughput_mbps: float,
                          loss_percent: float, requirement: Envelope) -> FlowMetrics:
-    r = requirement
-    margin = min(
-        (r.max_latency_ms - rtt_avg_ms) / max(r.max_latency_ms, _EPS),
-        (throughput_mbps - r.min_bandwidth_mbps) / max(r.min_bandwidth_mbps, _EPS),
-        (r.max_loss_percent - loss_percent) / max(r.max_loss_percent, _EPS),
-    )
-    return FlowMetrics(field_id, rtt_avg_ms, throughput_mbps, loss_percent,
-                       r, margin >= 0.0, margin)
+    # Build first, then derive margin/met from the single shared formula:
+    # min(dimension_margins) is arithmetically identical to the old inline min().
+    fm = FlowMetrics(field_id, rtt_avg_ms, throughput_mbps, loss_percent,
+                     requirement, met=False, margin=0.0)
+    fm.margin = min(dimension_margins(fm).values())
+    fm.met = fm.margin >= 0.0
+    return fm
 
 
 @dataclass
@@ -149,8 +196,8 @@ class DeploymentSpec:
 @dataclass
 class Diagnosis:
     """Worst current violation (design §7.3)."""
-    who: str                      # "target" or a harmed field_id
-    metric: str                   # "latency" | "throughput" | "loss"
+    who: str                      # TARGET, or a harmed field_id
+    metric: str                   # one of DIAGNOSIS_METRICS (LATENCY | THROUGHPUT | LOSS)
     severity: float               # |margin| of the violation
 
 
@@ -185,8 +232,8 @@ class AdaptResult:
 class Verdict:
     """Terminal evaluator outcome, recorded to the KG (design §8)."""
     correlation_id: str
-    outcome: str                  # "healthy" | "marginal" | "rollback" | "escalated"
-                                  #   | "system_fault" | "rejected" (gate-refused, never deployed)
+    outcome: str                  # one of OUTCOMES (HEALTHY | MARGINAL | ROLLBACK
+                                  #   | ESCALATED | SYSTEM_FAULT | REJECTED — gate-refused)
     tier_reached: int
     headroom: float
     trace: list
@@ -247,3 +294,49 @@ def jsonable(obj):
 #       regen is live: fresh installed-entry state for gate L2; the engine
 #       prefers it over any static snapshot.
 # ---------------------------------------------------------------------------
+#
+# The prose above is the authority on semantics; the Protocols below make the
+# *required* surface checkable (real Deployer + FakeDeployer both satisfy
+# DeployerProto). The node-only methods stay in their own optional Protocols so
+# the existing `hasattr(deployer, "table_state")` guards remain correct — the
+# engine narrows to TableStateCapable only when it needs the live view. These
+# annotations are erased at runtime (`from __future__ import annotations`), so
+# adding them changes nothing the program does; they exist for the type-checker.
+
+
+@runtime_checkable
+class DeployerProto(Protocol):
+    """The surface the engine/evaluator/RuntimeManager require of ANY deployer."""
+    @property
+    def state(self) -> dict: ...
+    def capture(self): ...                         # ConfigSnapshot | dict (opaque)
+    def apply(self, cand: "Candidate") -> None: ...
+    def rollback(self, snapshot) -> None: ...
+
+
+@runtime_checkable
+class TableStateCapable(Protocol):
+    """Optional node-only seam (real Deployer): live installed-entry state for
+    gate L2 on regen candidates. Guarded by hasattr in the engine/RM."""
+    def table_state(self) -> dict: ...
+
+
+class MonitorProto(Protocol):
+    """The monitor surface the loop consumes every episode/attempt."""
+    def observe_window(self) -> "MonitorReport": ...
+    def rebaseline(self) -> None: ...
+
+
+class BaselineCapable(Protocol):
+    """Optional: the real NetworkMonitor exposes a KG-persistable baseline; the
+    RM probes for it via getattr(monitor, 'baseline_snapshot', None)."""
+    def baseline_snapshot(self, correlation_id: str, switch_status: dict,
+                          timestamp: str): ...
+
+
+class GateProto(Protocol):
+    """The validation-gate surface: a pre-deploy binding check and a per-candidate
+    check (design §11)."""
+    def check_binding(self, spec: "DeploymentSpec") -> "GateResult": ...
+    def check(self, cand: "Candidate", env: "Envelope",
+              current_tables: dict | None = None) -> "GateResult": ...

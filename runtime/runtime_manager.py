@@ -9,14 +9,17 @@ from __future__ import annotations
 
 from runtime import config
 from runtime.adapt import Budget
-from runtime.contracts import DeploymentSpec, Verdict
+from runtime.contracts import (
+    COMMIT_OUTCOMES, REJECTED,
+    DeployerProto, DeploymentSpec, GateProto, MonitorProto, Verdict,
+)
 from runtime.evaluator import EvalContext, EvalResult, evaluate
 
 
 class RuntimeManager:
 
-    def __init__(self, deployer, monitor, gate,
-                 budget_n: int = config.BUDGET_N,
+    def __init__(self, deployer: DeployerProto, monitor: MonitorProto,
+                 gate: GateProto, budget_n: int = config.BUDGET_N,
                  active_capacity_ok=None, current_tables: dict | None = None,
                  regen_proposer=None, kg=None):
         self.deployer = deployer
@@ -46,7 +49,7 @@ class RuntimeManager:
         # Pre-deploy gate: a refused binding never reaches the network.
         g = self.gate.check_binding(spec)
         if not g.ok:
-            result = EvalResult(Verdict(spec.correlation_id, "rejected", 0, 0.0,
+            result = EvalResult(Verdict(spec.correlation_id, REJECTED, 0, 0.0,
                                         [g.reason], timestamp))
             self._kg_write("write_verdict", result.verdict)   # a refusal is a verdict
             return result
@@ -80,7 +83,7 @@ class RuntimeManager:
         if result.ticket is not None:
             self._kg_write("write_escalation", result.ticket, timestamp)
 
-        if result.verdict.outcome in ("healthy", "marginal"):
+        if result.verdict.outcome in COMMIT_OUTCOMES:
             # §7.6: any commit ends the episode — promote, re-baseline.
             self.last_good = self.deployer.capture()
             self.monitor.rebaseline()

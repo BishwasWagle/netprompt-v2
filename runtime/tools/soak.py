@@ -20,7 +20,8 @@ import time
 from runtime import config
 from runtime.monitors.pipeline import read_interface_counters
 from runtime.contracts import (
-    BACKUP, DeploymentSpec, Envelope, PRIMARY, REROUTE, TUNE,
+    BACKUP, ESCALATED, HEALTHY, MARGINAL, PRIMARY, REJECTED, REROUTE,
+    ROLLBACK, SYSTEM_FAULT, TUNE, DeploymentSpec, Envelope,
 )
 from runtime.deployer import Deployer
 from runtime.gate import ValidationGate
@@ -129,8 +130,8 @@ def run_soak(minutes, kill_every, kill, tree, with_regen=False):
     rm = RuntimeManager(deployer, monitor, ValidationGate(), kg=kg,
                         regen_proposer=regen_proposer)
 
-    stats = {"episodes": 0, "healthy": 0, "marginal": 0, "escalated": 0,
-             "rollback": 0, "rejected": 0, "system_fault": 0,
+    stats = {"episodes": 0, HEALTHY: 0, MARGINAL: 0, ESCALATED: 0,
+             ROLLBACK: 0, REJECTED: 0, SYSTEM_FAULT: 0,
              "recoveries": 0, "injected_kills": 0, "traffic_restarts": 0,
              "errors": 0}
     t0 = time.monotonic()

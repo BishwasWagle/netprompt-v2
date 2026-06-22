@@ -14,12 +14,10 @@ from __future__ import annotations
 
 from runtime import config
 from runtime.contracts import (
-    BACKUP, PRIMARY, REROUTE, TUNE,
+    BACKUP, LATENCY, LOSS, PRIMARY, REROUTE, TARGET, THROUGHPUT, TUNE, _EPS,
     AdaptResult, AttemptRecord, Candidate, Diagnosis, DeploymentSpec,
-    Envelope, FlowMetrics, MonitorReport, goal,
+    Envelope, MonitorReport, dimension_margins, goal,
 )
-
-_EPS = 1e-9
 
 
 class Budget:
@@ -39,15 +37,8 @@ class Budget:
 
 
 # ---------------- diagnose ----------------
-
-def dimension_margins(fm: FlowMetrics) -> dict:
-    """Per-metric normalized margins (FlowMetrics.margin is only the min)."""
-    r = fm.requirement
-    return {
-        "latency": (r.max_latency_ms - fm.rtt_avg_ms) / max(r.max_latency_ms, _EPS),
-        "throughput": (fm.throughput_mbps - r.min_bandwidth_mbps) / max(r.min_bandwidth_mbps, _EPS),
-        "loss": (r.max_loss_percent - fm.loss_percent) / max(r.max_loss_percent, _EPS),
-    }
+# dimension_margins now lives in contracts.py (one definition shared with
+# compute_flow_metrics) — imported above; diagnose() is otherwise unchanged.
 
 
 def diagnose(report: MonitorReport) -> Diagnosis | None:
@@ -55,7 +46,7 @@ def diagnose(report: MonitorReport) -> Diagnosis | None:
     if not report.target_sla_met:
         dims = dimension_margins(report.target)
         metric = min(dims, key=dims.get)
-        return Diagnosis("target", metric, -dims[metric])
+        return Diagnosis(TARGET, metric, -dims[metric])
     if report.displaced_harm:
         harmed = [f for f in report.non_target if f.field_id in report.displaced_harm]
         worst = min(harmed, key=lambda f: f.margin)
@@ -69,9 +60,9 @@ def diagnose(report: MonitorReport) -> Diagnosis | None:
 
 # Target violation -> which knob, which direction (knob-effect model §7.3).
 _KNOB_FOR_TARGET = {
-    "latency": ("pfifo_limit", "down"),
-    "throughput": ("tbf_rate_mbit", "up"),
-    "loss": ("pfifo_limit", "up"),
+    LATENCY: ("pfifo_limit", "down"),
+    THROUGHPUT: ("tbf_rate_mbit", "up"),
+    LOSS: ("pfifo_limit", "up"),
 }
 # Harm relief acts only on the target's own grab (§7.3).
 _HARM_KNOB = ("tbf_rate_mbit", "down")
@@ -91,7 +82,7 @@ def _grid(lo: float, hi: float, step: float) -> list:
 def _propose_tune(diag: Diagnosis, env: Envelope, state: dict, exclude: set):
     if TUNE not in env.legal_tiers:
         return None
-    knob, direction = _HARM_KNOB if diag.who != "target" else _KNOB_FOR_TARGET[diag.metric]
+    knob, direction = _HARM_KNOB if diag.who != TARGET else _KNOB_FOR_TARGET[diag.metric]
     if knob not in env.knob_ranges:
         return None                      # no lever for this diagnosis
     lo, hi = env.knob_ranges[knob]

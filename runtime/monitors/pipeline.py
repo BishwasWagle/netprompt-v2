@@ -13,9 +13,10 @@ from dataclasses import dataclass
 from pathlib import Path
 
 from runtime import config
-from runtime.contracts import FlowMetrics, MonitorReport, compute_flow_metrics
-
-_EPS = 1e-9
+from runtime.contracts import (
+    SW_ACTIVE, SW_DEGRADED, SW_FAILED, SW_STANDBY, _EPS,
+    FlowMetrics, MonitorReport, compute_flow_metrics,
+)
 
 
 # ---------------- hysteresis (design §5.6) ----------------
@@ -188,10 +189,10 @@ def derive_switch_status(process_alive: bool, thrift_reachable: bool,
     path_sla_ok must be the SUSTAINED (post-hysteresis) verdict for the
     path through this switch; it is ignored for idle switches."""
     if not (process_alive and thrift_reachable):
-        return "Failed"
+        return SW_FAILED
     if not carrying_traffic:
-        return "Standby"
-    return "Active" if path_sla_ok else "Degraded"
+        return SW_STANDBY
+    return SW_ACTIVE if path_sla_ok else SW_DEGRADED
 
 
 # ---------------- window summary (baseline capture, design §5.3) ----------------

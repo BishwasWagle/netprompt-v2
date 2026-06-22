@@ -23,7 +23,7 @@ import time
 
 from runtime import config
 from runtime.contracts import (
-    BACKUP, PRIMARY, BaselineSnapshot, compute_flow_metrics,
+    BACKUP, PRIMARY, SW_FAILED, BaselineSnapshot, compute_flow_metrics,
 )
 from runtime.monitors.pipeline import (
     HysteresisTracker, aggregate_field_throughput, assemble_report,
@@ -62,10 +62,10 @@ def _system_sound(switch_status: dict) -> bool:
     rung-4 and reroutes to the surviving relay rather than bailing. A 'Failed'
     means a dead process/thrift; 'Degraded' (alive, SLA-bad) is NOT a fault and
     is handled by normal adaptation."""
-    if switch_status.get("s1") == "Failed":
+    if switch_status.get("s1") == SW_FAILED:
         return False
     relays = [switch_status.get("s2"), switch_status.get("s3")]
-    return not all(s == "Failed" for s in relays)
+    return not all(s == SW_FAILED for s in relays)
 
 
 def port_map_from_hosts(host_map: dict) -> dict:

@@ -14,23 +14,25 @@ EscalationTicket. Persistence to the KG is the kg_client's job (M5).
 """
 from __future__ import annotations
 
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 
 from runtime import config
 from runtime.adapt import Budget, adapt
 from runtime.contracts import (
-    AdaptResult, DeploymentSpec, EscalationTicket, MonitorReport, Verdict,
+    ESCALATED, HEALTHY, MARGINAL, ROLLBACK, SYSTEM_FAULT,
+    AdaptResult, ConfigSnapshot, DeployerProto, DeploymentSpec, EscalationTicket,
+    GateProto, MonitorProto, MonitorReport, Verdict,
 )
 
 
 @dataclass
 class EvalContext:
     """Collaborators + episode state the ladder needs."""
-    deployer: object
-    monitor: object
-    gate: object
+    deployer: DeployerProto
+    monitor: MonitorProto
+    gate: GateProto
     budget: Budget
-    last_good: dict | None = None         # config snapshot to roll back to
+    last_good: ConfigSnapshot | dict | None = None   # snapshot to roll back to
     active_capacity_ok: object = None     # callable(Candidate) -> bool, or None
     current_tables: dict | None = None    # for gate L2 on regen candidates
     regen_proposer: object = None         # Tier-2 seam (M7); None = stubbed
@@ -46,8 +48,8 @@ class EvalResult:
 def commit_outcome(headroom: float, tier_reached: int) -> str:
     """Stage 6 + the §7.5 rule: Tier-2 recovery is marginal regardless."""
     if tier_reached >= 2:
-        return "marginal"
-    return "healthy" if headroom >= config.HEADROOM_TAU else "marginal"
+        return MARGINAL
+    return HEALTHY if headroom >= config.HEADROOM_TAU else MARGINAL
 
 
 def _observed(report: MonitorReport) -> dict:
@@ -67,7 +69,7 @@ def _escalate(spec: DeploymentSpec, res: AdaptResult, reason: str,
         observed=_observed(report), envelope=spec.envelope,
         trace=trace, reason=reason,
     )
-    verdict = Verdict(spec.correlation_id, "escalated", res.tier_reached,
+    verdict = Verdict(spec.correlation_id, ESCALATED, res.tier_reached,
                       report.headroom, trace, ctx.timestamp)
     return EvalResult(verdict, ticket)
 
@@ -79,7 +81,7 @@ def evaluate(spec: DeploymentSpec, report: MonitorReport, ctx: EvalContext) -> E
 
     # 1 · system healthy? (sound)
     if not r.system_sound:
-        return EvalResult(Verdict(spec.correlation_id, "system_fault", 0,
+        return EvalResult(Verdict(spec.correlation_id, SYSTEM_FAULT, 0,
                                   r.headroom, trace, ctx.timestamp))
 
     # 2 · SLA met, sustained?
@@ -91,7 +93,7 @@ def evaluate(spec: DeploymentSpec, report: MonitorReport, ctx: EvalContext) -> E
         if regressed and not r.exogenous_shift:
             if ctx.last_good is not None:
                 ctx.deployer.rollback(ctx.last_good)
-            return EvalResult(Verdict(spec.correlation_id, "rollback", 0,
+            return EvalResult(Verdict(spec.correlation_id, ROLLBACK, 0,
                                       r.headroom, trace, ctx.timestamp))
         # 4 · in-envelope fix left?
         res = adapt(spec, r, ctx.budget, ctx.deployer, ctx.monitor, ctx.gate,

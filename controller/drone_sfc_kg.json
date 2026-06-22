@@ -137,42 +137,42 @@
       {
         "id": "Field_1",
         "type": "AgriculturalField",
-        "latency_requirement_ms": 20,
+        "latency_requirement_ms": 45,
         "bandwidth_requirement_mbps": 40,
         "priority": "High"
       },
       {
         "id": "Field_2",
         "type": "AgriculturalField",
-        "latency_requirement_ms": 50,
+        "latency_requirement_ms": 60,
         "bandwidth_requirement_mbps": 20,
         "priority": "Medium"
       },
       {
         "id": "Field_3",
         "type": "AgriculturalField",
-        "latency_requirement_ms": 50,
+        "latency_requirement_ms": 60,
         "bandwidth_requirement_mbps": 40,
         "priority": "Medium"
       },
       {
         "id": "Field_4",
         "type": "AgriculturalField",
-        "latency_requirement_ms": 20,
+        "latency_requirement_ms": 45,
         "bandwidth_requirement_mbps": 20,
         "priority": "High"
       },
       {
         "id": "Field_5",
         "type": "AgriculturalField",
-        "latency_requirement_ms": 50,
+        "latency_requirement_ms": 60,
         "bandwidth_requirement_mbps": 20,
         "priority": "Medium"
       },
       {
         "id": "LowLatencyVideoSFC",
         "type": "SFCTemplate",
-        "max_latency_ms": 20,
+        "max_latency_ms": 45,
         "min_bandwidth_mbps": 40,
         "functions": [
           "TrafficClassification",
@@ -205,7 +205,7 @@
       {
         "id": "ReliableRelaySFC",
         "type": "SFCTemplate",
-        "max_latency_ms": 50,
+        "max_latency_ms": 60,
         "reliability_threshold": 0.95,
         "functions": [
           "RelaySelection",

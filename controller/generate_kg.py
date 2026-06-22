@@ -45,7 +45,12 @@ for i in range(1, 6):
     kg["knowledge_graph"]["nodes"].append({
         "id": f"Field_{i}",
         "type": "AgriculturalField",
-        "latency_requirement_ms": 20 if i in [1, 4] else 50,
+        # Calibrated to measured edge round-trips on this fabric — ~40 ms on the
+        # primary path, ~52 ms on the backup (design §6). The original 20/50 ms
+        # bounds were physically unachievable, so every episode exhausted its tiers
+        # and (correctly) escalated. 45 ms (high-priority, met on the primary) and
+        # 60 ms (medium, reachable on the backup) leave headroom to adapt + commit.
+        "latency_requirement_ms": 45 if i in [1, 4] else 60,
         "bandwidth_requirement_mbps": 40 if i in [1, 3] else 20,
         "priority": "High" if i in [1, 4] else "Medium"
     })
@@ -55,7 +60,9 @@ templates = [
     {
         "id": "LowLatencyVideoSFC",
         "type": "SFCTemplate",
-        "max_latency_ms": 20,
+        # Calibrated 20 -> 45 ms: 20 ms is below the ~40 ms primary-path floor on
+        # this testbed (design §6), so it could never pass under the real monitor.
+        "max_latency_ms": 45,
         "min_bandwidth_mbps": 40,
         "functions": [
             "TrafficClassification",
@@ -88,7 +95,10 @@ templates = [
     {
         "id": "ReliableRelaySFC",
         "type": "SFCTemplate",
-        "max_latency_ms": 50,
+        # Calibrated 50 -> 60 ms: the ~52 ms backup path exceeds 50, forcing a
+        # wrong-SFC escalation on every emergency relay; 60 ms lets the runtime
+        # reroute and commit (marginal) instead of escalating (design §6).
+        "max_latency_ms": 60,
         "reliability_threshold": 0.95,
         "functions": [
             "RelaySelection",

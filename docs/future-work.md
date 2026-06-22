@@ -24,7 +24,7 @@ marked **[HIGH]** are worth doing regardless of where they fall on cost.
 | # | Item | Effort | Value |
 |---|---|---|---|
 | 1 | ~~orchestrate CLI env-override fix~~ **✅ done 2026-06-21** | Trivial | low (papercut) |
-| 2 | Calibrate SLA bounds to hardware | Small | **HIGH** |
+| 2 | ~~Calibrate SLA bounds to hardware~~ **✅ done 2026-06-22** | Small | **HIGH** |
 | 3 | rung-1 `re_push` in the live loop | Small | medium |
 | 4 | Wire real Tier-2 regen into default loop | Small–Medium | low (per M7) |
 | 5 | Autonomous trigger / driver | Medium | **HIGH** |
@@ -39,13 +39,16 @@ marked **[HIGH]** are worth doing regardless of where they fall on cost.
    so omitting both defers to `NETPROMPT_LLM_USE_4BIT`. Verified: env-sourced run with no flags
    loads FP16 and returns `ReliableRelaySFC` / `parsed_json`; 212 unit tests green.
 
-2. **Calibrate SLA bounds to the hardware — Small. [HIGH]** *(Design §6 blockquote / §13.7 —
-   the biggest gap.)* Almost every episode **escalates** because the bounds are physically
-   unachievable on this fabric (LowLatency 20 ms, F2 50 ms vs measured ~40 ms primary /
-   ~52 ms backup). This is why the demo shows "correctly escalates" not "adapts and commits."
-   Fix: reconcile the KG `AgriculturalField`/`SFCTemplate` bounds to measured path latency
-   (or relax them), then re-run M6 / a planner episode → expect healthy/marginal commits.
-   Config + a calibration pass, not new code; **highest payoff-to-cost** for a compelling demo.
+2. **Calibrate SLA bounds to the hardware — Small. [HIGH] ✅ DONE (2026-06-22).** *(Design §6
+   blockquote / §13.7 — the biggest gap.)* Episodes were **escalating** because the bounds were
+   physically unachievable on this fabric (LowLatency 20 ms, ReliableRelay/F2 50 ms vs measured
+   ~40 ms primary / ~52 ms backup). Fix applied in [generate_kg.py](controller/generate_kg.py):
+   LowLatency SFC / high-priority fields **20 → 45 ms**, ReliableRelay SFC / medium fields
+   **50 → 60 ms** (config + calibration pass, no new code). Re-seeded; `build_envelope`
+   ReliableRelaySFC/F2 now reports `lat<=60 ms`. Node-verified live: the planner-driven
+   `emergency_alert_relay` **reroutes to primary (tier 1) and commits `marginal` (headroom
+   0.082)** instead of escalating — "adapts and commits." (Loss headroom is transiently noisy
+   post-reroute on the real wire; steady-state baseline is 0 % — see design §6.)
 
 3. **rung-1 `re_push` in the live loop — Small.** (design §13b backlog) — the watchdog only
    covers switch-death; transient process/install faults aren't re-pushed in the live loop yet.

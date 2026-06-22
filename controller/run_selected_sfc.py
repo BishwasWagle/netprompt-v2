@@ -6,6 +6,13 @@ NEO4J_URI = "bolt://localhost:7687"
 NEO4J_USER = "neo4j"
 NEO4J_PASS = "netprompt123"
 
+# This driver runs the single-switch SFC harness REMOTELY: the command below
+# does `cd {NETWORK_PATH} && sudo python3 sfc_experiment.py {template}` on
+# cc@network-node, where NETWORK_PATH is that host's dir — NOT this repo's
+# network/ tree. Do NOT add a local network/sfc_experiment.py; it would be dead
+# code (the in-repo reference copy is network/milestone-II/experiments/
+# sfc_experiment.py). The live in-repo fabric is the 3-switch BMv2/P4 topology
+# built by runtime/tools/launch_network.py, which supersedes the single switch.
 NETWORK_NODE = "network-node"
 NETWORK_PATH = "/home/cc/netprompt-network"
 SSH_KEY = "FC_key.pem"

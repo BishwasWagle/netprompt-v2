@@ -13,3 +13,11 @@ checkpoint-*/
 # consistent with the tracked original final_adapter/) — force-added past *.safetensors.
 # The *_original_backup copy is redundant with the tracked original, so keep it ignored.
 final_adapter_original_backup/
+
+# In-tree editor/phase backups are version-control-by-filename: they shadow the
+# live source under a different name while git already preserves every revision.
+# Ignore them so they can never be re-committed; recover via `git log`/`git show`.
+*.bak
+*.py.bak
+*_phase3_backup.py
+*.txt.bak

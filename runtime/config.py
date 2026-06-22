@@ -34,8 +34,9 @@ SWITCH_PORTS = {"s1": set(range(1, 13)), "s2": {1, 2}, "s3": {1, 2}}
 DRONE_MACS = tuple(f"00:00:00:00:00:{i:02x}" for i in range(1, 11))
 
 # --- canonical milestone-II tree on network-node (per Bishwas: the
-#     milestone-II-latest copy is authoritative; network/newcodes/ is a
-#     leftover duplicate). Binding rule/P4 paths resolve against this root. ---
+#     milestone-II-latest copy is authoritative — the sole archived snapshot;
+#     earlier duplicate trees were removed). Binding rule/P4 paths resolve
+#     against this root. ---
 NODE_TREE_ROOT = os.environ.get(
     "NETPROMPT_TREE_ROOT",
     "/home/cc/Run-time-Manager-2/network/milestone-II-latest/netprompt-milestone-II")

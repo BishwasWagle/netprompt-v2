@@ -8,7 +8,7 @@ fill in the Results column and apply the listed fix if a check fails.
 
 The repo lives at `/home/cc/Run-time-Manager-2` on network-node; the canonical
 milestone-II tree is `network/milestone-II-latest/netprompt-milestone-II`
-(`network/newcodes/` is a leftover duplicate — do not use it).
+(the sole archived snapshot; earlier duplicate trees have been removed).
 
 ```bash
 cd /home/cc/Run-time-Manager-2 && git checkout Run-time-Manager && git pull

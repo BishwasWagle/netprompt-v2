@@ -1,5 +1,0 @@
-scenario,configured_bandwidth_mbps,configured_delay,configured_loss_percent,throughput_mbps,rtt_min_ms,rtt_avg_ms,rtt_max_ms,rtt_mdev_ms,measured_packet_loss_percent,source_file
-baseline,40.0,15ms,1.0,,34.317,34.35,34.41,0.027,10.0,p4_bmv2_results_baseline.txt
-congestion,20.0,25ms,2.0,,54.3,54.333,54.393,0.023,10.0,p4_bmv2_results_congestion.txt
-ddil,5.0,80ms,5.0,,164.332,164.358,164.481,0.042,0.0,p4_bmv2_results_ddil.txt
-low_latency,80.0,5ms,0.0,,14.332,14.353,14.39,0.017,0.0,p4_bmv2_results_low_latency.txt

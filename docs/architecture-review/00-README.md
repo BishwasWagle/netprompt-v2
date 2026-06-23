@@ -16,6 +16,7 @@ Every refactor in this review is designed to keep that suite green.
 | 2 | [02-critical-problems.md](02-critical-problems.md) | Critical problem areas across the 5 requested dimensions, severity-ranked, each with `file:line` evidence. |
 | 3 | [03-refactoring-strategy.md](03-refactoring-strategy.md) | A sequenced, low-risk-first refactoring plan with test gates. |
 | 4 | [04-production-code.md](04-production-code.md) | Drop-in, behavior-preserving production-grade code for the highest-value fixes. |
+| 5 | [05-evolution-from-original.md](05-evolution-from-original.md) | How the system evolved from Bishwas & Kiran's original NetPrompt (slow planner, KG, selector, test env) — architecture/workflow shift, the two models, and the LoRA retraining (what was done and how it improved). |
 
 ## How this review was produced
 

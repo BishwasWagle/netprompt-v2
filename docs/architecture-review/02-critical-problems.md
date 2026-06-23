@@ -6,19 +6,27 @@ plausible findings were adversarially refuted — they are documented, deliberat
 design decisions — and are listed in the [appendix](#appendix-what-is-not-a-problem)
 so you can see what was *cleared*, not just what was flagged.
 
+> **Status (post Phase 0/1).** Items #1, #4, #5, #7, #8, #9 are **✅ resolved** by
+> Phase 0 (commit `f9eab54`) and Phase 1 (commit `e5e9d8c`); the descriptions and
+> pre-Phase-0 metrics below (e.g. "~1.1 GB", "184→53 .py files", "21 backup
+> shadows") are the **review-time** state that motivated those fixes. Still-open:
+> #2, #3, #6, #10, #11, #12 (Phase 2/3). `file:line` refs reflect the review-time
+> snapshot — Phase 1 shifted some line numbers; the cited symbol is authoritative.
+> See [00-README status](00-README.md) and [09-summary status table](09-summary.md).
+
 ## 2.0 Severity-ranked summary
 
 | # | Severity | Dimension | Problem | Anchor |
 |---|----------|-----------|---------|--------|
-| 1 | **HIGH** | Duplicate / Maintainability | ~1.1 GB of forked, byte-identical `network/` archive trees committed to git | `network/{milestone-II,milestone-II-latest,newcodes,…/necodes}` |
+| 1 ✅ | **HIGH** | Duplicate / Maintainability | ~1.1 GB of forked, byte-identical `network/` archive trees committed to git — **removed in Phase 0** | `network/{milestone-II,milestone-II-latest,newcodes,…/necodes}` |
 | 2 | **HIGH** | Performance | `observe_window()` subprocess storm runs on *every* adapt attempt | `adapt.py:226`, `network_monitor.py:189` |
 | 3 | **HIGH** | Performance / Scalability | Tier-2 regen does blocking in-process GPU inference in the loop, no timeout | `regen/llm_client.py:111`, `regen/proposer.py:38` |
-| 4 | **HIGH** | Maintainability | Closed vocabularies (`Verdict.outcome`, switch-status, diagnosis-metric) are bare string literals duplicated across 6 files | `contracts.py:188`, `evaluator.py:49`, `soak.py:132` |
-| 5 | MEDIUM | Duplicate | Core SLA-margin formula duplicated verbatim in two modules | `contracts.py:77`, `adapt.py:43` |
+| 4 ✅ | **HIGH** | Maintainability | Closed vocabularies (`Verdict.outcome`, switch-status, diagnosis-metric) are bare string literals duplicated across 6 files — **fixed in Phase 1** | `contracts.py:188`, `evaluator.py:49`, `soak.py:132` |
+| 5 ✅ | MEDIUM | Duplicate | Core SLA-margin formula duplicated verbatim in two modules — **fixed in Phase 1** | `contracts.py:77`, `adapt.py:43` |
 | 6 | MEDIUM | Scalability | Episode-critical rollback state (`last_good`) is in-memory only | `runtime_manager.py:32`, `deployer.py:144` |
-| 7 | MEDIUM | Duplicate | 21 git-tracked backup shadow files (`.bak`, `_phase3_backup.py`) | across `network/` |
-| 8 | MEDIUM | Duplicate | `network/sfc_experiment.py` is a 5th byte-identical dead copy | `network/sfc_experiment.py` |
-| 9 | LOW | Architecture | Deployer/Monitor protocols are prose docstrings enforced by drifting `hasattr` guards | `contracts.py:224`, `adapt.py:213`, `runtime_manager.py:58,96` |
+| 7 ✅ | MEDIUM | Duplicate | 21 git-tracked backup shadow files (`.bak`, `_phase3_backup.py`) — **removed in Phase 0** | across `network/` |
+| 8 ✅ | MEDIUM | Duplicate | `network/sfc_experiment.py` is a 5th byte-identical dead copy — **removed in Phase 0** | `network/sfc_experiment.py` |
+| 9 ✅ | LOW | Architecture | Deployer/Monitor protocols are prose docstrings enforced by drifting `hasattr` guards — **Protocols added in Phase 1** (guards kept by design) | `contracts.py:224`, `adapt.py:213`, `runtime_manager.py:58,96` |
 | 10 | LOW | Architecture | `config.py` is an ambient global singleton mixing mechanism + policy | `config.py`, `gate.py:59`, `adapt.py:30` |
 | 11 | LOW | Performance | KG writes use a fresh session per statement; `write_baseline` fires twice per commit | `kg_client.py:131…`, `runtime_manager.py:75,88` |
 | 12 | LOW | Maintainability | `_kg_write` swallows *all* exceptions into a counter | `runtime_manager.py:34` |
@@ -47,7 +55,7 @@ a narrow `TableStateCapable`/`Restartable` for the optional node-only methods.
 See refactor in [04 §A1](04-production-code.md).
 
 ### A2 · `config.py` is an ambient global mixing mechanism and policy  · LOW
-Eight+ modules `from runtime import config` and reach into one mutable namespace;
+18 modules `from runtime import config` and reach into one mutable namespace;
 gate constructors even bind globals as default args (`gate.py:59-61`). Physical
 mechanism (`THRIFT_PORTS`, `EDGE_MAC`, `TC_TEMPLATES`) sits beside control policy
 (`BUDGET_N`, `HEADROOM_TAU`, `SFC_ACTION_SPACE`). **Why it matters:** no single
@@ -84,7 +92,8 @@ The single largest quality issue in the repository.
 * `diff -rq network/newcodes/netprompt-milestone-II network/milestone-II/necodes`
   → **exit 0, zero differences** — a complete 199-file tree committed twice.
 * Across the three archive trees, **184 `.py` files collapse to 53 distinct
-  contents** (131 redundant copies).
+  contents** (131 redundant copies) — *review-time figures; post-Phase-0 the
+  remaining `network/` tree is 77 `.py` → 48 distinct.*
 * `du -sh`: 334M + 419M + 332M ≈ **1.1 GB** of largely duplicated archive in git;
   `.git` itself is 267 MB; **28 model-weight files** (`*.safetensors`/`*.pt`) were
   force-added past the `.gitignore` that lists them.
@@ -116,8 +125,9 @@ blob `f0db187`). **Fix:** `git rm` all 21; add patterns to `.gitignore`. History
 already preserves them. See [04 §D3](04-production-code.md).
 
 ### D4 · Result-parse / KG-push scripts copy-pasted  · MEDIUM
-33 `parse_*`/`push_*to_kg.py` files collapse to **9 distinct contents**;
-`parse_llm_experiment_results.py` exists in 6 identical copies. The live
+33 `parse_*`/`push_*to_kg.py` files collapse to **9 distinct contents**
+(review-time; post-Phase-0 ~16 files → 9 distinct);
+`parse_llm_experiment_results.py` exists in 6 identical copies (now 2). The live
 `controller/parse_results.py` is a 10th *fork* of the same iperf/RTT/loss scrape.
 **Fix:** delete archive copies (D1); for the live path, factor the shared scrape
 core into one importable module. See [04 §D4](04-production-code.md).
@@ -269,7 +279,7 @@ real design rationale — read them before "fixing" something that looks odd.
 
 - **Four HIGH-severity problems dominate, all confirmed after verification.** They are: ~1.1 GB of forked byte-identical `network/` archive trees in git (D1), the `observe_window()` subprocess storm per adapt attempt (P1), blocking un-timed in-loop LLM inference (P2), and magic-string vocabularies duplicated across 6+ files (M1). Everything else lands at MEDIUM or LOW.
 
-- **The 1.1 GB duplicate archive is the single largest quality issue.** `diff -rq` shows a 199-file tree committed twice with zero differences; 184 `.py` files collapse to 53 distinct contents, three trees total 334M + 419M + 332M, `.git` is 267 MB, and 28 model-weight files were force-added past `.gitignore`. The `llm_orchestrator` package exists in six diverged copies, so a fix in one never reaches the others. No `runtime/` code imports these trees, so the fix is to delete all but the authoritative `milestone-II-latest` copy.
+- **The 1.1 GB duplicate archive was the single largest quality issue — ✅ removed in Phase 0** (commit `f9eab54`; figures here are the review-time state that motivated it). `diff -rq` showed a 199-file tree committed twice with zero differences; 184 `.py` files collapsed to 53 distinct contents, three trees totalled 334M + 419M + 332M, and 28 model-weight files were force-added past `.gitignore`. The `llm_orchestrator` package existed in six diverged copies, so a fix in one never reached the others. No `runtime/` code imported these trees, so the fix was to delete all but the authoritative `milestone-II-latest` copy (now done; working tree ~420 MB, 10 tracked weight files; the `.git` history still carries the blobs — a separate filter-repo decision).
 
 - **Two performance HIGHs stall the live episode loop.** `observe_window()` re-runs after every applied candidate (`adapt.py:226`), firing ~10 blocking `ping` subprocesses per window across ~6 windows per episode — fixable by running per-field pings concurrently. With `--with-regen`, Tier-2 escalation runs up to 3 blocking 64-token GPU generations under `torch.no_grad()` (`llm_client.py:111-125`) with no wall-clock timeout, so a hung GPU call stalls the episode indefinitely and partially defeats the §7.4 fail-safe.
 

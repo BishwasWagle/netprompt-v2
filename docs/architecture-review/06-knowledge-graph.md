@@ -8,7 +8,7 @@ it, the improvements over Bishwas & Kiran's original KG, and the novelty of the
 multi-model design that the KG makes possible.
 
 Companion: [05-evolution-from-original.md](05-evolution-from-original.md) (§3 KG)
-· `docs/components/kg-client.md` · `docs/planner-design.md` §5.
+· `docs/components/kg-client.md` · `docs/planner/planner-design.md` §5.
 
 > Every claim is grounded in a repo file. KG size and type counts were verified
 > against `controller/drone_sfc_kg.json` / `generate_kg.py`.
@@ -74,7 +74,7 @@ design:
   original's hand-driven status writer is gone — §6.5).
 - **The runtime is the sole writer of operational state.** Every write is tagged
   `updated_by='runtime-manager'` and is an idempotent `MERGE`
-  (`kg_client.py:131-174`).
+  (`kg_client.py:120-174`).
 - **The loop closes through the KG**, two ways:
   1. the runtime monitor writes live `ProgrammableSwitch.status`, which the
      planner reads as `allowed_relays` on its next decision;
@@ -192,9 +192,16 @@ observes it, and the two never clobber each other.
 
 ## 6.7 Novelty — a KG-coordinated, multi-model, neuro-symbolic control system
 
-What is genuinely novel here is not any one model but the **setup**: two
-specialized LLMs and a deterministic control loop, each at a different altitude,
-coordinated entirely through a shared symbolic KG.
+> **Calibration.** This section is **design rationale**, not a research-novelty
+> claim. An adversarial, prior-art-grounded assessment ([08-novelty.md](08-novelty.md))
+> finds that *none* of the items below is individually novel — each maps to
+> established work (e.g. the KG-derived grammar is GENRE/PICARD; the KG-as-hub is the
+> blackboard pattern). Read it as *how the system is put together and why*, and see
+> [08](08-novelty.md) for what is (and isn't) defensible to claim.
+
+What stands out here is not any one model but the **setup**: two specialized LLMs
+and a deterministic control loop, each at a different altitude, coordinated entirely
+through a shared symbolic KG.
 
 1. **KG-as-blackboard for a two-loop, multi-model system.** The slow planner and
    the fast runtime never call each other; they communicate through the KG hub
@@ -242,7 +249,7 @@ coordinated entirely through a shared symbolic KG.
 
 ## Key Takeaways
 
-- **The KG is the only shared mutable state, with a strict two-zone ownership contract.** The slow LLM planner and the deterministic Runtime Manager never call each other directly — they coordinate entirely through a single Neo4j graph (29 nodes, 38 relationships, generated offline by `controller/generate_kg.py` into `controller/drone_sfc_kg.json`). The planner is read-only on the KG, while the runtime is the sole writer of operational state; every runtime write is tagged `updated_by='runtime-manager'` and uses an idempotent `MERGE` (`kg_client.py:131-174`). Strategic nodes (SFCTemplate, AgriculturalField, Drone, infra) are seeded and durable; runtime nodes (Verdict, EscalationTicket, BaselineSnapshot, LastKnownGood, plus `ProgrammableSwitch.status`) are computed by the loop, and the two never clobber each other.
+- **The KG is the only shared mutable state, with a strict two-zone ownership contract.** The slow LLM planner and the deterministic Runtime Manager never call each other directly — they coordinate entirely through a single Neo4j graph (29 nodes, 38 relationships, generated offline by `controller/generate_kg.py` into `controller/drone_sfc_kg.json`). The planner is read-only on the KG, while the runtime is the sole writer of operational state; every runtime write is tagged `updated_by='runtime-manager'` and uses an idempotent `MERGE` (`kg_client.py:120-174`). Strategic nodes (SFCTemplate, AgriculturalField, Drone, infra) are seeded and durable; runtime nodes (Verdict, EscalationTicket, BaselineSnapshot, LastKnownGood, plus `ProgrammableSwitch.status`) are computed by the loop, and the two never clobber each other.
 
 - **The grammar IS the KG candidate set — symbolic constraints bound the neural decoder.** The planner reads `(:SFCTemplate)-[:REALIZED_BY_P4_POLICY]->(:P4PolicyMapping)` (`kg_context.py:186`) plus live relay availability, and that *same* constraint set feeds both `decision_grammar.build_decision_gbnf(...)` and `validator.validate_generated_decision(...)`. Because the GBNF grammar is built per request from the KG, the LLM literally cannot emit an SFC/policy/path/relay the graph does not realize — grammar-valid implies validator-valid by construction. This is what makes a weak 1.5B model safe to put in the loop: format and legality are guaranteed, leaving only *which* legal option to judge.
 
@@ -260,5 +267,5 @@ coordinated entirely through a shared symbolic KG.
 `controller/drone_sfc_kg.json`, `runtime/kg_client.py`,
 `runtime/tools/seed_kg.py`, `runtime/regen/proposer.py`,
 `network/milestone-II-latest/netprompt-milestone-II/llm_orchestrator/kg_context.py`,
-`docs/components/kg-client.md`, `docs/planner-design.md`. KG size/type counts
+`docs/components/kg-client.md`, `docs/planner/planner-design.md`. KG size/type counts
 verified against `drone_sfc_kg.json`.*

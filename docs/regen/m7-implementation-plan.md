@@ -1,7 +1,7 @@
 # M7 — Tier-2 regen (real serving) + reproducibility: implementation plan
 
-**Companion to:** [runtime-manager-design.md](runtime-manager-design.md) §7.3/§11/§13b.B and
-[runtime-manager-implementation-plan.md](runtime-manager-implementation-plan.md) §M7.
+**Companion to:** [runtime-manager-design.md](../design/runtime-manager-design.md) §7.3/§11/§13b.B and
+[runtime-manager-implementation-plan.md](../design/runtime-manager-implementation-plan.md) §M7.
 **Owner:** Kevin. **Status: M7 ✅ COMPLETE (2026-06-16).** All work items landed and live-verified:
 #1/#2 LocalHFClient + GBNF decoding, #3 config, #4 grammar tightening, #5 gate L3 hook, #6 live
 wiring, #7 reproducibility kit, #8 multi-model comparison harness, #9 DoD demo. Exit criteria met —

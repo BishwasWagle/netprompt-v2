@@ -26,7 +26,7 @@ unit suite cannot move.
 | 0.3 ★ | Delete the stray top-level `network/sfc_experiment.py`; add a doc pointer that the controller runs a *remote* copy. | `grep -rn 'import sfc_experiment\|from sfc_experiment' runtime controller` → none |
 | 0.4 | Stop tracking model weights: confirm `*.safetensors`/`*.pt` belong in `.gitignore` and history-rewrite is out of scope; at minimum stop adding new ones. | `git ls-files '*.safetensors' '*.pt'` |
 
-**Impact:** removes ~1.1 GB and ~131 redundant `.py` copies from the working tree;
+**Impact:** removes ~664 MB and ~107 redundant `.py` copies from the working tree (✅ applied — Phase 0, commit `f9eab54`; pre-Phase-0 the three overlapping trees totalled ~1.1 GB);
 shrinks future clones; de-noises every `grep`/IDE search. **Risk:** none — nothing
 executable imports the deleted paths.
 
@@ -116,7 +116,7 @@ hygiene      typing        perf          durability
 
 - **One hard constraint governs everything: no functional change, behind a global test gate.** Before and after *every* step you run `python -m pytest tests/unit -q`, which must stay 212 passed (with node-tagged `test_m4/m5/m6/m7` integration where applicable). Each step is independently shippable and revertable, and the drop-in code for starred (★) items lives in `04-production-code.md`.
 
-- **Phase 0 (hygiene) goes first because it shrinks the surface and cannot break tests.** It is pure deletions and `.gitignore` edits with no `runtime/` import-path changes: removing duplicate archive trees, 21 `.bak`/backup shadows, and the stray `network/sfc_experiment.py`. Impact is ~1.1 GB and ~131 redundant `.py` copies removed, de-noising every grep/IDE search, at zero risk since nothing executable imports the deleted paths.
+- **Phase 0 (hygiene) goes first because it shrinks the surface and cannot break tests.** It is pure deletions and `.gitignore` edits with no `runtime/` import-path changes: removing duplicate archive trees, 21 `.bak`/backup shadows, and the stray `network/sfc_experiment.py`. Impact is ~664 MB and ~107 redundant `.py` copies removed, de-noising every grep/IDE search, at zero risk since nothing executable imports the deleted paths.
 
 - **Phase 1 (typing) comes before perf/scalability because it makes later changes checkable.** It centralizes vocabularies and the SLA-margin formula in `contracts.py`, dedupes `_EPS`, and adds `typing.Protocol`s (`DeployerProto`, `MonitorProto`, `GateProto`). These are pure-structure changes — values stay byte-identical strings and Protocols are structural — so e.g. `MonitorProto` is what makes the later parallel-ping change provably surface-preserving.
 

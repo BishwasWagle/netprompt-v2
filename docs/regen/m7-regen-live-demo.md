@@ -17,7 +17,7 @@ spec + fault**, not the steady-state soak. Best done as a dedicated integration 
 
 ## 2. How Tier-2 is reached (the ladder)
 
-`adapt.propose(diag, tier, ...)` ([adapt.py:130](runtime/adapt.py)):
+`adapt.propose(diag, tier, ...)` ([adapt.py:130](../../runtime/adapt.py)):
 `tier 0 → _propose_tune`, `tier 1 → _propose_reroute`, `tier 2 → regen_proposer`.
 The engine escalates a tier only when `propose` returns `None`. So to land on Tier-2:
 
@@ -33,7 +33,7 @@ exhausts realistically into Tier-2, rather than hard-forcing regen-only.
 ## 3. Fault model — table-level, regen-recoverable
 
 Regen rewrites BMv2 tables (`deployer` applies the candidate's `rules_text` via
-`simple_switch_CLI`, [deployer.py:219](runtime/deployer.py)). So the fault must be a
+`simple_switch_CLI`, [deployer.py:219](../../runtime/deployer.py)). So the fault must be a
 **table misconfiguration** — not a link impairment (tune/reroute territory). The fault
 also must leave a **single forward_table command** sufficient to repair it (within the
 grammar) and the repaired state must satisfy the gate's L2 blackhole invariant.

@@ -1,8 +1,8 @@
 # Future Work & Things to Remember
 
 A standalone, act-cold record of what's left to build and the non-obvious lessons that bit
-us — so neither has to be rediscovered. Companion to [usage.md](usage.md) (how to run),
-[components/](components/README.md) (per-component reference), and the design docs.
+us — so neither has to be rediscovered. Companion to [usage.md](../guides/usage.md) (how to run),
+[components/](../components/README.md) (per-component reference), and the design docs.
 
 ## Status snapshot (2026-06-19)
 
@@ -42,7 +42,7 @@ marked **[HIGH]** are worth doing regardless of where they fall on cost.
 2. **Calibrate SLA bounds to the hardware — Small. [HIGH] ✅ DONE (2026-06-22).** *(Design §6
    blockquote / §13.7 — the biggest gap.)* Episodes were **escalating** because the bounds were
    physically unachievable on this fabric (LowLatency 20 ms, ReliableRelay/F2 50 ms vs measured
-   ~40 ms primary / ~52 ms backup). Fix applied in [generate_kg.py](controller/generate_kg.py):
+   ~40 ms primary / ~52 ms backup). Fix applied in [generate_kg.py](../../controller/generate_kg.py):
    LowLatency SFC / high-priority fields **20 → 45 ms**, ReliableRelay SFC / medium fields
    **50 → 60 ms** (config + calibration pass, no new code). Re-seeded; `build_envelope`
    ReliableRelaySFC/F2 now reports `lat<=60 ms`. Node-verified live: the planner-driven
@@ -57,7 +57,7 @@ marked **[HIGH]** are worth doing regardless of where they fall on cost.
 4. **Wire real Tier-2 regen into the default loop — Small–Medium.** Today stubbed → escalate;
    runs only via `soak --with-regen` / M7 tests. Inject the existing `RegenProposer`/
    `LocalHFClient` seam (loads the cuda:1 model). Caveat: M7 showed the small Coder models
-   emit 0% corrective rows ([m7-regen-comparison.md](m7-regen-comparison.md)) — limited payoff
+   emit 0% corrective rows ([m7-regen-comparison.md](../regen/m7-regen-comparison.md)) — limited payoff
    without a better regen model.
 
 5. **Autonomous trigger / driver — Medium. [HIGH]** Today the loop is *manual* (run the
@@ -80,7 +80,7 @@ marked **[HIGH]** are worth doing regardless of where they fall on cost.
    in. Retrain (`train_decision_lora.py`) with telemetry up front + `runtime_feedback` in the
    input, labeled to separate "wrong SFC" from "unachievable SLA" — or use a larger model
    behind the same constrained-decoding seam (~hour of training + eval iteration). See
-   [planner-lora-eval.md](planner-lora-eval.md).
+   [planner-lora-eval.md](../planner/planner-lora-eval.md).
 
 ## Key insights to remember (conceptual)
 
@@ -88,7 +88,7 @@ marked **[HIGH]** are worth doing regardless of where they fall on cost.
   the LLM output is *invalid*; the GBNF grammar makes it always valid, so the LLM's choice is
   *used*. Consequence: decision quality rests entirely on the adapter — a mode-collapsed
   adapter ships the wrong SFC under the production default. (Why the retrained adapter was
-  promoted.) [planner-lora-eval.md §4](planner-lora-eval.md).
+  promoted.) [planner-lora-eval.md §4](../planner/planner-lora-eval.md).
 - **Escalation-rate conflates "wrong SFC" with "unachievable SLA."** ReliableRelay's 100%
   escalation is the bounds gap (item 1), not unsuitability — so `runtime_feedback` is
   *advisory*, never a hard "avoid this SFC" rule.
@@ -121,6 +121,6 @@ marked **[HIGH]** are worth doing regardless of where they fall on cost.
   `--no-4bit`. `PIP_BREAK_SYSTEM_PACKAGES=1` for PEP 668.
 
 ## Pointers
-[usage.md](usage.md) · [components/](components/README.md) · [runtime-manager-design.md](runtime-manager-design.md) §13/§13b ·
-[runtime-planner-contracts.md](runtime-planner-contracts.md) §5/§6 · [planner-design.md](planner-design.md) §8 ·
-[planner-lora-eval.md](planner-lora-eval.md) · [m7-regen-comparison.md](m7-regen-comparison.md).
+[usage.md](../guides/usage.md) · [components/](../components/README.md) · [runtime-manager-design.md](runtime-manager-design.md) §13/§13b ·
+[runtime-planner-contracts.md](runtime-planner-contracts.md) §5/§6 · [planner-design.md](../planner/planner-design.md) §8 ·
+[planner-lora-eval.md](../planner/planner-lora-eval.md) · [m7-regen-comparison.md](../regen/m7-regen-comparison.md).

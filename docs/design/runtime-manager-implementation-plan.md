@@ -17,12 +17,12 @@
 > local Neo4j KG) · **M7 ✅ COMPLETE 2026-06-16** (real GBNF-constrained Qwen-Coder
 > serving on cuda:1; live propose→gate→apply→observe + a committed recovered episode,
 > LLM-down fail-safe, multi-model comparison table, reproducibility kit — see
-> [m7-implementation-plan.md](m7-implementation-plan.md)) ·
+> [m7-implementation-plan.md](../regen/m7-implementation-plan.md)) ·
 > **M-K (planner integration) ✅ BUILT + LIVE-VERIFIED 2026-06-17..19.** Kiran's node
 > expired, so we now own the whole stack (planner + runtime + KG). The slow planner ↔
 > runtime handoff is wired and proven end-to-end on hardware — see §8 below and
-> [runtime-planner-contracts.md](runtime-planner-contracts.md), [planner-design.md](planner-design.md),
-> [usage.md](usage.md). The full system (M0–M7 + slow-loop→fast-loop) is demonstrated
+> [runtime-planner-contracts.md](runtime-planner-contracts.md), [planner-design.md](../planner/planner-design.md),
+> [usage.md](../guides/usage.md). The full system (M0–M7 + slow-loop→fast-loop) is demonstrated
 > end-to-end on the live testbed.
 > See §7 "Node bring-up findings" + design §13 "Known issues & hardening backlog".
 
@@ -224,9 +224,9 @@ Empirical results from migrating to the Chameleon network-node and running on re
 Kiran's network node expired, so the planner↔runtime boundary became an **internal**
 concern: we own the orchestrator, the KG, and the runtime. The handoff is now built and
 proven end-to-end. Full detail: [runtime-planner-contracts.md](runtime-planner-contracts.md)
-(the §6 integration log), [planner-design.md](planner-design.md),
-[planner-lora-retrain.md](planner-lora-retrain.md), [planner-lora-eval.md](planner-lora-eval.md),
-[usage.md](usage.md).
+(the §6 integration log), [planner-design.md](../planner/planner-design.md),
+[planner-lora-retrain.md](../planner/planner-lora-retrain.md), [planner-lora-eval.md](../planner/planner-lora-eval.md),
+[usage.md](../guides/usage.md).
 
 **Inbound handoff (planner → runtime).**
 - `runtime/planner_adapter.py` — normalizes the orchestrator's

@@ -72,17 +72,17 @@ caller-supplied (deterministic under test). The key ones:
 ```
 DeploymentSpec
      │
-     ▼  RuntimeManager.run_episode()                                  [runtime_manager.py:45]
+     ▼  RuntimeManager.run_episode()                                  [runtime_manager.py:48]
  ┌───────────────────────────────────────────────────────────────────────────┐
- │ 1. gate.check_binding(spec) ───not ok──▶ Verdict("rejected")  (never deploys)│  [:47]
- │ 2. current_tables ← deployer.table_state()  (live switch state for gate L2)  │  [:57]
- │ 3. EvalContext built with a FRESH Budget(N)  ── per-episode budget model     │  [:61]
- │ 4. report ← monitor.observe_window()  ──▶ MonitorReport                      │  [:70]
- │ 5. best-effort KG writes: switch_status, baseline                            │  [:74]
- │ 6. result ← evaluate(spec, report, ctx)                                      │  [:78]
+ │ 1. gate.check_binding(spec) ───not ok──▶ Verdict("rejected")  (never deploys)│  [:50]
+ │ 2. current_tables ← deployer.table_state()  (live switch state for gate L2)  │  [:60]
+ │ 3. EvalContext built with a FRESH Budget(N)  ── per-episode budget model     │  [:64]
+ │ 4. report ← monitor.observe_window()  ──▶ MonitorReport                      │  [:73]
+ │ 5. best-effort KG writes: switch_status, baseline                            │  [:77]
+ │ 6. result ← evaluate(spec, report, ctx)                                      │  [:81]
  └───────────────────────────────────────────────────────────────────────────┘
      │
-     ▼  evaluate() — the 6-stage ladder                                [evaluator.py:75]
+     ▼  evaluate() — the 6-stage ladder                                [evaluator.py:77]
    ┌─────────────────────────────────────────────────────────────────────────┐
    │ rung 1  system_sound?        no ─▶ Verdict("system_fault")               │
    │ rung 2  target_sla_met?      yes ─▶ jump to commit path (rung 5)         │
@@ -95,7 +95,7 @@ DeploymentSpec
    │ rung 6  commit_outcome(headroom, tier) ─▶ Verdict("healthy"|"marginal")  │
    └─────────────────────────────────────────────────────────────────────────┘
      │
-     ▼  adapt() — the cost-ordered hill-climb engine                       [adapt.py:174]
+     ▼  adapt() — the cost-ordered hill-climb engine                       [adapt.py:165]
    ┌─────────────────────────────────────────────────────────────────────────┐
    │ while budget.remaining() > 0:                                            │
    │   diag ← diagnose(report)            (worst violation; target outranks)   │
@@ -107,7 +107,7 @@ DeploymentSpec
    │   dominates ∧ improves?  ─▶ keep (hill-climb)   else deployer.rollback()  │
    └─────────────────────────────────────────────────────────────────────────┘
      │
-     ▼  back in run_episode():  on healthy|marginal commit                [runtime_manager.py:83]
+     ▼  back in run_episode():  on healthy|marginal commit                [runtime_manager.py:86]
         last_good ← deployer.capture();  monitor.rebaseline()
         best-effort KG writes: verdict, last_good, escalation, re-baseline
      │
@@ -154,7 +154,7 @@ seams:
                  ▲              ▲              ▲
    ┌─────────────┘   ┌──────────┘   └───────────────┐
    │ DeployerProto   │ MonitorProto   │ GateProto    │   ← every collaborator typed
-   │ + TableStateProto (optional node methods)        │
+   │ + TableStateCapable (optional node methods)        │
    └──────────────────────────────────────────────────┘
         ▲                                   ▲
    topology/mechanism config        control-policy object   ← config split: ports/MACs/tc
@@ -175,7 +175,7 @@ See [03-refactoring-strategy.md](03-refactoring-strategy.md).
 
 - **Everything crosses boundaries as typed contracts.** The whole loop is choreographed through a small set of immutable-ish dataclasses in `contracts.py` (`DeploymentSpec`, `MonitorReport`, `Candidate`, `Diagnosis`, `Verdict`, `EscalationTicket`, `Envelope`, etc.), with timestamps always caller-supplied so behavior is deterministic under test. Boundaries are explicit: a `DeploymentSpec` is the planner→runtime handoff, and `Verdict` is the terminal outcome — one of `healthy | marginal | rollback | escalated | system_fault | rejected`.
 
-- **An episode runs as nested ladders, each with file/line anchors.** `run_episode()` (`runtime_manager.py:45`) gates first (rejecting without ever deploying), captures live table state, builds a fresh per-episode `Budget(N)`, observes a window into a `MonitorReport`, then calls `evaluate()` (`evaluator.py:75`). That 6-stage ladder checks system soundness → SLA met → regression-vs-baseline rollback → `adapt()` → displaced-harm relief → commit, and `adapt()` (`adapt.py:174`) is the cost-ordered hill-climb (tier 0 tune → 1 reroute → 2 regen LLM) that loops while budget remains.
+- **An episode runs as nested ladders, each with file/line anchors.** `run_episode()` (`runtime_manager.py:48`) gates first (rejecting without ever deploying), captures live table state, builds a fresh per-episode `Budget(N)`, observes a window into a `MonitorReport`, then calls `evaluate()` (`evaluator.py:77`). That 6-stage ladder checks system soundness → SLA met → regression-vs-baseline rollback → `adapt()` → displaced-harm relief → commit, and `adapt()` (`adapt.py:165`) is the cost-ordered hill-climb (tier 0 tune → 1 reroute → 2 regen LLM) that loops while budget remains.
 
 - **One engine serves both failure modes, against a single goal.** Whether the target SFC is failing or a neighbor is harmed, both enter the *same* `adapt()` with `GOAL = target_sla_met AND no displaced_harm` — no duplicated control logic. Diagnosis ranks the worst violation with the target outranking, and the runtime *never* re-selects the SFC (that was the planner's job).
 
@@ -183,4 +183,4 @@ See [03-refactoring-strategy.md](03-refactoring-strategy.md).
 
 - **Safety is built in by construction, not bolted on.** A domination guard never accepts a regression, strict-progress hill-climb plus finite quantized candidate grids and a `tried` set guarantee termination, a per-episode budget bounds work, and Tier-2 returning `None` triggers fail-safe escalation. The gate is conservative-by-default — without live table state it *refuses* regen rather than hoping — and KG writes are best-effort so recording can never abort an episode.
 
-- **The north-star is sharper seams, same behavior.** The refactors target turning the contracts the loop already depends on informally into checkable Protocols (`DeployerProto`, `MonitorProto`, `GateProto`, optional `TableStateProto`) plus closed-vocabulary enums, and splitting the one global `config` module into "physical mechanism" (ports, MACs, tc templates) versus injected "control policy" (budget, τ, action space) so two configurations can coexist without monkeypatching globals. The control loop itself does not move (see `03-refactoring-strategy.md`).
+- **The north-star is sharper seams, same behavior.** The refactors target turning the contracts the loop already depends on informally into checkable Protocols (`DeployerProto`, `MonitorProto`, `GateProto`, optional `TableStateCapable`) plus closed-vocabulary enums, and splitting the one global `config` module into "physical mechanism" (ports, MACs, tc templates) versus injected "control policy" (budget, τ, action space) so two configurations can coexist without monkeypatching globals. The control loop itself does not move (see `03-refactoring-strategy.md`).

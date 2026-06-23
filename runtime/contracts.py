@@ -1,8 +1,8 @@
 """Shared data contracts for the Runtime Manager (inner loop).
 
 DeploymentSpec and EscalationTicket cross the planner boundary and are agreed
-in docs/runtime-planner-contracts.md; everything else is runtime-internal.
-Design: docs/runtime-manager-design.md (sections referenced per class).
+in docs/design/runtime-planner-contracts.md; everything else is runtime-internal.
+Design: docs/design/runtime-manager-design.md (sections referenced per class).
 
 Timestamps are caller-supplied strings, never generated here, so every type
 is deterministic under test.
@@ -185,7 +185,7 @@ class BaselineSnapshot:
 
 @dataclass
 class DeploymentSpec:
-    """Planner -> runtime handoff, normalized (docs/runtime-planner-contracts.md §1)."""
+    """Planner -> runtime handoff, normalized (docs/design/runtime-planner-contracts.md §1)."""
     sfc: str                      # already chosen — runtime never selects
     binding: dict
     envelope: Envelope
@@ -242,7 +242,7 @@ class Verdict:
 
 @dataclass
 class EscalationTicket:
-    """Runtime -> planner wrong-SFC handoff (docs/runtime-planner-contracts.md §2)."""
+    """Runtime -> planner wrong-SFC handoff (docs/design/runtime-planner-contracts.md §2)."""
     correlation_id: str
     sfc: str
     observed: dict

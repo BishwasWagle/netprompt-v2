@@ -1,5 +1,5 @@
 """Planner → Runtime handoff adapter — the Kiran⇄Kevin boundary (design §1a, the
-outer-loop→inner-loop edge; contract: docs/runtime-planner-contracts.md §1).
+outer-loop→inner-loop edge; contract: docs/design/runtime-planner-contracts.md §1).
 
 The LLM orchestrator (`network/.../llm_orchestrator/orchestrate.py`) writes
 `outputs/llm_generated_experiment_config.json` and then **stops** — it triggers no

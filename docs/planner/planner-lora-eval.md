@@ -7,7 +7,7 @@ the model now pick a *mission-appropriate* SFC instead of always `LowLatencyVide
 
 Companion docs: [planner-lora-retrain.md](planner-lora-retrain.md) (how the adapter was
 trained) · [planner-design.md](planner-design.md) (the planner as a whole) ·
-[runtime-planner-contracts.md](runtime-planner-contracts.md) §6c/§6d (constrained decoding
+[runtime-planner-contracts.md](../design/runtime-planner-contracts.md) §6c/§6d (constrained decoding
 + the prior prompt/few-shot negative result).
 
 ## 1. Method

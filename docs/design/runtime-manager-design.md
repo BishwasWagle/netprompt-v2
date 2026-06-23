@@ -42,10 +42,10 @@ The Runtime Manager **consumes** decisions and **never** makes strategic ones:
 - We do **not** set priorities or pick which flow "wins." When meeting the target would harm a non-target flow, the runtime either finds a config that harms *no one* or escalates; deciding who absorbs a loss is the planner's call (using `priority`, which we read but never act on).
 
 Planner-territory files that **must not be modified**:
-[controller/select_template.py](controller/select_template.py),
-[controller/run_selected_sfc.py](controller/run_selected_sfc.py),
-[path_aware_sfc_selector.py](network/milestone-II/experiments/path_aware_sfc_selector.py),
-[select_sfc_for_scenario.py](network/milestone-II/experiments/select_sfc_for_scenario.py).
+[controller/select_template.py](../../controller/select_template.py),
+[controller/run_selected_sfc.py](../../controller/run_selected_sfc.py),
+[path_aware_sfc_selector.py](../../network/milestone-II/experiments/path_aware_sfc_selector.py),
+[select_sfc_for_scenario.py](../../network/milestone-II/experiments/select_sfc_for_scenario.py).
 
 ---
 
@@ -201,18 +201,18 @@ Every terminal verdict (healthy, marginal, rollback, escalation) writes a `Verdi
 ## 2. Current System (as-is) and How It Maps to the Diagrams
 
 Today the Milestone II pipeline is a single linear shell script,
-[run_netprompt_milestone2_final.sh](network/milestone-II/experiments/run_netprompt_milestone2_final.sh),
+[run_netprompt_milestone2_final.sh](../../network/milestone-II/experiments/run_netprompt_milestone2_final.sh),
 that runs once per scenario and exits — no persistent loop, no rollback, no attribution. The Runtime Manager turns this one-shot pipeline into a closed loop.
 
 | Inner-loop role | Exists today as | Gap to close |
 |---|---|---|
-| SFC → binding | [sfc_to_multihop_mapper.py](network/milestone-II/experiments/sfc_to_multihop_mapper.py), [sfc_to_p4_mapper.py](network/milestone-II/experiments/sfc_to_p4_mapper.py) | Reusable; wrap as a binding function. Multihop map covers only 2 of 4 SFCs. |
-| Deploy | rule-install + `tc` inside [dynamic_sfc_p4_multihop_experiment.py](network/milestone-II/experiments/dynamic_sfc_p4_multihop_experiment.py) | Fused with topology-build + measurement, and **tears the network down per run**. Must become a standalone, reversible primitive over a **persistent** network. |
+| SFC → binding | [sfc_to_multihop_mapper.py](../../network/milestone-II/experiments/sfc_to_multihop_mapper.py), [sfc_to_p4_mapper.py](../../network/milestone-II/experiments/sfc_to_p4_mapper.py) | Reusable; wrap as a binding function. Multihop map covers only 2 of 4 SFCs. |
+| Deploy | rule-install + `tc` inside [dynamic_sfc_p4_multihop_experiment.py](../../network/milestone-II/experiments/dynamic_sfc_p4_multihop_experiment.py) | Fused with topology-build + measurement, and **tears the network down per run**. Must become a standalone, reversible primitive over a **persistent** network. |
 | Running network | Mininet + BMv2 `simple_switch` | Must persist across loop iterations. |
-| Monitor | ping/iperf in the experiment + [parse_and_push_final_results.py](network/milestone-II/results/parse_and_push_final_results.py) | One-shot + intrusive. Must become repeatable, **passive-first**, per-flow, with hysteresis. |
+| Monitor | ping/iperf in the experiment + [parse_and_push_final_results.py](../../network/milestone-II/results/parse_and_push_final_results.py) | One-shot + intrusive. Must become repeatable, **passive-first**, per-flow, with hysteresis. |
 | Baseline | none | New: capture a steady-state **baseline snapshot at deploy** (all flows). |
 | Evaluator | none (only result parsing) | Build the 6-stage ladder + commit path. |
-| Live switch state | [update_topology_state.py](network/milestone-II/experiments/update_topology_state.py) writes status **from a hardcoded per-scenario table** | Replace with **monitor-computed** status (see §5.4). This is the key integrity fix. |
+| Live switch state | [update_topology_state.py](../../network/milestone-II/experiments/update_topology_state.py) writes status **from a hardcoded per-scenario table** | Replace with **monitor-computed** status (see §5.4). This is the key integrity fix. |
 
 Mechanisms we reuse: P4→BMv2 JSON; rule install via `simple_switch_CLI --thrift-port` (s1=9090, s2=9091, s3=9092); host QoS via `tc qdisc`; metric parsing regexes; Neo4j KG on `controller-node`.
 
@@ -250,7 +250,7 @@ Everything downstream is logic over the `MonitorReport` contract and the baselin
 
 ### 5.1 Flow model — per **field**
 
-Traffic is drone → edge. Each `AgriculturalField` ([generate_kg.py](controller/generate_kg.py)) carries its own `latency_requirement_ms`, `bandwidth_requirement_mbps`, `priority`; drones are assigned to fields. So:
+Traffic is drone → edge. Each `AgriculturalField` ([generate_kg.py](../../controller/generate_kg.py)) carries its own `latency_requirement_ms`, `bandwidth_requirement_mbps`, `priority`; drones are assigned to fields. So:
 
 - A **flow** = one field's drones' traffic, with that field's requirements as its envelope.
 - **Target flow** = the field/SFC this deployment is for. **Non-target flows** = the other fields sharing the fabric.
@@ -329,7 +329,7 @@ class MonitorReport:
 
 ### 5.5 Status derivation — replacing the hardcoded table
 
-[update_topology_state.py](network/milestone-II/experiments/update_topology_state.py) reads switch health from the scenario *label* (circular — a reviewer will flag it). Replace with observation:
+[update_topology_state.py](../../network/milestone-II/experiments/update_topology_state.py) reads switch health from the scenario *label* (circular — a reviewer will flag it). Replace with observation:
 
 | Status | Derived from |
 |---|---|
@@ -338,7 +338,7 @@ class MonitorReport:
 | `Active` | alive+reachable + path meets SLA |
 | `Standby` | healthy relay not currently carrying traffic |
 
-Path health → switch status is attributed via the flows currently *using* that path. `kg_client` writes `ProgrammableSwitch.status`; [kg_path_selector.py](network/milestone-II/experiments/kg_path_selector.py)'s status→path logic then works unchanged on real state.
+Path health → switch status is attributed via the flows currently *using* that path. `kg_client` writes `ProgrammableSwitch.status`; [kg_path_selector.py](../../network/milestone-II/experiments/kg_path_selector.py)'s status→path logic then works unchanged on real state.
 
 **`system_sound` (rung 1) vs. `switch_status` (per-switch) — node-clarified.** Rung 1 bails the whole episode to `system_fault` with no adaptation, so `system_sound` must mean *the fabric genuinely can't carry traffic*, not merely *something is wrong*. The rule (`network_monitor._system_sound`): **unsound iff `s1` is Failed OR both relays are Failed** (no path exists). A **single** relay death stays *sound* on purpose — it is recoverable, so the loop should reach rung 4 and **reroute to the surviving relay** rather than bail. `Failed` means a dead process/thrift; `Degraded` (alive but SLA-violating) is **not** a fault and is handled by normal adaptation. (An earlier "any switch alive" rule was wrong: it called s1-dead "sound".)
 
@@ -396,7 +396,7 @@ Notes:
 
 > **Bounds must be calibrated to the real testbed (node-verified, important for evaluation).** Measured edge round-trips are **~40 ms on the primary path and ~52 ms on the backup**. So a field whose KG bound is, e.g., LowLatency's **20 ms** is **physically unachievable** on this fabric — with the real monitor it can never pass rung 2, so the loop exhausts its tiers and *correctly* escalates ("no in-envelope fix"). This is the fixtures-vs-real-testbed gap (risk register): the synthetic scenario models assumed reachable numbers; the wires have their own physics. For live evaluation, either pick bounds the path can meet (the 50 ms field is met on primary), expect escalation as the correct outcome, or relax the bound / reduce link delay to calibrate. The off-node scenario fixtures remain the algorithmic spec; the live runs are where bounds get reconciled to hardware.
 >
-> **Calibrated (2026-06-22).** The KG latency bounds in [generate_kg.py](controller/generate_kg.py) are now reconciled to the measured fabric: LowLatency SFC / high-priority fields **20 → 45 ms** (met on the ~40 ms primary), and ReliableRelay SFC / medium fields **50 → 60 ms** (reachable on the ~52 ms backup, with margin). Node-verified: a planner-driven `emergency_alert_relay` (ReliableRelaySFC → F2) now **reroutes to the primary path (tier 1) and commits `marginal` (headroom 0.082)** instead of escalating — the deterministic adapt ladder closing on a commit, which is the compelling demo. (Loss is noisier than latency on the real wire: the post-reroute measurement window occasionally catches a transient UDP loss spike that drags the min-flow headroom negative for one window, while the steady-state baseline is 0 % loss — a measurement artifact, not a calibration miss.)
+> **Calibrated (2026-06-22).** The KG latency bounds in [generate_kg.py](../../controller/generate_kg.py) are now reconciled to the measured fabric: LowLatency SFC / high-priority fields **20 → 45 ms** (met on the ~40 ms primary), and ReliableRelay SFC / medium fields **50 → 60 ms** (reachable on the ~52 ms backup, with margin). Node-verified: a planner-driven `emergency_alert_relay` (ReliableRelaySFC → F2) now **reroutes to the primary path (tier 1) and commits `marginal` (headroom 0.082)** instead of escalating — the deterministic adapt ladder closing on a commit, which is the compelling demo. (Loss is noisier than latency on the real wire: the post-reroute measurement window occasionally catches a transient UDP loss spike that drags the min-flow headroom negative for one window, while the steady-state baseline is 0 % loss — a measurement artifact, not a calibration miss.)
 
 ---
 
@@ -650,11 +650,11 @@ dynamic_sfc_p4_multihop_experiment.py  →
 
 > **Switch mutation (reroute, regen) is out-of-band over thrift** — `simple_switch_CLI` talks to the switch's thrift TCP port directly and does **not** need the Mininet Python process. Only **`tc` (tune)** needs host-namespace access.
 
-So: a long-lived launcher brings up Mininet+BMv2 once and stays resident; the Deployer drives switches via `simple_switch_CLI` to ports 9090–92 (process-independent) and host `tc` via `mnexec`/`ip netns exec`. Fits the existing SSH-from-controller orchestration ([run_selected_sfc.py](controller/run_selected_sfc.py)).
+So: a long-lived launcher brings up Mininet+BMv2 once and stays resident; the Deployer drives switches via `simple_switch_CLI` to ports 9090–92 (process-independent) and host `tc` via `mnexec`/`ip netns exec`. Fits the existing SSH-from-controller orchestration ([run_selected_sfc.py](../../controller/run_selected_sfc.py)).
 
 ### 10.7 On-node verification checklist — **PASSED 2026-06-14** (now migrated to the Chameleon network-node)
 
-Run with the resident `tools/launch_network.py`; full protocol + results in [tools/spike_s0.md](../runtime/tools/spike_s0.md).
+Run with the resident `tools/launch_network.py`; full protocol + results in [tools/spike_s0.md](../../runtime/tools/spike_s0.md).
 
 1. ✅ `table_add` prints `Entry has been added with handle N`; `table_dump` is `Dumping entry 0x…`; **both** `table_modify … => args` and bare-args forms are accepted (deployer's `=>` form is correct). *(See §10.5 on versioned handles.)*
 2. ✅ Live egress change takes effect immediately — the **five-part** flip (§10.1) drops exactly one in-flight packet.
@@ -703,7 +703,7 @@ class ValidationGate:
 
 Each phase is testable against the existing BMv2 setup; `DeploymentSpec` is stubbed from the existing mappers, so none of this waits on the planner.
 
-- **Phase 0 — Reversible, live deploy** (mechanics in §10). Extract deploy/rollback/re-push out of [dynamic_sfc_p4_multihop_experiment.py](network/milestone-II/experiments/dynamic_sfc_p4_multihop_experiment.py) into `deployer.py` + `topology.py`, operating on a **persistent** network (no teardown). Reroute = `table_modify` of the s1 edge-MAC entry; capture `ConfigSnapshot` with table handles. *Exit:* can re-install rules and roll back on a running network without restarting BMv2.
+- **Phase 0 — Reversible, live deploy** (mechanics in §10). Extract deploy/rollback/re-push out of [dynamic_sfc_p4_multihop_experiment.py](../../network/milestone-II/experiments/dynamic_sfc_p4_multihop_experiment.py) into `deployer.py` + `topology.py`, operating on a **persistent** network (no teardown). Reroute = `table_modify` of the s1 edge-MAC entry; capture `ConfigSnapshot` with table handles. *Exit:* can re-install rules and roll back on a running network without restarting BMv2.
 - **Phase 1 — Monitors + baseline.** Passive thrift-counter throughput/loss + ping latency; per-field `FlowMetrics`; hysteresis; status derivation (§5.5); `BaselineSnapshot` capture at deploy. *Exit:* a live `MonitorReport` with per-flow margins, harm list, headroom, path-confidence.
 - **Phase 2 — Validation Gate + snapshot stores.** The gate (§11) — L0–L2 sound checks (syntax, envelope bounds, the blackhole/reachability invariant), L3 dry-install on-node; `ConfigSnapshot`→`LastKnownGood` registry in KG; deterministic rollback. *Exit:* bad binding rejected pre-deploy; a blackhole-inducing regen rejected; deployed revision rolls back.
 - **Phase 3 — Evaluator (rungs 1–4) + RM loop.** Commit / system-fault / rollback wired end-to-end; read baselines+targets from KG; write `Verdict`s. *Exit:* injected switch kill → system-fault re-push; injected causal regression → rollback; healthy → commit + records.
@@ -715,7 +715,7 @@ Each phase is testable against the existing BMv2 setup; `DeploymentSpec` is stub
 ## 13. Open Questions / Next
 
 1. **Live re-install mechanics — documented in §10.** Remaining work is the on-node verification checklist (§10.7), not design.
-2. **DeploymentSpec / EscalationTicket — RESOLVED (planner integration built, 2026-06-17→19).** Kiran's node expired, so the planner↔runtime boundary became internal: we own both sides. The handoff is realized end-to-end (`runtime/planner_adapter.py` + `run_from_planner.py`; the orchestrator's artifact → `DeploymentSpec` → live episode → KG, verified on hardware). See [runtime-planner-contracts.md](runtime-planner-contracts.md), [planner-design.md](planner-design.md), [usage.md](usage.md), and impl-plan §8. **Note:** the slow planner runs a *second* LLM (the decision model, `Qwen2.5-1.5B`+LoRA on `cuda:0`) — distinct from this loop's Tier-2 regen code model (`Qwen2.5-Coder` on `cuda:1`, §4/§7.3).
+2. **DeploymentSpec / EscalationTicket — RESOLVED (planner integration built, 2026-06-17→19).** Kiran's node expired, so the planner↔runtime boundary became internal: we own both sides. The handoff is realized end-to-end (`runtime/planner_adapter.py` + `run_from_planner.py`; the orchestrator's artifact → `DeploymentSpec` → live episode → KG, verified on hardware). See [runtime-planner-contracts.md](runtime-planner-contracts.md), [planner-design.md](../planner/planner-design.md), [usage.md](../guides/usage.md), and impl-plan §8. **Note:** the slow planner runs a *second* LLM (the decision model, `Qwen2.5-1.5B`+LoRA on `cuda:0`) — distinct from this loop's Tier-2 regen code model (`Qwen2.5-Coder` on `cuda:1`, §4/§7.3).
 3. **Tier-2 regen prompt + grammar — resolved.** Implemented in `runtime/regen/`: GBNF generated from the gate's constants, verbatim prompt TEMPLATE, stub client, stateless K-cap. What remains for M7 is the real serving endpoint (vLLM/llama.cpp + pinned Qwen-Coder revision, with `gbnf()` as the guided-decoding constraint) and the multi-model comparison harness — **plus the review-#8 prerequisites in §13b.B** (plumb `gbnf()` through the proposer, decide gate L3; the exception fail-safe is already fixed).
 4. **Deploy backend** — keep BMv2 thrift for Milestone III, or invest in true P4Runtime gRPC? (Isolated to `deployer.py`.)
 5. **Persistent network — confirmed.** `tools/launch_network.py` holds Mininet/BMv2 resident across loop iterations; the Deployer/Monitor drive it out-of-band (thrift + `mnexec`). The one caveat is BMv2 stability under churn (§10.7 item 4) → a **switch watchdog** in the launcher is the open item before the M6 soak.
@@ -747,7 +747,7 @@ A 3-perspective review (M7/regen, the algorithmic core under real noise, contrac
 **D. M-K (planner-boundary) contract items — settle with Kiran.**
 - **Field-id direction:** the runtime translates `Field_N→F_N` on KG *reads* only; *write* payloads (`BaselineSnapshot.per_flow`, `EscalationTicket.observed`) carry runtime `F1/F2` ids, so a planner reading them must apply the inverse map. Undocumented in the planner contract.
 - `jsonable` is **one-way** (tuples/frozensets → JSON lists), so a planner cannot rebuild a `Candidate` from a persisted `trace` without re-tupling.
-- The §4 questions in `docs/runtime-planner-contracts.md` remain open: handoff Option 1 (thin) vs 2 (full), transport (KG-node+poll vs direct invoke), escalation-ack convention, extra `Verdict` cost fields, and who owns the baseline qos/qdisc.
+- The §4 questions in `docs/design/runtime-planner-contracts.md` remain open: handoff Option 1 (thin) vs 2 (full), transport (KG-node+poll vs direct invoke), escalation-ack convention, extra `Verdict` cost fields, and who owns the baseline qos/qdisc.
 
 ---
 

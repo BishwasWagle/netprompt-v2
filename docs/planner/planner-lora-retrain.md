@@ -9,7 +9,7 @@ decisions are auditable. Evaluation/results are appended once training completes
 The planner's fine-tuned LoRA (`Qwen2.5-1.5B-Instruct` +
 `netprompt_qwen_kg_rag_orchestrator/final_adapter`) **collapses to `LowLatencyVideoSFC`
 for every mission**. The two cheaper fixes were exhausted (see
-[runtime-planner-contracts.md](runtime-planner-contracts.md) §6c/§6d):
+[runtime-planner-contracts.md](../design/runtime-planner-contracts.md) §6c/§6d):
 
 - **#1 constrained decoding (done, kept):** forces a complete, valid 6-key decision and
   stops the rambling — but can't change *which* valid option the model picks.
@@ -53,7 +53,7 @@ construction.
 
 ## 4. Dataset — balanced, generate-then-bin
 
-Script: [`train_decision_lora.py`](../network/milestone-II-latest/netprompt-milestone-II/train_decision_lora.py).
+Script: [`train_decision_lora.py`](../../network/milestone-II-latest/netprompt-milestone-II/train_decision_lora.py).
 
 - **Fixed context from the live KG (once):** `get_topology_snapshot` +
   `get_candidate_sfc_policy_set` → the same `compact_topology_context` + candidate set

@@ -3,7 +3,7 @@
 **What this is.** The *slow planner* is the **outer / strategic loop** of NetPrompt: an
 LLM KG-RAG orchestrator that, given a mission + live network state, **selects an SFC and
 its P4 policy/path/relay** and compiles a deployable artifact. The **fast / runtime loop**
-(the Runtime Manager, [runtime-manager-design.md](runtime-manager-design.md)) then takes
+(the Runtime Manager, [runtime-manager-design.md](../design/runtime-manager-design.md)) then takes
 that artifact onto the live P4/BMv2 network and adapts within the SFC's envelope. This
 document covers the planner end-to-end — architecture, pipeline, components, the decision
 contract, and the full arc from the original implementation to the extensions added here.
@@ -17,7 +17,7 @@ contract, and the full arc from the original implementation to the extensions ad
   local KG so it runs on the consolidated node; **grammar-constrained decoding**; the
   **prompt/few-shot** experiment (negative); and a **LoRA retrain** to fix decision
   quality. All four are detailed in §7, and cross-referenced to
-  [runtime-planner-contracts.md](runtime-planner-contracts.md) and
+  [runtime-planner-contracts.md](../design/runtime-planner-contracts.md) and
   [planner-lora-retrain.md](planner-lora-retrain.md).
 
 ---
@@ -32,9 +32,9 @@ Intent/mission ─▶ SLOW PLANNER (this doc) ─▶ artifact ─▶ RUNTIME MAN
 
 The planner **decides which SFC to run**; the runtime **executes and adapts it** and emits
 verdicts the planner's learning loop can later consume (design
-[runtime-manager-design.md §1a/§1b](runtime-manager-design.md)). The two share the **Neo4j
+[runtime-manager-design.md §1a/§1b](../design/runtime-manager-design.md)). The two share the **Neo4j
 KG** as the hub. The planner is "slow" because it runs per mission/re-plan, not per control
-cycle. The handoff contract is [runtime-planner-contracts.md](runtime-planner-contracts.md).
+cycle. The handoff contract is [runtime-planner-contracts.md](../design/runtime-planner-contracts.md).
 
 ## 2. Architecture
 
@@ -163,7 +163,7 @@ The model must emit a **6-key JSON decision**, all validated against
 `policy_compiler` turns it into the artifact (`selected_sfc`, `policy_type`, `selected_path`,
 `p4_json` + `access_rules`/`relay_rules`/`backup_rules`, `deployment` block, topology
 summary), which the runtime adapter consumes
-([runtime-planner-contracts.md](runtime-planner-contracts.md)).
+([runtime-planner-contracts.md](../design/runtime-planner-contracts.md)).
 
 ## 7. Extensions (this work, 2026-06)
 
@@ -225,7 +225,7 @@ Full method, eval table, and the corrected promote analysis:
   node + poll transport remains a future option (contracts §5/§6a).
 - **Learning loop — CLOSED (analytics → decision context).** The outer-loop "Results +
   analytics" (`llm_orchestrator/analytics.py` →
-  [components/planner-analytics.md](components/planner-analytics.md)) aggregates the
+  [components/planner-analytics.md](../components/planner-analytics.md)) aggregates the
   runtime's `Verdict`/`EscalationTicket` history into a **per-SFC reliability signal**, and
   `build_runtime_input_object` now **folds that signal back into every decision** as
   `input_object.runtime_feedback` (best-effort; `NETPROMPT_PLANNER_FEEDBACK=0` to disable).
@@ -239,6 +239,6 @@ Full method, eval table, and the corrected promote analysis:
 
 - Original planner: **Bishwas & Kiran** (Milestone-II `llm_orchestrator`, KG-RAG, LoRA).
 - Extensions (this work): §7 above.
-- Related docs: [runtime-manager-design.md](runtime-manager-design.md) (fast loop) ·
-  [runtime-planner-contracts.md](runtime-planner-contracts.md) (handoff + the §6
+- Related docs: [runtime-manager-design.md](../design/runtime-manager-design.md) (fast loop) ·
+  [runtime-planner-contracts.md](../design/runtime-planner-contracts.md) (handoff + the §6
   integration log) · [planner-lora-retrain.md](planner-lora-retrain.md) (the retrain).

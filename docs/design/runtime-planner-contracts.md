@@ -11,7 +11,7 @@
 **From:** Kevin (Runtime Manager / inner loop) · **To:** ~~Kiran (Planner / outer loop)~~ now self.
 **Purpose:** the *two* messages that cross the planner↔runtime seam, plus the KG read/write split. Everything else in [runtime-manager-design.md](runtime-manager-design.md) is runtime-internal.
 
-The single source of truth once agreed: [`runtime/contracts.py`](../runtime/contracts.py) — both sides import it (or mirror its field names exactly).
+The single source of truth once agreed: [`runtime/contracts.py`](../../runtime/contracts.py) — both sides import it (or mirror its field names exactly).
 
 ---
 
@@ -107,7 +107,7 @@ setup.
 ## 4. Implementation status (runtime side — already built)
 
 So you can see the shapes are real, not proposals: all types in this note exist in
-[`runtime/contracts.py`](../runtime/contracts.py) and are exercised by the unit
+[`runtime/contracts.py`](../../runtime/contracts.py) and are exercised by the unit
 suite on branch `Run-time-Manager`. Facts that affect your side:
 
 - **KG persistence format:** Verdicts, tickets, and snapshots are written with
@@ -138,13 +138,13 @@ The inbound handoff is wired on the runtime side, consuming your existing artifa
 **without touching any planner code** (your decision kernel — `validator` /
 `prompt_builder` / `kg_context` / `policy_compiler` — is untouched). What landed:
 
-- [`runtime/planner_adapter.py`](../runtime/planner_adapter.py) — turns your
+- [`runtime/planner_adapter.py`](../../runtime/planner_adapter.py) — turns your
   `outputs/llm_generated_experiment_config.json` into our normalized
   `DeploymentSpec`. Maps `selected_sfc → sfc`, the four rule/JSON paths → `binding`,
   derives the `envelope` (from the KG, action space runtime-owned), and threads the
   two runtime-supplied fields (below). 15 unit tests against synthetic *and* the
   real committed artifact; full suite **199 green**.
-- [`runtime/tools/run_from_planner.py`](../runtime/tools/run_from_planner.py) — CLI.
+- [`runtime/tools/run_from_planner.py`](../../runtime/tools/run_from_planner.py) — CLI.
   Default is a **dry** run (normalize → gate `check_binding`, no deploy); `--no-kg`
   gives a fully offline structural check. Verified end-to-end on this node against
   the real artifact (`ReliableRelaySFC`, backup path) → gate **PASS**.
@@ -187,7 +187,7 @@ The inbound handoff is wired on the runtime side, consuming your existing artifa
   now resolves a real envelope live (e.g. `ReliableRelaySFC`/`Field_2` →
   `lat≤50ms, bw≥20mbps`) instead of `LookupError`.
 - **Non-destructive strategic seed — DONE (D12b).**
-  [`runtime/tools/seed_kg.py`](../runtime/tools/seed_kg.py) MERGEs the strategic graph
+  [`runtime/tools/seed_kg.py`](../../runtime/tools/seed_kg.py) MERGEs the strategic graph
   idempotently (KG creds from `runtime.config`, not hardcoded) — unlike the legacy
   `controller/import_kg.py`, which opens with `MATCH (n) DETACH DELETE n` and would
   wipe runtime records. Proven: a planted `Verdict` canary survives a re-seed.
@@ -198,7 +198,7 @@ The inbound handoff is wired on the runtime side, consuming your existing artifa
   `target_field` to `F<n>` so the spec is runtime-canonical (`build_envelope` maps it
   back to `Field_<n>` for KG reads).
 - **`--deploy` driver — WIRED (D9).**
-  [`run_from_planner.py`](../runtime/tools/run_from_planner.py) `--deploy` builds the
+  [`run_from_planner.py`](../../runtime/tools/run_from_planner.py) `--deploy` builds the
   spec (KG envelope), pre-flight-gates the binding, then reuses the M5/M6-tested
   `build_and_run` to deploy + run one episode + write the verdict/snapshots to the KG.
 - **Live end-to-end episode — DONE (D11, 2026-06-17).** Ran the real planner artifact
@@ -223,7 +223,7 @@ The inbound handoff is wired on the runtime side, consuming your existing artifa
   we own the orchestrator now, adding them to the artifact is an optional polish.
 
 - **Multi-handoff soak — DONE (D14, 2026-06-17).**
-  [`runtime/tools/planner_soak.py`](../runtime/tools/planner_soak.py) drives N handoffs
+  [`runtime/tools/planner_soak.py`](../../runtime/tools/planner_soak.py) drives N handoffs
   back-to-back (fresh `correlation_id` each), cycling the target field. 6 rounds on the
   resident testbed → **6/6 verdicts written to the KG** (6 `Verdict`, 5 `EscalationTicket`,
   6 `BaselineSnapshot`), no state bleed or crash across consecutive deploys. Verdict
@@ -320,6 +320,6 @@ deployable*.
 > makes it always valid, so under the production default the LLM's choice is **used** and
 > the fallback is **bypassed**. With the *original* (mode-collapsed) adapter that means the
 > wrong SFC ships for non-LowLatency missions. The retrain (#3 —
-> [planner-lora-eval.md](planner-lora-eval.md), [planner-lora-retrain.md](planner-lora-retrain.md))
+> [planner-lora-eval.md](../planner/planner-lora-eval.md), [planner-lora-retrain.md](../planner/planner-lora-retrain.md))
 > is what makes the *used* decision correct on the known mission taxonomy — hence the
 > recommendation to promote it.

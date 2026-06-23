@@ -5,9 +5,13 @@ codebase's existing idioms (`from __future__ import annotations`, dataclasses,
 why-focused docstrings, the `PRIMARY/TUNE` constant pattern) and the green
 212-test baseline. Every refactor states *why behavior is unchanged*.
 
-> These are proposals documented for review — they are **not yet applied** to
-> `runtime/`. Apply them incrementally per [03](03-refactoring-strategy.md), with
-> `pytest tests/unit` green before and after each.
+> **Status.** Several of these have since been **applied**: **M1** (vocabularies),
+> **D2** (margin helper), **A1** (Protocols), and the **D1/D3/D5** deletions landed
+> in Phase 0/1 (commits `f9eab54`, `e5e9d8c`) — their "before" blocks below are the
+> pre-refactor state, kept as the rationale. **P1** (parallel pings), **P3** (regen
+> deadline), and **D4** (scrape module) remain **proposals**. Apply remaining items
+> incrementally per [03](03-refactoring-strategy.md), with `pytest tests/unit` green
+> before and after each.
 
 **Jump to:** [M1 vocabularies](#m1) · [D2 margin helper](#d2) ·
 [P1 parallel pings](#p1) · [P3 regen warmup+timeout](#p3) ·

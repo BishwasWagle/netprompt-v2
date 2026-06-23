@@ -1,13 +1,13 @@
 # NetPrompt — Usage Guide
 
 How to run the system end-to-end and each of its two LLMs individually. For *what* the
-pieces are, see [runtime-manager-design.md](runtime-manager-design.md) (fast loop),
-[planner-design.md](planner-design.md) (slow loop), and
-[runtime-planner-contracts.md](runtime-planner-contracts.md) (the handoff). For a
+pieces are, see [runtime-manager-design.md](../design/runtime-manager-design.md) (fast loop),
+[planner-design.md](../planner/planner-design.md) (slow loop), and
+[runtime-planner-contracts.md](../design/runtime-planner-contracts.md) (the handoff). For a
 **per-component reference** (one card each: runtime manager, gate, deployer, monitors,
 evaluator, adapt engine, KG client, slow planner, and both LLMs) see
-[components/](components/README.md). For what's left to build + the gotchas to remember see
-[future-work.md](future-work.md).
+[components/](../components/README.md). For what's left to build + the gotchas to remember see
+[future-work.md](../design/future-work.md).
 
 **The system has two loops and two LLMs:**
 - **Slow planner** (outer loop) — an LLM **decision model** (`Qwen2.5-1.5B-Instruct` + LoRA)
@@ -115,7 +115,7 @@ sudo -E env NETPROMPT_TREE_ROOT="$NETPROMPT_ROOT" NETPROMPT_KG_URI=bolt://localh
 The RM runs one **episode**: deploy a binding, observe a window, run the 6-stage evaluator,
 and adapt within the SFC envelope (tier 0 tune → tier 1 reroute → tier 2 regen), then commit /
 rollback / escalate. It is deterministic except for the optional tier-2 LLM (§4).
-See [runtime-manager-design.md](runtime-manager-design.md).
+See [runtime-manager-design.md](../design/runtime-manager-design.md).
 
 **Run an episode — scenario-driven** (no planner; a fixture drives the situation):
 ```bash
@@ -138,7 +138,7 @@ sudo -E ~/netprompt-venv/bin/python -m runtime.tools.soak \
 
 ### 1.7 Planner analytics (the closed learning loop)
 The runtime's verdict/escalation history is aggregated into a per-SFC reliability signal
-([components/planner-analytics.md](components/planner-analytics.md)) and **fed back into
+([components/planner-analytics.md](../components/planner-analytics.md)) and **fed back into
 every planner decision** as `input_object.runtime_feedback` (so the slow loop sees how its
 prior choices fared). Disable with `NETPROMPT_PLANNER_FEEDBACK=0`. Inspect the signal
 directly:
@@ -156,7 +156,7 @@ cd "$NETPROMPT_ROOT"
 ## 3. Planner LLM — the decision model (`Qwen2.5-1.5B-Instruct` + LoRA)
 
 Selects `selected_sfc/policy/path/relay/priority/deployment_mode` from mission + telemetry +
-KG context. Runs in `llm_orchestrator` on **`cuda:0`**. See [planner-design.md](planner-design.md).
+KG context. Runs in `llm_orchestrator` on **`cuda:0`**. See [planner-design.md](../planner/planner-design.md).
 
 **Run it (produces the artifact):** see §1.3. Key flags:
 - `--mission/--bandwidth/--delay/--loss/--battery` — the situation.
@@ -164,7 +164,7 @@ KG context. Runs in `llm_orchestrator` on **`cuda:0`**. See [planner-design.md](
 - `--output <path>` — where to write `llm_generated_experiment_config.json`.
 
 **Constrained decoding** (default ON) forces a complete, valid 6-key decision and stops the
-rambling ([contracts §6c](runtime-planner-contracts.md)):
+rambling ([contracts §6c](../design/runtime-planner-contracts.md)):
 ```bash
 export NETPROMPT_LLM_CONSTRAINED=1     # on (default); =0 to disable (then invalid output -> rule-based fallback)
 ```
@@ -179,7 +179,7 @@ NETPROMPT_LLM_ADAPTER=".../final_adapter"
 ```
 Both adapters are version-controlled; `final_adapter_original_backup/` is a redundant copy.
 
-**Retrain the LoRA** (oracle distillation — see [planner-lora-retrain.md](planner-lora-retrain.md)):
+**Retrain the LoRA** (oracle distillation — see [planner-lora-retrain.md](../planner/planner-lora-retrain.md)):
 ```bash
 cd "$NETPROMPT_ROOT"
 ~/netprompt-venv/bin/python train_decision_lora.py \
@@ -188,7 +188,7 @@ cd "$NETPROMPT_ROOT"
   --per-class 160 --epochs 3 --device cuda:0      # ~55 min on a P100, fp32
 ```
 
-**Evaluate** (see [planner-lora-eval.md](planner-lora-eval.md)): run §1.3 per mission with
+**Evaluate** (see [planner-lora-eval.md](../planner/planner-lora-eval.md)): run §1.3 per mission with
 `--adapter-path` and read `selected_sfc` + `decision.llm_parse_status` (`parsed_json` =
 LLM decision used). Known limit: correct on the known mission taxonomy, defaults to
 BandwidthOptimized on novel/telemetry-only missions.
@@ -200,7 +200,7 @@ BandwidthOptimized on novel/telemetry-only missions.
 The runtime's **last-resort adaptation tier**: when tune (tier 0) and reroute (tier 1) can't
 meet SLA, it **regenerates P4 table rules** under GBNF-constrained decoding, validated by the
 gate before anything touches a switch. Runs on **`cuda:1`** (separate from the planner).
-See [m7-implementation-plan.md](m7-implementation-plan.md) and design §4/§7.3.
+See [m7-implementation-plan.md](../regen/m7-implementation-plan.md) and design §4/§7.3.
 
 **Config** (pins for reproducibility, in `gpu-node.env`):
 ```bash
@@ -231,7 +231,7 @@ sudo -E ... ~/netprompt-venv/bin/python -m pytest tests/integration/test_m7_rege
 NETPROMPT_REGEN_DEVICE=cuda:1 ~/netprompt-venv/bin/python -m runtime.tools.regen_compare \
   --models Qwen/Qwen2.5-Coder-0.5B-Instruct,Qwen/Qwen2.5-Coder-1.5B-Instruct,Qwen/Qwen2.5-Coder-3B-Instruct
 ```
-See [m7-regen-comparison.md](m7-regen-comparison.md). Fail-safe: an unavailable/invalid model
+See [m7-regen-comparison.md](../regen/m7-regen-comparison.md). Fail-safe: an unavailable/invalid model
 escalates with the network untouched (capability degrades, safety doesn't).
 
 ---

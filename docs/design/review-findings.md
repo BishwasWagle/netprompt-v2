@@ -10,7 +10,7 @@ premature "safety core clean".
 
 | # | Where | Fix |
 |---|---|---|
-| 1 | test_m7_regen_live.py | **Test C false green** — targeted d10 (not measured by F1) and read the stale deployer cache. Now targets d4 (F1's ping target) + reads the live switch. Re-run reveals the engine recovers via rung-3 ROLLBACK before Tier-2 regen fires (`outcome='rollback'`), so a regen-DRIVEN recovery is not demonstrated — see docs/m7-regen-live-demo.md §7b. |
+| 1 | test_m7_regen_live.py | **Test C false green** — targeted d10 (not measured by F1) and read the stale deployer cache. Now targets d4 (F1's ping target) + reads the live switch. Re-run reveals the engine recovers via rung-3 ROLLBACK before Tier-2 regen fires (`outcome='rollback'`), so a regen-DRIVEN recovery is not demonstrated — see docs/regen/m7-regen-live-demo.md §7b. |
 | 2 | deployer.py REGEN apply | Inspect `run_cli` output for per-line CLI errors (simple_switch_CLI exits 0 on per-line failure) and raise DeployError instead of committing a partial apply. |
 | 4 | grammar.py | `gbnf` now conditions args on action (forward→port, noarg→none); docstring no longer overclaims full gate-L0 lockstep (per-table action conditioning still deferred). |
 | 5 | gpu-node.env + setup_gpu_node.sh | Export `NETPROMPT_TREE_ROOT` (runtime needs it; config default points at a stale `Run-time-Manager-2` tree). |
@@ -61,7 +61,7 @@ premature "safety core clean".
 | Med | kg_client.py write_verdict/write_escalation | MERGE on (correlation_id, timestamp) — idempotent retry, no duplicate nodes |
 | Med | deployer.py `_ensure_forward` | scan modify output for errors instead of trusting the in-memory mutation |
 | Med | node_runner.py `run_host` | include stdout in the error message |
-| Low | docs/runtime-manager-design.md | hysteresis wording: windowed K-of-M (matches the code), not strictly consecutive |
+| Low | docs/design/runtime-manager-design.md | hysteresis wording: windowed K-of-M (matches the code), not strictly consecutive |
 
 ## Deferred (reviewed, with reason)
 

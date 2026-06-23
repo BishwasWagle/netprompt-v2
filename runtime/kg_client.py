@@ -2,7 +2,7 @@
 
 Reads strategic state (SFCTemplate bounds, field requirements); writes
 RUNTIME state only (switch status, verdicts, tickets, snapshots). Never
-touches the SFC library — see docs/runtime-planner-contracts.md §3.
+touches the SFC library — see docs/design/runtime-planner-contracts.md §3.
 
 The driver is injectable: tests pass a fake; production constructs via
 KGClient.connect() (lazy neo4j import, same endpoint/credentials as the

@@ -14,7 +14,7 @@ and current differ, both are cited.
 > context, the fine-tuned `Qwen2.5-1.5B + LoRA` decision model, the validator +
 > deterministic fallback, the policy compiler, and the
 > `llm_generated_experiment_config.json` artifact are **Bishwas & Kiran's**
-> work (`docs/planner-design.md:11-15`). This session's contributions are the
+> work (`docs/planner/planner-design.md:11-15`). This session's contributions are the
 > four planner extensions (§3), the whole `runtime/` MAPE-K inner loop, the
 > KG read/write split, the test suite, and the retrain (§7).
 
@@ -63,14 +63,14 @@ config artifact and stopping** — it never triggered or supervised a deployment
   per-episode budget.
 
 The two loops are bridged by a **typed contract** — `DeploymentSpec` in,
-`EscalationTicket` + `Verdict` out (`docs/runtime-planner-contracts.md:34-76`) —
+`EscalationTicket` + `Verdict` out (`docs/design/runtime-planner-contracts.md:34-76`) —
 and a **closed analytics loop** folds runtime verdicts back into the planner's
 decision context (`orchestrate.py:55-56`, `analytics.py`).
 
 *Verified live behavior:* an end-to-end planner-artifact episode (D11) produced a
 real `Verdict(outcome=escalated, tier_reached=2)` + `EscalationTicket`; a
 multi-handoff soak (D14) ran 6 rounds → 6/6 verdicts written
-(`docs/runtime-planner-contracts.md:204-236`).
+(`docs/design/runtime-planner-contracts.md:204-236`).
 
 ---
 
@@ -175,7 +175,7 @@ fire-and-forget (no output check). The original used a **single OVS switch**
 (`sfc_experiment.py`) or single P4 switch.
 
 **Current** — two tiers:
-- **Off-testbed pytest unit suite: 212 tests / 454 assertions** across 19 files,
+- **Off-testbed pytest unit suite: 212 tests / 454 assertions** across 18 files,
   built on deterministic test doubles (`FakeDeployer`/`FakeMonitor`/
   `ScriptedRunner`) + **6 scenario fixtures** (`runtime/fixtures.py`), so engine
   and evaluator logic is tested without `sudo` Mininet.
@@ -338,9 +338,9 @@ a feedback-aware retrain to *act* on the (already-wired) analytics loop.
 
 ---
 
-*Sources: `docs/planner-design.md`, `docs/planner-lora-retrain.md`,
-`docs/planner-lora-eval.md`, `docs/runtime-planner-contracts.md`,
-`docs/future-work.md`, `controller/{generate_kg,import_kg,select_template,run_selected_sfc}.py`,
+*Sources: `docs/planner/planner-design.md`, `docs/planner/planner-lora-retrain.md`,
+`docs/planner/planner-lora-eval.md`, `docs/design/runtime-planner-contracts.md`,
+`docs/design/future-work.md`, `controller/{generate_kg,import_kg,select_template,run_selected_sfc}.py`,
 `network/milestone-II-latest/netprompt-milestone-II/{llm_orchestrator,train_decision_lora.py}`,
 `runtime/{kg_client,planner_adapter,fixtures,fakes}.py`, `deploy/gpu-node/gpu-node.env`.
 All metrics adversarially verified (24/24 confirmed) against these files.*

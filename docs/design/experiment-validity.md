@@ -3,6 +3,10 @@
 **Question.** Can we start running experiments, or do outstanding issues from the
 code review affect the *validity* of the results?
 
+> Companion: **[experiment-design.md](experiment-design.md)** — the three
+> experiments (slow planner · runtime manager · whole system) that operate under
+> the controls established here.
+
 **Bottom line.** **Yes — start experimenting**, subject to the **preconditions in
 §7**. An adversarial six-axis validity audit found **no hard validity blocker** in
 the code. The senior-engineering review

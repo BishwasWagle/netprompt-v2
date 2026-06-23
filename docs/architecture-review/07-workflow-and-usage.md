@@ -1,4 +1,4 @@
-# 8 · Workflow & Usage
+# 7 · Workflow & Usage
 
 How the system runs end-to-end — the operational lifecycle, what happens at each
 stage, and the concrete commands to drive it. This frames the workflow; the

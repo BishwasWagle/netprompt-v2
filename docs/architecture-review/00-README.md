@@ -18,8 +18,8 @@ Every refactor in this review is designed to keep that suite green.
 | 4 | [04-production-code.md](04-production-code.md) | Drop-in, behavior-preserving production-grade code for the highest-value fixes. |
 | 5 | [05-evolution-from-original.md](05-evolution-from-original.md) | How the system evolved from Bishwas & Kiran's original NetPrompt (slow planner, KG, selector, test env) — architecture/workflow shift, the two models, and the LoRA retraining (what was done and how it improved). |
 | 6 | [06-knowledge-graph.md](06-knowledge-graph.md) | The KG as the system's coordination hub — how the slow planner and runtime manager (and their models) read/write it, improvements over the original, and the novelty of the KG-coordinated multi-model neuro-symbolic design. |
-| 7 | [07-summary.md](07-summary.md) | Digest & reading guide — a concise, per-document summary of this whole review set, a master facts table, and current implementation status. Start here to navigate. |
-| 8 | [08-workflow-and-usage.md](08-workflow-and-usage.md) | The operational workflow & usage — the six-stage run lifecycle, the three ways to run an episode, the two models, testing, gotchas, and a command cheat-sheet (frames `docs/usage.md`). |
+| 7 | [07-workflow-and-usage.md](07-workflow-and-usage.md) | The operational workflow & usage — the six-stage run lifecycle, the three ways to run an episode, the two models, testing, gotchas, and a command cheat-sheet (frames `docs/usage.md`). |
+| 8 | [08-summary.md](08-summary.md) | Digest & reading guide — a concise, per-document summary of this whole review set, a master facts table, and current implementation status. Start here to navigate. |
 
 ## How this review was produced
 
@@ -58,4 +58,4 @@ behavior.
 
 - **A green 212-test baseline anchors every refactor.** At review time, `pytest tests/unit` reported 212 passed in 0.31s, and the explicit mandate was to improve quality, scalability, and maintainability *without changing functionality* — so every proposed refactor is designed to keep that suite green.
 
-- **Seven documents, with a clear entry point.** The set spans architecture (01), severity-ranked critical problems with `file:line` evidence (02), a low-risk-first refactoring strategy with test gates (03), drop-in production code (04), the evolution from Bishwas & Kiran's original NetPrompt (05), the knowledge graph as coordination hub (06), and a summary/reading guide (07) — start with 07-summary.md to navigate.
+- **Eight documents, with a clear entry point.** The set spans architecture (01), severity-ranked critical problems with `file:line` evidence (02), a low-risk-first refactoring strategy with test gates (03), drop-in production code (04), the evolution from Bishwas & Kiran's original NetPrompt (05), the knowledge graph as coordination hub (06), the operational workflow & usage (07), and a summary/reading guide (08) — start with 08-summary.md to navigate.

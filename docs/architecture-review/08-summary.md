@@ -1,4 +1,4 @@
-# 7 · Review Set — Digest & Reading Guide
+# 8 · Review Set — Digest & Reading Guide
 
 A one-screen summary of every document in `docs/architecture-review/`: what each
 one is for, what's inside, the headline takeaways, and (where relevant) its
@@ -9,16 +9,18 @@ implementation status. Read this first to decide which document you need.
 ## How to read this set
 
 ```
-00-README ──▶ 07-summary (you are here)
+00-README ──▶ 08-summary (you are here)
    │
    ├─ Understand the system ........ 01-architecture · 06-knowledge-graph
    ├─ See what's wrong / debt ...... 02-critical-problems
    ├─ Plan & apply fixes ........... 03-refactoring-strategy · 04-production-code
+   ├─ Run / operate the system ..... 07-workflow-and-usage
    └─ Understand how it got here ... 05-evolution-from-original
 ```
 
 - **New to the codebase?** 01 → 06 → 05.
 - **Reviewing / triaging debt?** 02 → 03 → 04.
+- **Running or operating it?** 07-workflow-and-usage (lifecycle + commands).
 - **Writing the paper / status report?** 05 → 06 (the verified metrics live here).
 
 **Baseline that anchors everything:** `pytest tests/unit` → **212 passed in
@@ -132,6 +134,22 @@ ownership contract — that contract is the architecture.
 
 ---
 
+## 07 · Workflow & usage
+**Purpose:** how to actually run and operate the system.
+**Inside:**
+- The **six-stage lifecycle** (seed KG → launch testbed → plan → episode → verify →
+  feedback), with a stage/component/command table.
+- The full **end-to-end run** with real, ground-truthed commands, and the **three
+  ways to run an episode** (scenario / planner / soak) picked by intent.
+- The **two models** (swap adapters, retrain, regen tools), the **testing
+  workflow** (212 unit / 16 integration), the closed **feedback loop**,
+  **operational gotchas**, and a **command cheat-sheet**.
+**Takeaway:** frames the operational lifecycle and the *why*; cross-links
+[`docs/usage.md`](../usage.md) as the canonical flag-level reference. The inner
+loop runs with no LLM by default (Tier-2 stubbed → escalate).
+
+---
+
 ## Master facts table (all verified)
 
 | Fact | Value | Source |
@@ -158,16 +176,16 @@ ownership contract — that contract is the architecture.
 | Phase 1 — typing & vocabularies | ✅ committed (`e5e9d8c`) |
 | Phase 2 — performance | proposed ([04](04-production-code.md) P1/P3) |
 | Phase 3 — scalability | proposed ([03](03-refactoring-strategy.md)) |
-| Review documents (00–07) | committed |
+| Review documents (00–08) | committed |
 
-*This digest is generated from the six review documents it summarizes; if those
+*This digest is generated from the review documents it summarizes; if those
 change, update the relevant section here.*
 
 ---
 
 ## Key Takeaways
 
-- **Read this digest first, then jump to the document you need.** `07-summary.md` is a one-screen reading guide to the seven docs in `docs/architecture-review/`. Follow the routing it gives: new to the codebase → 01 → 06 → 05; triaging debt → 02 → 03 → 04; writing the paper or status report → 05 → 06, where the verified metrics live.
+- **Read this digest first, then jump to the document you need.** `08-summary.md` is a one-screen reading guide to the eight docs in `docs/architecture-review/`. Follow the routing it gives: new to the codebase → 01 → 06 → 05; triaging debt → 02 → 03 → 04; running or operating it → 07-workflow-and-usage; writing the paper or status report → 05 → 06, where the verified metrics live.
 
 - **The single most important conclusion: don't rewrite the loop.** The `runtime/` control logic (a two-loop MAPE-K model: slow LLM planner → deterministic `RuntimeManager`) is genuinely well-engineered, with safety-by-construction (domination guard, hysteresis, fail-safe escalation). The debt is at the *edges* — a ~1.1 GB forked-duplicate archive, docstring-only contracts, magic-string vocabularies, and a few hot-path costs — all fixable without changing behavior.
 

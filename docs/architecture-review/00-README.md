@@ -18,6 +18,8 @@ Every refactor in this review is designed to keep that suite green.
 | 4 | [04-production-code.md](04-production-code.md) | Drop-in, behavior-preserving production-grade code for the highest-value fixes. |
 | 5 | [05-evolution-from-original.md](05-evolution-from-original.md) | How the system evolved from Bishwas & Kiran's original NetPrompt (slow planner, KG, selector, test env) — architecture/workflow shift, the two models, and the LoRA retraining (what was done and how it improved). |
 | 6 | [06-knowledge-graph.md](06-knowledge-graph.md) | The KG as the system's coordination hub — how the slow planner and runtime manager (and their models) read/write it, improvements over the original, and the novelty of the KG-coordinated multi-model neuro-symbolic design. |
+| 7 | [07-summary.md](07-summary.md) | Digest & reading guide — a concise, per-document summary of this whole review set, a master facts table, and current implementation status. Start here to navigate. |
+| 8 | [08-workflow-and-usage.md](08-workflow-and-usage.md) | The operational workflow & usage — the six-stage run lifecycle, the three ways to run an episode, the two models, testing, gotchas, and a command cheat-sheet (frames `docs/usage.md`). |
 
 ## How this review was produced
 
@@ -41,3 +43,19 @@ expressed as prose docstrings rather than `typing.Protocol`/enums, and a handful
 of hot-path performance costs (per-attempt subprocess storms, per-statement KG
 sessions, an un-timed blocking LLM call). All are fixable without touching
 behavior.
+
+---
+
+## Key Takeaways
+
+- **The verdict: sound control logic, debt at the edges.** This June 2026 senior engineering review of RuntimeManager concludes the `runtime/` package is genuinely well-engineered — a clean MAPE-K control loop with carefully reasoned safety properties (domination guard, hysteresis, fail-safe escalation), pure/testable computation cores, and injectable I/O seams. The quality debt is explicitly *not* in the control logic but at the periphery, and all of it is fixable without changing behavior.
+
+- **The "edges" are concrete and named.** The biggest debt items are a ~1.1 GB forked-duplicate `network/` archive committed to git, contracts and protocols written as prose docstrings instead of `typing.Protocol`/enums, and a handful of hot-path performance costs (per-attempt subprocess storms, per-statement KG sessions, and an un-timed blocking LLM call).
+
+- **Findings were adversarially verified against the actual code.** The review combined a direct read of every module in `runtime/` with a multi-agent pass that mapped each subsystem and hunted issues across five dimensions, then checked every finding against the real source. The severities reported throughout are the post-verification, corrected values — not raw first-pass guesses.
+
+- **Documented tradeoffs are not bugs.** Because this is unusually well-documented research code, several plausible-sounding findings were deliberately thrown out as intentional, documented design decisions rather than defects — captured in the "What is NOT a problem" appendix of 02-critical-problems.md. The calibration philosophy credits deliberate design instead of flagging it.
+
+- **A green 212-test baseline anchors every refactor.** At review time, `pytest tests/unit` reported 212 passed in 0.31s, and the explicit mandate was to improve quality, scalability, and maintainability *without changing functionality* — so every proposed refactor is designed to keep that suite green.
+
+- **Seven documents, with a clear entry point.** The set spans architecture (01), severity-ranked critical problems with `file:line` evidence (02), a low-risk-first refactoring strategy with test gates (03), drop-in production code (04), the evolution from Bishwas & Kiran's original NetPrompt (05), the knowledge graph as coordination hub (06), and a summary/reading guide (07) — start with 07-summary.md to navigate.

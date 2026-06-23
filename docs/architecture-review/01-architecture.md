@@ -166,3 +166,21 @@ already depends on informally become checkable, and the one global `config`
 module splits into "physical mechanism" (topology) and "control policy"
 (tunables) so two configurations can coexist without monkeypatching globals.
 See [03-refactoring-strategy.md](03-refactoring-strategy.md).
+
+---
+
+## Key Takeaways
+
+- **It's the deterministic inner loop of a two-loop MAPE-K system.** A slow LLM planner (Qwen Instruct on cuda:0) does KG-RAG to pick *which* SFC and path, writes `llm_generated_experiment_config.json`, and then stops — it never deploys. RuntimeManager (`runtime/`) takes that artifact, deploys it to the live P4/BMv2 network, and drives one episode to a terminal verdict via a cost-ordered ladder. The Runtime Manager itself is *not* an LLM; an LLM only appears as an optional Tier-2 "regenerate the P4 rules" component (Qwen Coder on cuda:1).
+
+- **Everything crosses boundaries as typed contracts.** The whole loop is choreographed through a small set of immutable-ish dataclasses in `contracts.py` (`DeploymentSpec`, `MonitorReport`, `Candidate`, `Diagnosis`, `Verdict`, `EscalationTicket`, `Envelope`, etc.), with timestamps always caller-supplied so behavior is deterministic under test. Boundaries are explicit: a `DeploymentSpec` is the planner→runtime handoff, and `Verdict` is the terminal outcome — one of `healthy | marginal | rollback | escalated | system_fault | rejected`.
+
+- **An episode runs as nested ladders, each with file/line anchors.** `run_episode()` (`runtime_manager.py:45`) gates first (rejecting without ever deploying), captures live table state, builds a fresh per-episode `Budget(N)`, observes a window into a `MonitorReport`, then calls `evaluate()` (`evaluator.py:75`). That 6-stage ladder checks system soundness → SLA met → regression-vs-baseline rollback → `adapt()` → displaced-harm relief → commit, and `adapt()` (`adapt.py:174`) is the cost-ordered hill-climb (tier 0 tune → 1 reroute → 2 regen LLM) that loops while budget remains.
+
+- **One engine serves both failure modes, against a single goal.** Whether the target SFC is failing or a neighbor is harmed, both enter the *same* `adapt()` with `GOAL = target_sla_met AND no displaced_harm` — no duplicated control logic. Diagnosis ranks the worst violation with the target outranking, and the runtime *never* re-selects the SFC (that was the planner's job).
+
+- **Pure core / impure shell is a deliberate, preserved strength.** `pipeline.py`, the deployer's parsers/builders, and all of the adapt/evaluate logic are pure and unit-tested off-node against fakes (`FakeDeployer`, `FakeMonitor`, `ScriptedRunner`); only a thin sampler/runner layer (`node_runner.py`, samplers) touches real I/O via `simple_switch_CLI` over thrift and `mnexec`.
+
+- **Safety is built in by construction, not bolted on.** A domination guard never accepts a regression, strict-progress hill-climb plus finite quantized candidate grids and a `tried` set guarantee termination, a per-episode budget bounds work, and Tier-2 returning `None` triggers fail-safe escalation. The gate is conservative-by-default — without live table state it *refuses* regen rather than hoping — and KG writes are best-effort so recording can never abort an episode.
+
+- **The north-star is sharper seams, same behavior.** The refactors target turning the contracts the loop already depends on informally into checkable Protocols (`DeployerProto`, `MonitorProto`, `GateProto`, optional `TableStateProto`) plus closed-vocabulary enums, and splitting the one global `config` module into "physical mechanism" (ports, MACs, tc templates) versus injected "control policy" (budget, τ, action space) so two configurations can coexist without monkeypatching globals. The control loop itself does not move (see `03-refactoring-strategy.md`).

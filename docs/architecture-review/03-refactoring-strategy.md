@@ -109,3 +109,21 @@ hygiene      typing        perf          durability
   serialization and break bare-string `==`).
 * It does not touch the documented design tradeoffs cleared in
   [02 appendix](02-critical-problems.md#appendix-what-is-not-a-problem).
+
+---
+
+## Key Takeaways
+
+- **One hard constraint governs everything: no functional change, behind a global test gate.** Before and after *every* step you run `python -m pytest tests/unit -q`, which must stay 212 passed (with node-tagged `test_m4/m5/m6/m7` integration where applicable). Each step is independently shippable and revertable, and the drop-in code for starred (★) items lives in `04-production-code.md`.
+
+- **Phase 0 (hygiene) goes first because it shrinks the surface and cannot break tests.** It is pure deletions and `.gitignore` edits with no `runtime/` import-path changes: removing duplicate archive trees, 21 `.bak`/backup shadows, and the stray `network/sfc_experiment.py`. Impact is ~1.1 GB and ~131 redundant `.py` copies removed, de-noising every grep/IDE search, at zero risk since nothing executable imports the deleted paths.
+
+- **Phase 1 (typing) comes before perf/scalability because it makes later changes checkable.** It centralizes vocabularies and the SLA-margin formula in `contracts.py`, dedupes `_EPS`, and adds `typing.Protocol`s (`DeployerProto`, `MonitorProto`, `GateProto`). These are pure-structure changes — values stay byte-identical strings and Protocols are structural — so e.g. `MonitorProto` is what makes the later parallel-ping change provably surface-preserving.
+
+- **Phase 2 (performance) defaults to today's exact behavior so it can ship and be soak-measured.** Steps like parallelizing `_probe` pings via a `ThreadPoolExecutor` keep a serial fallback (`ping_workers <= 1`) and reassemble the same `(rtt,loss)` tuples in `requirements` order, so the default config issues a byte-identical command. Each step is independently revertable and tuned only after measurement under soak.
+
+- **Phase 3 (scalability/durability) is last because it is the only phase that introduces a new code path, and it is opt-in.** It adds KG-backed recovery (`read_last_good` before `deployer.capture()` on restart), an injectable `ControlPolicy` dataclass so two configs coexist without monkeypatching globals, and explicit single-active-path seams. Its test gate adds a `read_last_good` round-trip test against the KG fake.
+
+- **The review deliberately leaves the working machinery and risky rewrites alone.** It does *not* rewrite the control loop, 6-stage ladder, or adapt engine (deemed correct and well-factored), does *not* convert vocabularies to `enum.Enum` (would change JSON serialization and break bare-string `==`), and does *not* touch the cleared tradeoffs in the `02` appendix.
+
+- **Phase 0 and Phase 1 are now applied.** The hygiene cleanup and the typing/vocabulary centralization are already in place, so the remaining work begins at Phase 2 (performance) and Phase 3 (scalability/durability).

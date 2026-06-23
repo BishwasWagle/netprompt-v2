@@ -513,3 +513,21 @@ No tests cover these top-level scripts, so none need editing.
 | Performance | P1 (pings), P3 (regen), + Phase 2.3/2.4 (KG/table_state/liveness) |
 | Scalability | Phase 3.1 (KG-backed `last_good`), 3.2 (injected policy), 3.3 (seams) |
 | Maintainability | M1 (vocabularies), A1 (types), D-series (dedup), M2–M5 cleanups |
+
+---
+
+## Key Takeaways
+
+- **Behavior-preservation is the explicit, enforced discipline.** Every refactor in this file ships with a "Why behavior is unchanged" argument and keeps the green 212-test baseline (`pytest tests/unit` must pass before and after each incremental change). The code also honors the codebase's existing idioms (`from __future__ import annotations`, dataclasses, why-focused docstrings, the `PRIMARY`/`TUNE` constant pattern).
+
+- **M1 centralizes the closed vocabularies as bare-string constants, not enums.** All the `outcome`, switch-status, and diagnosis vocabularies move into `contracts.py` (e.g. `HEALTHY`/`MARGINAL`/`ROLLBACK`/`ESCALATED`/`SYSTEM_FAULT`/`REJECTED` plus the `OUTCOMES` and `COMMIT_OUTCOMES` frozensets). Enums are deliberately rejected because `outcome` is compared with bare `==`, used as dict keys, persisted to Neo4j, and round-tripped through `jsonable()` — so each constant equals the byte-identical string the literal already held, making it a pure rename with zero control-flow change.
+
+- **D2 unifies the SLA-margin formula into one shared `dimension_margins(fm)` helper.** The function lives next to `FlowMetrics` in `contracts.py` and becomes the single definition consumed by both the evaluator (via `compute_flow_metrics`) and the adapt engine's `diagnose()`, deleting `adapt.py`'s local copy. Because `min(dimension_margins(fm).values())` iterates the same three expressions with the same `max(_, _EPS)` clamps, `margin`/`met` come out identical; note `adapt.py` still keeps its own `_EPS` since `_grid` uses it.
+
+- **P1 parallelizes per-field pings and makes probe params configurable.** New `config.py` knobs (`PING_COUNT=2`, `PING_TIMEOUT_S=1`, `PING_WORKERS=4`) feed a `ThreadPoolExecutor`-backed `_ping_all`, whose defaults reproduce the exact `ping -c 2 -W 1` string. With `ping_workers<=1` (or a single field) it runs the original serial path verbatim, and `NodeRunner._pid_cache` needs no lock because a concurrent miss at worst issues a redundant `pgrep` with an identical result.
+
+- **P3 moves the regen model load out of the hot path and bounds each generation.** A new `warmup()` (called once in `soak.py` before timing episodes) pays the model load up front, and `generate()` wraps the original logic — renamed `_generate_constrained` and left verbatim — in a `ThreadPoolExecutor` with `REGEN_GENERATE_TIMEOUT_S` (default 30s). A timeout raises `TimeoutError`, which is already caught at `proposer.py:43` and routed into the §7.4 fail-safe (rejected attempt → escalate) instead of stalling the episode forever.
+
+- **A1 adds erased-at-runtime Protocols, and the D-series handles repo hygiene.** A1 introduces structural `Protocol`s (e.g. `DeployerProto`, `MonitorProto`, `TableStateCapable`) that are erased at runtime, so no method resolution changes while types become checkable. The D1/D3/D5 deletions remove duplicate archive trees, a stray `sfc_experiment.py`, and git-tracked `*.bak`/`*_phase3_backup.py` backups — each guarded by a byte-identical `diff` check and new `.gitignore` entries — while D4 factors the controller's iperf/RTT/loss scrape into `controller/result_scrape.py`, verified identical against five committed fixtures.
+
+- **Per the guidance, M1/D2/A1 and the deletions are already applied; P1 and P3 remain ready-to-apply proposals.** The file's coverage table ties these fixes to the requested review dimensions — maintainability (M1, A1, D-series), duplicate logic (D1–D5 plus `_EPS` unification), and performance (P1 pings, P3 regen) — so a reader can see which named problem each refactor closes.

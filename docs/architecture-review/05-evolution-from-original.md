@@ -320,6 +320,24 @@ a feedback-aware retrain to *act* on the (already-wired) analytics loop.
 
 ---
 
+## Key Takeaways
+
+- **The core shift is open-loop one-shot to closed-loop MAPE-K.** The original (Bishwas & Kiran's Milestone-II) decided one SFC, deployed once on a per-run torn-down BMv2 net, parsed results, pushed to the KG, and exited — and its later LLM orchestrator literally just wrote `llm_generated_experiment_config.json` and stopped without deploying. The current system is a two-loop architecture: a slow LLM planner feeds a deterministic MAPE-K `RuntimeManager` (deploy → monitor → attribute → adapt → commit/rollback/escalate) over a persistent fabric, bridged by a typed `DeploymentSpec`-in / `Verdict`+`EscalationTicket`-out contract.
+
+- **The selector went from a hand-coded if/elif ladder to a constrained LLM.** The original chooser was pure Cypher with a hardcoded `latency_requirement = 20` plus an if/elif ladder over four templates (`run_selected_sfc.py:56-66`). The current planner is a fine-tuned `Qwen2.5-1.5B + LoRA` emitting one atomic 6-key decision; the old ladder survives only as the deterministic `validator.fallback_decision` oracle and as the label source distilled into the retrained LoRA. This buys mission/context-sensitivity at a roughly 10⁵× latency cost (~1.0 s vs ~3 µs), acceptable only because selection is the slow loop.
+
+- **Grammar-constrained decoding is what made the LLM's choice load-bearing.** Extension §3.2 derives a per-request GBNF from the same `orchestration_constraints` the validator checks, so "grammar-valid ⇒ validator-valid by construction." Crucially, with constrained decoding on (the production default) the deterministic fallback is bypassed entirely — so the LLM's choice actually ships, which is exactly why the retrain mattered.
+
+- **Test rigor jumped from zero to 212 + 16 tests.** The original had standalone Mininet scripts dumping raw output to `.txt` for a human to read — `grep -c assert` over all 11 experiment files returns 0. The current suite is 212 unit tests / 454 assertions (on fake deployers/monitors, no sudo) plus 16 node-gated integration tests / 62 assertions driving a resident 3-switch BMv2 fabric (s1=9090/s2=9091/s3=9092), and rule installs now fail loudly if any `table_add` is rejected.
+
+- **The LoRA retrain broke mode-collapse but only halfway.** The original adapter collapsed to `LowLatencyVideoSFC` for every mission, so it was retrained by distilling the oracle into fresh weights: 640 examples (160/SFC, 50% named / 50% generic missions), loss masked to the decision only, 3 epochs in ~52 min on a Tesla P100, reaching a final mean loss of 0.0066. The result was a partial win — 4/4 correct on known mission names (emergency→Reliable, bulk→Bandwidth, pest→LowLatency, soil→Energy), but 0/4 on novel and telemetry-only probes, where it defaults to BandwidthOptimized.
+
+- **The retrain was promoted precisely because the fallback no longer fires.** Since constrained-on bypasses the deterministic oracle, the original adapter would ship its collapsed LowLatency for every non-LowLatency mission, making the retrained adapter the only one correct in production. It was promoted 2026-06-19 via `gpu-node.env` (`NETPROMPT_LLM_ADAPTER → final_adapter_retrained`), with rollback being a one-line env change since the original is preserved.
+
+- **The honest open gaps are telemetry generalization and an unexploited feedback loop.** The 1.5B model learned mission-name→SFC more than telemetry reasoning (digits sit deep in a ~2400-token prompt it under-attends), so number-dependent missions still need a telemetry-weighted retrain or a larger model. The closed analytics loop folds per-SFC reliability from `Verdict`/`EscalationTicket` history back into `runtime_feedback`, but the path is only wired (◑) — the model wasn't trained on the field and escalation-rate conflates "wrong SFC" with "unachievable SLA," so today it is merely advisory.
+
+---
+
 *Sources: `docs/planner-design.md`, `docs/planner-lora-retrain.md`,
 `docs/planner-lora-eval.md`, `docs/runtime-planner-contracts.md`,
 `docs/future-work.md`, `controller/{generate_kg,import_kg,select_template,run_selected_sfc}.py`,

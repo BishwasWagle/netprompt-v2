@@ -262,3 +262,19 @@ The verification pass refuted these plausible-sounding claims. They are
 
 The lesson: this codebase earns the benefit of the doubt. Its docstrings encode
 real design rationale — read them before "fixing" something that looks odd.
+
+---
+
+## Key Takeaways
+
+- **Four HIGH-severity problems dominate, all confirmed after verification.** They are: ~1.1 GB of forked byte-identical `network/` archive trees in git (D1), the `observe_window()` subprocess storm per adapt attempt (P1), blocking un-timed in-loop LLM inference (P2), and magic-string vocabularies duplicated across 6+ files (M1). Everything else lands at MEDIUM or LOW.
+
+- **The 1.1 GB duplicate archive is the single largest quality issue.** `diff -rq` shows a 199-file tree committed twice with zero differences; 184 `.py` files collapse to 53 distinct contents, three trees total 334M + 419M + 332M, `.git` is 267 MB, and 28 model-weight files were force-added past `.gitignore`. The `llm_orchestrator` package exists in six diverged copies, so a fix in one never reaches the others. No `runtime/` code imports these trees, so the fix is to delete all but the authoritative `milestone-II-latest` copy.
+
+- **Two performance HIGHs stall the live episode loop.** `observe_window()` re-runs after every applied candidate (`adapt.py:226`), firing ~10 blocking `ping` subprocesses per window across ~6 windows per episode — fixable by running per-field pings concurrently. With `--with-regen`, Tier-2 escalation runs up to 3 blocking 64-token GPU generations under `torch.no_grad()` (`llm_client.py:111-125`) with no wall-clock timeout, so a hung GPU call stalls the episode indefinitely and partially defeats the §7.4 fail-safe.
+
+- **Closed vocabularies are unguarded raw strings.** The six `Verdict.outcome` values, four switch statuses, and three diagnosis metrics are re-typed as literals in 6+ files (`contracts.py:188`, `evaluator.py:49`, `soak.py:132`, and more), where a single typo fails silently. The codebase already centralizes the parallel action vocabulary (`PRIMARY/TUNE/…` via `TIER_OF`), so the fix mirrors that pattern with string constants plus `frozenset`s — deliberately *not* `enum.Enum`, since values are compared by bare `==` and JSON-persisted.
+
+- **Severity is assigned after verification, not on first impression.** Several plausible findings were downgraded with explicit reasoning — e.g. the docstring/duck-typing protocols (A1) dropped from "high" to LOW because the loop is single-threaded and the `hasattr` guards are correct today, making it a safety-net gap rather than a live defect. Every item carries `file:line` evidence and a corrected severity.
+
+- **The appendix documents what was *cleared*, not just what was flagged.** Three plausible claims were adversarially refuted as deliberate, documented design: the shared mutable `Budget` across rungs (the correctness-critical per-episode retry mechanism, freshly constructed per `run_episode`), the `policy_type` substring sniff in the deployer (a controlled enum-like field, not free text — design §10.1), and the `FakeDeployer`/real REGEN-shape divergence (a documented test-double affordance the engine never observes). The stated lesson: this codebase's docstrings encode real rationale, so read them before "fixing" something that looks odd.

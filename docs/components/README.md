@@ -2,9 +2,9 @@
 
 Focused, standalone reference cards for every significant component — what it is, its
 files, its real interface, how it works, gotchas, and how to run it. For the holistic
-design and workflow see [runtime-manager-design.md](../runtime-manager-design.md) (inner
-loop) and [planner-design.md](../planner-design.md) (outer loop); for commands see
-[usage.md](../usage.md).
+design and workflow see [runtime-manager-design.md](../design/runtime-manager-design.md) (inner
+loop) and [planner-design.md](../planner/planner-design.md) (outer loop); for commands see
+[usage.md](../guides/usage.md).
 
 ## Two loops, two models
 
@@ -40,8 +40,8 @@ mission ─▶ SLOW PLANNER (outer loop) ─▶ artifact ─▶ RUNTIME MANAGER 
 | [regen-llm.md](regen-llm.md) | **Tier-2 regen code model** (Qwen2.5-Coder-1.5B, `cuda:1`) — a *component the RM can call* to regenerate P4 rules; **not** the Runtime Manager. |
 
 ## Related docs
-- [usage.md](../usage.md) — how to run everything (holistic + each model).
-- [runtime-manager-design.md](../runtime-manager-design.md) · [runtime-manager-implementation-plan.md](../runtime-manager-implementation-plan.md) — inner-loop design + plan.
-- [planner-design.md](../planner-design.md) · [planner-lora-retrain.md](../planner-lora-retrain.md) · [planner-lora-eval.md](../planner-lora-eval.md) — outer-loop design + the LoRA retrain/eval.
-- [runtime-planner-contracts.md](../runtime-planner-contracts.md) — the planner↔runtime handoff + integration log.
-- [m7-implementation-plan.md](../m7-implementation-plan.md) · [m7-regen-comparison.md](../m7-regen-comparison.md) — the Tier-2 regen serving.
+- [usage.md](../guides/usage.md) — how to run everything (holistic + each model).
+- [runtime-manager-design.md](../design/runtime-manager-design.md) · [runtime-manager-implementation-plan.md](../design/runtime-manager-implementation-plan.md) — inner-loop design + plan.
+- [planner-design.md](../planner/planner-design.md) · [planner-lora-retrain.md](../planner/planner-lora-retrain.md) · [planner-lora-eval.md](../planner/planner-lora-eval.md) — outer-loop design + the LoRA retrain/eval.
+- [runtime-planner-contracts.md](../design/runtime-planner-contracts.md) — the planner↔runtime handoff + integration log.
+- [m7-implementation-plan.md](../regen/m7-implementation-plan.md) · [m7-regen-comparison.md](../regen/m7-regen-comparison.md) — the Tier-2 regen serving.

@@ -4,7 +4,7 @@
 **One-liner:** The outer-loop KG-RAG orchestrator that reads the Neo4j topology + run history, prompts the decision LLM, validates/falls-back, and compiles a deployable `llm_generated_experiment_config.json` artifact.
 
 ## Responsibility
-Owns the end-to-end *planning* pipeline: assembling the LLM input object from the KG + telemetry + history, invoking the decision model, enforcing the decision contract, and compiling the chosen SFC/policy into a concrete deployment artifact (P4 JSON + rule-file paths). It does NOT own the decision model itself (see `planner-llm.md`), the inner control loop / deployment execution (see `runtime-manager-design.md`), or the KG's contents (it only reads them).
+Owns the end-to-end *planning* pipeline: assembling the LLM input object from the KG + telemetry + history, invoking the decision model, enforcing the decision contract, and compiling the chosen SFC/policy into a concrete deployment artifact (P4 JSON + rule-file paths). It does NOT own the decision model itself (see `planner-llm.md`), the inner control loop / deployment execution (see [`../runtime-manager-design.md`](../design/runtime-manager-design.md)), or the KG's contents (it only reads them).
 
 ## Files
 - `orchestrate.py` — `build_runtime_input_object` (assemble) + `run_pipeline` (decide→validate→compile→check) + CLI

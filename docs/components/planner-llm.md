@@ -12,7 +12,7 @@ Owns *only* the decision-model inference: loading the base model + LoRA adapter,
 - `decision_grammar.py` — `build_decision_gbnf` (per-request GBNF over `orchestration_constraints`)
 - `validator.py` — `validate_generated_decision` + `fallback_decision` (the contract + rule-based oracle)
 - `../../train_decision_lora.py` — retrains a fresh LoRA from the oracle (distillation)
-- adapters: `netprompt_qwen_kg_rag_orchestrator/{final_adapter_retrained, final_adapter, final_adapter_original_backup}`
+- adapters: `netprompt_qwen_kg_rag_orchestrator/{final_adapter_retrained, final_adapter}` (plus training `checkpoint-200/225`)
 
 ## Interface
 ```python
@@ -34,7 +34,7 @@ fallback_decision(input_object) -> Dict           # deterministic rule-based dec
 - Retrain (`train_decision_lora.py`): distills a balanced dataset labelled by `fallback_decision` (the oracle) using the orchestrator's own prompt format, fp32 LoRA on the P100 — drop-in adapter.
 
 ## Gotchas & lessons
-- The **promoted default** is `final_adapter_retrained` (mission-appropriate on the known taxonomy). Known gap: generic / telemetry-only missions default to `BandwidthOptimized`. The original mode-collapsed to `LowLatencyVideoSFC`; preserved as `final_adapter` / `final_adapter_original_backup` for rollback/compare.
+- The **promoted default** is `final_adapter_retrained` (mission-appropriate on the known taxonomy). Known gap: generic / telemetry-only missions default to `BandwidthOptimized`. The original mode-collapsed to `LowLatencyVideoSFC`; preserved as `final_adapter` (the rollback target) for rollback/compare.
 - `safe_default_decision()` (a `ReliableRelaySFC` multihop) is returned only when CPU inference yields no parseable JSON — distinct from a real LLM decision; report separately.
 - `build_decision_gbnf` raises (→ unconstrained) when there are no candidate pairs or no relays — i.e. an unseeded KG silently loses the constraint.
 

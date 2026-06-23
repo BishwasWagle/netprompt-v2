@@ -7,10 +7,12 @@
 Read-only consumer of the runtime's KG records (the inner loop *writes* `Verdict`/`EscalationTicket`; this *reads + aggregates* them). It owns the aggregation + reporting, and optionally persists a `PlannerAnalytics` snapshot. It does **not** make planning decisions, write verdicts, or touch the network — it produces the signal a planner (or a human) reads.
 
 ## Files
-- `analytics.py` — `collect()`, `format_report()`, `_sfc_for()`, `main()` (CLI).
+- `analytics.py` — `collect()`, `reliability_summary()`, `feedback_for_planner()`, `format_report()`, `_sfc_for()`, `main()` (CLI).
 
 ## Interface
 - `collect(run_cypher) -> dict` — `run_cypher(query)` returns row-dicts (e.g. `Neo4jContextClient.run_cypher`). Returns `{episodes, window, outcomes, tiers, headroom, escalations{total,by_sfc,by_reason}, per_sfc, attributed}`.
+- `reliability_summary(stats) -> dict` — a compact, prompt-friendly per-SFC slice (episodes / escalation_rate / marginal) derived from `collect`.
+- `feedback_for_planner(run_cypher) -> dict` — the closed-loop entry point: `reliability_summary(collect(...))`, folded into the planner's `input_object.runtime_feedback`.
 - `format_report(stats) -> str` — the human-readable report.
 - `_sfc_for(cid, esc_sfc) -> str | None` — attribute a verdict to its SFC.
 - `main()` — CLI: `--neo4j-*`, `--json`, `--write-kg`.
@@ -37,4 +39,4 @@ cd "$NETPROMPT_ROOT"
 ```
 
 ## See also
-[../planner-design.md](../planner-design.md) · [../runtime-planner-contracts.md](../runtime-planner-contracts.md) (§2 `Verdict`/`EscalationTicket` contracts) · [kg-client.md](kg-client.md) (the writer side) · [../usage.md](../usage.md) §3.
+[../planner-design.md](../planner/planner-design.md) · [../runtime-planner-contracts.md](../design/runtime-planner-contracts.md) (§2 `Verdict`/`EscalationTicket` contracts) · [kg-client.md](kg-client.md) (the writer side) · [../usage.md](../guides/usage.md) §1.7.

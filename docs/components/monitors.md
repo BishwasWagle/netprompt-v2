@@ -10,7 +10,7 @@ Owns measurement: per-field RTT/loss/throughput, per-switch status derivation, b
 - `runtime/monitors/pipeline.py` — pure logic: `HysteresisTracker`, counters/parsers, `qdisc_shifted`, `derive_switch_status`, `summarize_window`, `assemble_report`.
 - `runtime/monitors/network_monitor.py` — `NetworkMonitor` (window loop + status + report) and `NodeSampler` (real I/O).
 - `runtime/monitors/system_monitor.py` — `SystemMonitor` (process/thrift liveness).
-- `runtime/node_runner.py` — `NodeRunner`: ping/`tc` via `mnexec`, CLI over thrift.
+- `runtime/node_runner.py` — `NodeRunner`: host commands (e.g. ping) via `mnexec` (`run_host`), CLI over thrift (`run_cli`). (The `tc qdisc` reads run directly in the root namespace via `_root_tc` in `network_monitor.py`, not through `NodeRunner`.)
 
 ## Interface
 ```python

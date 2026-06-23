@@ -22,8 +22,8 @@ only non-determinism is the optional Tier-2 regen LLM, which defaults to `None`
 ## Interface
 ```python
 class RuntimeManager:
-    def __init__(self, deployer, monitor, gate,
-                 budget_n: int = config.BUDGET_N,
+    def __init__(self, deployer: DeployerProto, monitor: MonitorProto,
+                 gate: GateProto, budget_n: int = config.BUDGET_N,
                  active_capacity_ok=None, current_tables: dict | None = None,
                  regen_proposer=None, kg=None): ...
 
@@ -57,7 +57,7 @@ the first rung-3 rollback target).
   is what makes the §7.4 budget-bounded escalation argument hold.
 
 ## Usage
-- Scenario-driven: `sudo -E python -m runtime.tools.run_episode --scenario relay_failure --monitor real` (`--monitor model` for the instant scenario monitor).
+- Scenario-driven: `sudo -E python -m runtime.tools.run_episode --scenario path_quality_fault --monitor real` (`--monitor model` for the instant scenario monitor; scenarios: `healthy`, `causal_regression`, `path_quality_fault`, `contention_harm_with_knob`, `contention_harm_no_knob`, `ddil`).
 - Planner-driven (live): `python -m runtime.tools.run_from_planner --artifact <path> --target-field Field_2 --deploy`.
 - Repeated episodes + injected kills: `sudo -E python -m runtime.tools.soak --minutes 60 --kill-every 20 --kill s3` (add `--with-regen` for Tier-2).
 

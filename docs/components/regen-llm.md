@@ -41,14 +41,14 @@ RegenProposer(client, table_state_fn, switch="s1",
 ```bash
 # in-loop only — not a standalone CLI. Plus the offline tools:
 python -m runtime.tools.regen_manifest    # print the reproducibility manifest
-python -m runtime.tools.regen_compare     # stub vs real candidate comparison
+python -m runtime.tools.regen_compare --models <id1>,<id2>   # multi-model (real-client) propose->gate comparison
 # wire the real model into a soak run:
-python -m runtime.soak --with-regen
+python -m runtime.tools.soak --with-regen
 ```
 
 ## See also
 - `../m7-implementation-plan.md` — M7 real-client build plan
-- `../m7-regen-comparison.md` — stub vs real comparison
+- `../m7-regen-comparison.md` — multi-model (Coder size-sweep) comparison
 - `../runtime-manager-design.md` §7.3 (adapt ladder), §7.4 (fail-safe)
 - `../usage.md` §4 — running the Tier-2 regen LLM
 - `slow-planner.md` / `planner-llm.md` — the outer-loop planner (separate subsystem)

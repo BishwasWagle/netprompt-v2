@@ -21,3 +21,7 @@ final_adapter_original_backup/
 *.py.bak
 *_phase3_backup.py
 *.txt.bak
+
+# Transient planner run artifacts — orchestrate dumps these every run (prompt,
+# raw model output, parse-stage, grammar). Recover via a run, not from git.
+**/outputs/debug_*

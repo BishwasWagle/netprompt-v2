@@ -124,12 +124,17 @@ def start_traffic():
 
 def proposed_sfc(scenario) -> str:
     mission, bw, dl, ls, bt = PROPOSED_MISSION[scenario]
-    _run([VENV, "-m", "llm_orchestrator.orchestrate", "--mission", mission,
-          "--bandwidth", str(bw), "--delay", str(dl), "--loss", str(ls), "--battery", str(bt),
-          "--neo4j-uri", KG_URI, "--neo4j-password", KG_PASS, "--device-map", "cuda:0", "--no-4bit",
-          "--output", "/tmp/e3_plan.json"], cwd=NETPROMPT_ROOT,
-         capture_output=True, text=True, timeout=240)
-    d = json.load(open("/tmp/e3_plan.json"))
+    plan = "/tmp/e3_plan.json"
+    if os.path.exists(plan):
+        os.remove(plan)                       # never silently reuse a prior cell's plan
+    r = _run([VENV, "-m", "llm_orchestrator.orchestrate", "--mission", mission,
+              "--bandwidth", str(bw), "--delay", str(dl), "--loss", str(ls), "--battery", str(bt),
+              "--neo4j-uri", KG_URI, "--neo4j-password", KG_PASS, "--device-map", "cuda:0",
+              "--no-4bit", "--output", plan], cwd=NETPROMPT_ROOT,
+             capture_output=True, text=True, timeout=240)
+    if r.returncode != 0 or not os.path.exists(plan):
+        raise RuntimeError(f"orchestrate failed (rc={r.returncode}): {r.stderr[-300:]}")
+    d = json.load(open(plan))
     dec = d.get("decision", d)
     return dec["selected_sfc"]
 

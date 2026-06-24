@@ -232,64 +232,95 @@ fabric with real traffic, keep flows in-SLA better than the static and rule-base
 baselines — and does the closed analytics loop function?
 
 **What it composes.** E1's decision + E2's adaptation, end to end:
-`orchestrate` writes an artifact → `run_from_planner --deploy` runs a live episode →
-`Verdict`/snapshots to the KG → `analytics` folds reliability back into the next
-decision. This mirrors the **existing comparative harness**
-(`run_comparative_experiments.sh`): **3 arms × 6 scenarios.**
+the planner picks the SFC → a live episode deploys + adapts → `Verdict`/snapshots to
+the KG. **3 arms × 4 scenarios**, all on the *same* 3-switch fabric.
 
-**Independent variables:**
-- **Arm:** `baseline_static` (fixed LowLatency, no adaptation) · `baseline_rule_based`
-  (rule selection, no in-envelope adaptation) · **proposed NetPrompt** (LLM decision +
-  tiered runtime adaptation).
-- **Scenario:** `baseline · low_latency · congestion · battery_depletion · relay_failure · ddil`
-  (the harness's netem-driven conditions).
+### As-built design (revised from pilots — `docs/design/experiment-results.md`)
 
-**Dependent variables:** end-to-end per-field RTT / loss / throughput vs requirement;
-**SLA-attainment / commit rate**; orchestration overhead (decision + deploy + adapt);
-SFC-selection appropriateness; outcome distribution; (closed-loop) whether
-`runtime_feedback` reflects prior verdicts.
+The first plan reused the published `run_comparative_experiments.sh` and its six
+netem conditions. **Two live pilots disproved that approach** and the design was
+revised to the harness actually built (`runtime/tools/e3_compare.py` +
+`e3_measure.py`):
+
+1. **The published harness is the old milestone-II pipeline** (single-switch,
+   self-contained baselines; `update_topology_state.py` + `path_aware_sfc_selector.py`
+   for "proposed") with a hardcoded missing `BASE` path — it does **not** exercise the
+   `runtime/` Runtime Manager. Rejected.
+2. **`launch_network --scenario` degrades the drone→s1 *access* links; the relay paths
+   stay clean** ([launch_network.py:147-156](../../runtime/tools/launch_network.py)).
+   So a reroute (primary↔backup) can't fix an access-link fault — the netem scenarios
+   don't differentiate runtime adaptation. **Faults must be injected on the relay
+   links** (the M6 mechanism).
+3. **Offered-load ≥ bw bound on a sub-bound link floods it** (pilot: 45 Mbit into a
+   20 Mbit congestion link → 4.2 s RTT). Use **sane 5 Mbit/drone load + calibrated,
+   satisfiable bounds** (70 ms / 5 Mbps / 20 %, the M6 calibration) so **latency is the
+   gate**, not offered load (validity §2.1).
+4. **The reroute-capable SFC (ReliableRelay) deploys on the *backup* path by default.**
+   So a *primary* fault is dodged by SFC choice alone (no adaptation) — `proposed`
+   committed at **tier 0**, merely tying `rule`. Isolating runtime adaptation needs a
+   fault on the arm's *active* path. → two complementary fault scenarios.
+
+**Topology-equivalent arms** (KRONOS Table VI control, realized): all three arms run on
+the *identical* 3-switch fabric, clean `low_latency` access profile, 5 Mbit/drone load;
+the only differences are *which SFC is chosen* and *whether the runtime adapts*.
+
+- **`static`** — fixed LowLatencyVideoSFC (deploys primary), **no adaptation**.
+- **`rule`** — the published if/elif ladder (`baseline_rule_based`'s `select_sfc_if_else`;
+  a relay issue → ReliableRelaySFC, deploys backup), **no adaptation**.
+- **`proposed`** — the LLM planner's pick (`orchestrate`, emergency mission → ReliableRelay)
+  + the **full tiered RuntimeManager episode** (observe → tune → reroute → verdict).
+
+**Scenarios (relay-fault injected after a healthy baseline):**
+
+| Scenario | Fault | Isolates | Expected |
+|---|---|---|---|
+| `healthy` | none | control | all arms commit |
+| `primary_fault` | s1-eth11 +100 ms | **SFC selection** | static (primary) ❌ ; rule/proposed dodge via backup ✓ (no adapt) |
+| `backup_fault` | s1-eth12 +100 ms | **runtime adaptation** | static dodges (primary clean) ; rule (backup) ❌ ; **proposed reroutes backup→primary, tier 1** ✓ |
+| `ddil` | both relays +100 ms | infeasibility | all arms fail / proposed **escalates** (honest) |
+
+The two fault scenarios disentangle the pipeline's two values: `primary_fault` shows the
+planner's **SFC-selection** robustness; `backup_fault` shows the runtime's **adaptation**
+(same SFC as `rule`, only adaptation differs). *No single static choice is robust to both
+fault locations; only the adaptive arm is.*
+
+**Dependent variables:** per-field RTT / loss / throughput vs requirement; SLA-attainment;
+verdict + tier-reached + final path; orchestration overhead (decision + deploy + adapt).
 
 **Protocol.**
 ```bash
-# one scenario, proposed arm (repeat per arm × scenario; baselines via the published scripts):
-sudo mn -c
-sudo -E python3 runtime/tools/launch_network.py --p4-json <matching .json> --rules-dir <rules> --sfc <sfc> --scenario <s>   # resident
-# start representative iperf load (validity §7); then:
-python -m llm_orchestrator.orchestrate --mission <M> ... --output /tmp/plan.json
-sudo -E python -m runtime.tools.run_from_planner --artifact /tmp/plan.json --target-field <F> --deploy --correlation-id e3-<arm>-<s>
-# baselines: network/.../baselines/baseline_{static,rule_based}_experiment.py --scenario <s>
-# aggregate: python -m llm_orchestrator.analytics   (+ the comparative parse scripts for RTT/loss/throughput tables)
+source deploy/gpu-node/gpu-node.env
+python3 -m runtime.tools.e3_compare --repeats 3 --out /tmp/e3_full.jsonl
+# per cell: teardown → reseed KG → pick SFC (static fixed / rule ladder / proposed via
+#   orchestrate) → launch clean-access fabric w/ that SFC's P4 program → 5M/drone iperf →
+#   e3_measure (deploy → baseline → inject relay fault → measure or full episode) → teardown
 ```
 
-**Baseline / comparison.** The headline table is **proposed vs static vs rule-based**
-per scenario on the measured metrics — the same shape as the milestone-II
-`comparative_results/` (RTT, packet loss, throughput, orchestration overhead, SFC
-decisions). The proposed arm's advantage is expected on the *adaptive* scenarios
-(relay_failure → reroute-and-commit; congestion → tune; ddil → honest escalate)
-where the static arm cannot recover.
+**Success criteria.** `proposed` is the **only arm SLA-met across every fault location**:
+it dodges `primary_fault` (correct SFC), **reroutes** on `backup_fault` (tier-1 commit
+where `rule` — same SFC — stays violated), and **escalates** on `ddil` (honest). `static`
+fails `primary_fault`; `rule` fails `backup_fault`. RTT is the headline; bw is offered-load
+context only.
 
-**Success criteria.** On the calibrated fabric, the proposed arm **commits**
-(healthy/marginal) on scenarios the static arm fails, with comparable or better
-measured RTT/loss on the adaptive scenarios, at a bounded orchestration overhead;
-`ddil` correctly **escalates** in all arms (it is genuinely infeasible — escalating
-is the *correct* outcome, not a loss). Expect a **marginal-biased** mix (thin
-headroom by design).
+**Pilot evidence (1 rep, live):** `primary_fault` → {static *violated* 120 ms, rule *met*
+47 ms, proposed *met* tier 0 47 ms}; `backup_fault` → {static *met* 30 ms (dodged), rule
+*violated* 132 ms, **proposed *healthy* tier 1, rerouted backup→primary, 35 ms**}. The full
+4×3×3 matrix (with variance) is in `experiment-results.md`.
 
-**Can claim:** end-to-end, the KG-grounded LLM planner + tiered runtime keeps flows
-in-SLA on the calibrated fabric better than non-adaptive baselines, with a working
-(if not yet exploited) feedback loop. **Cannot claim** (validity §8): goodput
-guarantees; sub-10% loss fidelity; that the feedback loop *improves* decisions;
-cross-host reproducibility without pinned revisions.
+**Can claim:** end-to-end, on the calibrated fabric, the proposed arm is the only one that
+keeps the target in-SLA across both relay-fault locations — dodging via SFC choice where a
+static pick fails and **rerouting** where a non-adaptive arm with the same SFC cannot — and
+escalates honestly when infeasible. **Cannot claim** (validity §8): goodput guarantees;
+sub-10 % loss fidelity (`ping_count=2`); that the feedback loop *improves* decisions;
+generalization beyond known-taxonomy missions (E1: 0/4 off-taxonomy); cross-host
+reproducibility without pinned revisions.
 
-**Adopted from the KRONOS draft (§6).** E3 takes over the draft's **topology-equivalent
-control** (all arms on identical relay path + forwarding, to separate orchestration effect
-from topology-induced latency — Table VI), adds the **NoKG ablation** as a fourth arm
-(Table VII — *define what "NoKG" disables first; an empty KG also drops topology grounding,
-so it isn't a clean single-factor ablation*, §6.1), and reports the **control-plane timing
-breakdown** (SFC-select / KG-update /
-writeback — Table VIII) as the overhead DV. RTT is the headline measured dimension;
-throughput is shown only as offered load and loss only at coarse bounds — see §6.3 for
-the columns we remove/reframe.
+**Adopted from the KRONOS draft (§6).** E3 realizes the draft's **topology-equivalent
+control** (all arms on identical fabric/access/load + injected fault, separating
+orchestration effect from topology-induced latency — Table VI). The **NoKG ablation**
+(Table VII) and **control-plane timing breakdown** (Table VIII) remain optional add-ons;
+RTT is the headline measured dimension, throughput shown only as offered load and loss only
+at coarse bounds (§6.3).
 
 ---
 

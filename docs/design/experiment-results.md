@@ -1,9 +1,9 @@
 # Experiment Results
 
 Recorded results for the experiments in [experiment-design.md](experiment-design.md),
-run under the controls in [experiment-validity.md](experiment-validity.md). Only the
-off-testbed experiments (**E2a**, **E1**) are reported here; **E2b / E3** require the
-live BMv2 fabric and are pending.
+run under the controls in [experiment-validity.md](experiment-validity.md). All four
+are now reported: **E2a** + **E1** (off-testbed), **E2b** (M5/M6 live foundation), and
+**E3** (the full 3-arm × 4-scenario comparative on the live fabric).
 
 ## Run metadata (2026-06-24)
 
@@ -105,6 +105,86 @@ short real-monitor soak and E3 remain before collecting comparative data.
 
 ---
 
+## E3 — Whole system, 3 arms × 4 scenarios (live, topology-equivalent)
+
+The full design-doc E3, **as-built** with the fault-injection harness
+(`runtime/tools/e3_compare.py` + `e3_measure.py`; see
+[experiment-design.md §E3 "As-built design"](experiment-design.md) for why this
+replaced the published `run_comparative_experiments.sh`). All three arms run on the
+*identical* 3-switch fabric (clean `low_latency` access, 5 Mbit/drone load); the only
+differences are *which SFC is chosen* and *whether the runtime adapts*. After a healthy
+baseline a relay-link fault is injected (the M6 mechanism). Bounds are calibrated +
+satisfiable (**70 ms / 5 Mbps / 20 %** — latency is the gate, bw met at 15 Mbit offered).
+These calibrated bounds (`e3_measure` `CAL_REQ`) **supersede the KG-seeded per-SFC latency**
+(LowLatency = 45 / ReliableRelay = 60 ms in the metadata row) so the SLA is met on either
+relay but blown by the +100 ms fault; only the **legal path/tier action space** is taken
+from the KG per SFC (`build_envelope`: LowLatency = primary-only; ReliableRelay = primary +
+backup).
+
+**4 scenarios × 3 arms × 3 repeats = 36 cells, 36/36 succeeded.** Variance is ~0
+(`±≤0.1 ms`) because the netem fault is deterministic — these are mean ± population sd
+over 3 reps, not a jitter estimate.
+
+| Scenario | Arm | SFC | Outcome | Tier | Final path | F1 RTT (ms) | SLA-met |
+|---|---|---|---|---|---|---|---|
+| `healthy` | static | LowLatency | met | — | primary | 30.1 ± 0.0 | 3/3 |
+| `healthy` | rule | LowLatency | met | — | primary | 30.1 ± 0.0 | 3/3 |
+| `healthy` | **proposed** | LowLatency | healthy | 0 | primary | 30.1 ± 0.0 | 3/3 |
+| `primary_fault` | static | LowLatency | **violated** | — | primary | 120.2 ± 0.0 | 0/3 |
+| `primary_fault` | rule | ReliableRelay | met | — | backup | 47.3 ± 0.1 | 3/3 |
+| `primary_fault` | **proposed** | ReliableRelay | healthy | 0 | backup | 47.1 ± 0.0 | 3/3 |
+| `backup_fault` | static | LowLatency | met *(dodged)* | — | primary | 30.1 ± 0.0 | 3/3 |
+| `backup_fault` | rule | ReliableRelay | **violated** | — | backup | 132.1 ± 0.1 | 0/3 |
+| `backup_fault` | **proposed** | ReliableRelay | **healthy** | **1** | **primary** | **35.0 ± 0.0** | **3/3** |
+| `ddil` | static | LowLatency | violated | — | primary | 120.1 ± 0.1 | 0/3 |
+| `ddil` | rule | ReliableRelay | violated | — | backup | 132.2 ± 0.0 | 0/3 |
+| `ddil` | **proposed** | ReliableRelay | **escalated** | **2** | backup | 132.3 ± 0.1 | 0/3 |
+
+**The thesis, demonstrated.** `proposed` is the **only arm in-SLA across both single-fault
+locations**, and the only one that fails *correctly* when infeasible:
+
+- **`primary_fault` isolates SFC selection.** `static` (LowLatency, primary) is stuck on
+  the +100 ms primary → 120 ms, violated. `rule` and `proposed` both pick ReliableRelay
+  (deploys backup) and dodge the fault for free (47 ms) — **no adaptation** (proposed at
+  tier 0). This is the *planner's* value: choosing a more robust SFC.
+- **`backup_fault` isolates runtime adaptation.** `rule` and `proposed` pick the **same
+  SFC** (ReliableRelay, backup); the fault hits both. `rule` (no adapt) stays stuck on the
+  degraded backup → 132 ms, violated. **`proposed` reroutes backup→primary (tier 1)** →
+  35 ms, healthy. The *only* difference is adaptation. (`static` dodges by luck — its
+  primary path wasn't hit.)
+- **`ddil` is honest infeasibility.** Both relays +100 ms: every arm misses; `proposed`
+  **escalates at tier 2** ("all tiers exhausted") with a ticket — the *correct* outcome,
+  not a loss.
+
+No single static choice is robust to both fault locations (static fails `primary_fault`;
+rule fails `backup_fault`); only the adaptive arm is.
+
+**Orchestration overhead.** `e3_measure` wall: static/rule ≈ **15.7 s** (deploy + 1 window);
+proposed ≈ **24.9 s** even at **tier 0** (healthy/`primary_fault` — no adaptation), so the
+bulk of the proposed overhead is the **episode's multiple observe windows** (attribution),
+*not* the reroute. The reroute (`backup_fault`) adds ≈ **6 s** (→ 31.4 s) and only **1 of 4**
+proposed scenarios actually reroutes; `ddil` (exhaust all tiers → escalate) ≈ 28.9 s. The
+LLM SFC decision is a separate ≈ 20 s step (E1) — bounded, paid once per decision.
+
+**Can claim (from this data):** end-to-end on the calibrated fabric, the proposed pipeline
+keeps the target in-SLA across both relay-fault locations — via SFC choice where a static
+pick fails, and via **tier-1 reroute** where a non-adaptive arm with the *same* SFC cannot
+— and escalates honestly when infeasible. **Cannot claim:** real-world variance (netem is
+deterministic → ~0 sd); goodput (bw is offered load); sub-10 % loss fidelity
+(`ping_count=2`, loss read 0 % throughout); off-taxonomy generalization (E1: 0/4).
+
+**Reproduce:** `source deploy/gpu-node/gpu-node.env && python3 -m runtime.tools.e3_compare
+--repeats 3 --out /tmp/e3_full.jsonl` (each cell self-launches + tears down the fabric).
+**Preconditions:** (1) passwordless `sudo` — the driver launches/measures/tears down BMv2 +
+Mininet (`sudo -v` first); (2) a running, **freshly seeded** Neo4j on `localhost:7687`
+(`python -m runtime.tools.seed_kg`) — sourcing `gpu-node.env` is required (it exports
+`NETPROMPT_KG_URI=bolt://localhost:7687`, reconciling `config.py`'s `controller-node` default
+with the driver's `localhost` default); (3) the GPU with the promoted Qwen adapter on `cuda:0`
+for the proposed arm. The driver re-seeds the KG per cell; the episode runs with `kg=None`
+(writes nothing back), so no cell pollutes the planner's history.
+
+---
+
 ## Status
 
 | Experiment | State |
@@ -112,7 +192,7 @@ short real-monitor soak and E3 remain before collecting comparative data.
 | E2a (runtime behavioral gate) | ✅ 6/6 PASS |
 | E1 (planner decision quality) | ✅ 4/4 set A · 0/4 B/C · 8/8 valid — reproduces the eval; VERIFY resolved |
 | E2b (runtime on the live fabric) | ◑ foundation verified — M5/M6 6/6 live; full real-monitor soak still pending |
-| E3 (end-to-end vs baselines) | ⏳ pending — needs the fabric + the 3-arm comparative harness |
+| E3 (end-to-end vs baselines) | ✅ 36/36 cells (3 arms × 4 scenarios × 3 reps) — proposed in-SLA across both fault locations (tier-1 reroute on `backup_fault`), honest escalate on `ddil` |
 | Validity readiness gate (validity §9) | ✅ complete (unit 212 · E2a 6/6 · E1 · M5/M6 6/6 live) |
 
 ---

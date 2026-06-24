@@ -35,23 +35,29 @@ SYS_PY = "/usr/bin/python3"
 KG_URI = os.environ.get("NETPROMPT_KG_URI", "bolt://localhost:7687")
 KG_PASS = os.environ.get("NETPROMPT_KG_PASS", "netprompt123")
 
-SCENARIOS = ["low_latency", "baseline", "congestion", "ddil", "relay_failure", "battery_depletion"]
+# E3 fault scenarios (the fault is injected on the relay links by e3_measure after
+# a healthy baseline; the fabric is always launched on a CLEAN access profile so the
+# only variable is the relay fault + the arm).
+# E3 fault scenarios (the fault is injected on the relay links by e3_measure after
+# a healthy baseline; the fabric is always launched on a CLEAN access profile so the
+# only variables are the relay fault + the arm).
+#   primary_fault -> isolates SFC SELECTION; backup_fault -> isolates RUNTIME ADAPTATION;
+#   ddil -> honest escalate; healthy -> control.
+SCENARIOS = ["healthy", "primary_fault", "backup_fault", "ddil"]
 ARMS = ["static", "rule", "proposed"]
+ACCESS_PROFILE = "low_latency"            # clean drone->s1 access (not the bottleneck)
 
 SFC_PREFIX = {"LowLatencyVideoSFC": "low_latency", "ReliableRelaySFC": "reliable_relay",
               "BandwidthOptimizedSFC": "bandwidth_optimized", "EnergyAwareSFC": "energy_aware"}
-RULE_LADDER = {"battery_depletion": "EnergyAwareSFC", "congestion": "ReliableRelaySFC",
-               "ddil": "ReliableRelaySFC", "relay_failure": "ReliableRelaySFC",
-               "baseline": "BandwidthOptimizedSFC", "low_latency": "LowLatencyVideoSFC"}
-# proposed arm: scenario condition -> representative KNOWN mission + (bw,delay,loss,batt).
-# (the LLM keys on the mission name; the scenario is the network condition.)
+RULE_LADDER = {"primary_fault": "ReliableRelaySFC", "backup_fault": "ReliableRelaySFC",
+               "ddil": "ReliableRelaySFC", "healthy": "LowLatencyVideoSFC"}
+# proposed arm: scenario -> representative KNOWN mission + (bw,delay,loss,batt).
+# (the LLM keys on the mission name; the scenario is the relay condition.)
 PROPOSED_MISSION = {
-    "low_latency": ("real_time_pest_detection", 80, 5, 0, 80),
-    "baseline": ("bulk_data_transfer", 40, 15, 1, 90),
-    "congestion": ("emergency_alert_relay", 20, 25, 2, 80),
-    "ddil": ("emergency_alert_relay", 5, 80, 5, 80),
-    "relay_failure": ("emergency_alert_relay", 30, 35, 4, 80),
-    "battery_depletion": ("long_term_soil_monitoring", 15, 30, 2, 25),
+    "healthy": ("real_time_pest_detection", 80, 5, 0, 80),
+    "primary_fault": ("emergency_alert_relay", 30, 10, 1, 80),
+    "backup_fault": ("emergency_alert_relay", 30, 10, 1, 80),
+    "ddil": ("emergency_alert_relay", 30, 10, 1, 80),
 }
 
 
@@ -86,11 +92,13 @@ def reseed_kg():
 
 
 def launch(prefix, scenario):
+    # always a CLEAN access profile; the scenario's fault is injected on the relay
+    # links by e3_measure (after a healthy baseline).
     proc = subprocess.Popen(
         ["sudo", "-E", SYS_PY, "-m", "runtime.tools.launch_network",
          "--p4-json", f"{NETPROMPT_ROOT}/compiled_p4/{prefix}.json",
          "--rules-dir", f"{NETPROMPT_ROOT}/p4_multihop_rules",
-         "--sfc", prefix, "--scenario", scenario],
+         "--sfc", prefix, "--scenario", ACCESS_PROFILE],
         cwd=ROOT, env=dict(os.environ), stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
     for _ in range(45):                       # up to ~90 s for readiness
         if thrift_ready():
@@ -104,13 +112,13 @@ def start_traffic():
     if not edge:
         raise RuntimeError("no edge namespace")
     _run(f"sudo setsid mnexec -a {edge[0]} iperf -s -u </dev/null >/dev/null 2>&1 &", shell=True)
-    # F1 drones (d4-6) at 15M (>=40 total) and F2 drones (d7-10) at 7M (>=20 total)
-    for drones, rate in ((("d4", "d5", "d6"), "15M"), (("d7", "d8", "d9", "d10"), "7M")):
-        for d in drones:
-            r = subprocess.run(["pgrep", "-f", f"mininet:{d}$"], capture_output=True, text=True).stdout.split()
-            if r:
-                _run(f"sudo setsid mnexec -a {r[0]} iperf -u -c 10.0.0.100 -b {rate} -t 180 "
-                     f"</dev/null >/dev/null 2>&1 &", shell=True)
+    # sane 5 Mbit/drone for d4-d10 (M6 rate): F1 (d4-6)=15M, F2 (d7-10)=20M, total
+    # 35M < backup relay cap 40M -> no flood even after a reroute. bw bound (5) met.
+    for d in ("d4", "d5", "d6", "d7", "d8", "d9", "d10"):
+        r = subprocess.run(["pgrep", "-f", f"mininet:{d}$"], capture_output=True, text=True).stdout.split()
+        if r:
+            _run(f"sudo setsid mnexec -a {r[0]} iperf -u -c 10.0.0.100 -b 5M -t 180 "
+                 f"</dev/null >/dev/null 2>&1 &", shell=True)
     time.sleep(5)                             # let iperf ramp before measuring
 
 

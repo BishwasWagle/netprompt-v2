@@ -23,7 +23,7 @@ implementation status. Read this first to decide which document you need.
 - **Reviewing / triaging debt?** 02 → 03 → 04.
 - **Running or operating it?** 07-workflow-and-usage (lifecycle + commands).
 - **Asking "is any of this novel"?** 08-novelty (honest, prior-art-grounded).
-- **Ready to run experiments?** [`../design/experiment-validity.md`](../design/experiment-validity.md) (validity audit + go/no-go) and [`../design/experiment-design.md`](../design/experiment-design.md) (the 3 experiments: planner · runtime · whole system).
+- **Ready to run experiments?** [`../design/experiment-validity.md`](../design/experiment-validity.md) (validity audit + go/no-go), [`../design/experiment-design.md`](../design/experiment-design.md) (the 3 experiments), and [`../design/experiment-results.md`](../design/experiment-results.md) (recorded E2a/E1 results).
 - **Writing the paper / status report?** 05 → 06 → 08 (metrics + defensible framing).
 
 **Baseline that anchors everything:** `pytest tests/unit` → **212 passed in

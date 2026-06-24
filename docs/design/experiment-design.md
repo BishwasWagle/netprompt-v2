@@ -351,6 +351,11 @@ that the draft is missing (E2).
 > under E1's A/B/C split** (the recommended way to retire this VERIFY). Either way, **no
 > Table IV / Fig. 6 value may be imported as a telemetry-reasoning result** — we adopt the
 > *structure* of these experiments, never the *values*.
+>
+> **✅ RESOLVED (2026-06-24).** E1 reproduced the matrix with the promoted adapter — set A
+> 4/4, B/C 0/4, 8/8 valid ([experiment-results.md](experiment-results.md)). The promoted
+> adapter itself yields the high known-taxonomy accuracy; Fig-6 is **set-A accuracy, not
+> generalization**. Relabel accordingly.
 
 ### 6.1 Adopt — bring over into E1/E2/E3
 

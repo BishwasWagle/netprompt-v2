@@ -17,7 +17,16 @@ confirm before the number can stay).
 
 ---
 
-## 0. Blocking question — resolve before touching any number
+## 0. Blocking question — **RESOLVED (2026-06-24)**
+
+> **Resolved by reproduction.** E1 re-ran the A/B/C confusion matrix with the promoted
+> `final_adapter_retrained` (constrained-on): **set A 4/4, sets B+C 0/4, 8/8 valid** —
+> identical to the planner eval ([experiment-results.md](experiment-results.md)). So the
+> promoted adapter *itself* produces the high known-taxonomy accuracy and fails telemetry —
+> the draft's **Fig-6 is set-A / known-taxonomy accuracy, not telemetry generalization**, and
+> no different/condition-trained model need be posited. **Action: relabel Fig-6 + Table IV
+> accordingly; do not claim generalization.** The original framing of the blocking question
+> is kept below for the record.
 
 The draft's **Table IV** maps *condition* scenarios (congestion, relay-failure, DDIL) to
 ReliableRelaySFC, and **Fig. 6** scores 88.9–100% per SFC class — both implying the planner

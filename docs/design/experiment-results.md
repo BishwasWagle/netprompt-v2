@@ -77,14 +77,43 @@ percentages — enough to settle provenance/direction, not to re-derive those fi
 
 ---
 
+## E2b (foundation) — live readiness: M5 + M6 integration on the fabric
+
+A resident `low_latency` BMv2 fabric (`launch_network.py`, 3 switches on thrift
+9090/9091/9092) was stood up and the node-gated integration suites run with real
+traffic. **6/6 PASSED in 243 s (~4 min)** — then the fabric was torn down (`mn -c`).
+
+| Test | Confirms |
+|---|---|
+| M5 `congest_primary_reports_degraded` | monitor measures a degraded primary correctly on real traffic |
+| M5 `squeeze_neighbour_populates_harm_list` | displaced-harm detection on measured flows |
+| M5 `kill_s2_reports_failed_and_stays_sound` | single-relay kill → `Failed` but system stays sound (no false fault) |
+| M6 `relay_fault_reroutes_and_commits_live` | full loop: exogenous fault → **reroute → commit** on live switches |
+| M6 `ddil_both_paths_degraded_escalates_live` | infeasible → **honest escalate** on real hardware |
+| M6 `contention_harm_tunes_target_down_and_commits_live` | harm → **tune-down → commit** with real `tc` actuation |
+
+**Significance.** This closes the two things E2a (off-node) could not: **measurement
+correctness on real traffic** (validity §2) and that the runtime's **behavioral
+outcomes reproduce on real hardware** (E2b success criterion) — the live M6 verdicts
+mirror the E2a model-mode results (reroute-commit / escalate / tune-commit). With
+E2a + E1 + this, the **validity readiness gate (validity §9) is complete**; only the
+short real-monitor soak and E3 remain before collecting comparative data.
+
+*Reproduce:* launch `low_latency` fabric → `sudo -E env NETPROMPT_TREE_ROOT=$NETPROMPT_ROOT
+… pytest tests/integration/test_m5_monitor_node.py tests/integration/test_m6_acceptance_node.py -v`
+→ `sudo mn -c`.
+
+---
+
 ## Status
 
 | Experiment | State |
 |---|---|
 | E2a (runtime behavioral gate) | ✅ 6/6 PASS |
 | E1 (planner decision quality) | ✅ 4/4 set A · 0/4 B/C · 8/8 valid — reproduces the eval; VERIFY resolved |
-| E2b (runtime on the live fabric) | ⏳ pending — needs `launch_network` + traffic |
+| E2b (runtime on the live fabric) | ◑ foundation verified — M5/M6 6/6 live; full real-monitor soak still pending |
 | E3 (end-to-end vs baselines) | ⏳ pending — needs the fabric + the 3-arm comparative harness |
+| Validity readiness gate (validity §9) | ✅ complete (unit 212 · E2a 6/6 · E1 · M5/M6 6/6 live) |
 
 ---
 

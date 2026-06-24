@@ -99,13 +99,64 @@ the failure mode (defaults to BandwidthOptimized), not averaged into a headline.
 on the known taxonomy, beating both baselines there. **Cannot claim:** telemetry
 reasoning, or a single blended accuracy across A+B+C.
 
-**Adopted from the KRONOS draft (§6).** E1 absorbs three of the draft's planner-side
-artifacts, *re-run under these controls*: the Fig. 6 **confusion matrix** becomes E1's
-set-A accuracy presentation; the §V.D **adversarial-robustness probes** (misleading
-advisory · stale KG · conflicting telemetry · noisy topology · format-shift) become an
-E1 robustness sub-study on the known taxonomy; and the Table V **KG-reasoning
-scalability** sweep (10–200 synthetic drones) becomes an E1 decision-latency adjunct.
-See §6.1 for the guardrails and §6 for the values we do *not* import.
+**Adopted from the KRONOS draft (§6).** The draft's full slow-planner battery — the
+Table IV decisions, Table V scalability, the Fig. 6 confusion matrix, and the §V.D
+adversarial / counterfactual probes — is catalogued and scoped in **E1-draft** below;
+§6 carries the values we do *not* import.
+
+---
+
+## E1-draft — Slow-planner experiments currently in the KRONOS draft
+
+The KRONOS draft already runs a battery of slow-loop (planner-side) experiments. This
+section catalogues them **as they exist in the draft**, maps each to its role in E1, and
+records the draft's headline result and the guardrail under which we re-run / report it —
+the concrete instantiation of E1's "decision quality in isolation." All are **slow
+planner**: KG-RAG decision + constrained decoding, no runtime adaptation, no live fabric
+(except the one provenance check in E1-d1). The adopt / let-go / cut rationale lives in §6.
+
+| ID | Draft source | What it measures | Draft headline result | E1 role / status |
+|---|---|---|---|---|
+| **E1-d1** | Table IV · §V.A | per-scenario selected SFC + relay path + P4 policy + KG query latency | baseline/low-lat → LowLatencyVideo·primary; battery → EnergyAware·primary; congestion/relay/DDIL → ReliableRelay·backup; SFC-query 1.20–2.64 ms, path-query 1.82–3.20 ms | decision-provenance table — **VERIFY provenance** (§6.0) |
+| **E1-d2** | Table V · §V.A | KG-reasoning latency vs graph size (10/50/100/200 synthetic drones, 20 runs) | total reasoning 4.37 → 7.80 ms; < 8 ms at every size | **adopt** — scalability adjunct |
+| **E1-d3** | Fig. 6 · §V.D | decision accuracy — confusion matrix over the 4 SFC classes (same-distribution held-out) | LowLatencyVideo 99.5% · ReliableRelay 92.6% · EnergyAware 100% · BandwidthOptimized 88.9% | **adopt** — set-A accuracy presentation |
+| **E1-d4** | §V.D | robustness — decision under misleading advisory · stale KG · conflicting telemetry · noisy topology · format-shift | "remained robust"; outputs stayed parseable / validator-compliant / policy-consistent | **adopt** — robustness sub-study |
+| **E1-d5** | §V.D | counterfactual — does the SFC change when one signal changes, others fixed | "changed appropriately"; errors concentrated among semantically similar SFCs | **reframe / let-go** as generalization (§6.2) |
+| **E1-d6** | Table VIII | planner-side control-plane cost | SFC selection ≈ 1.00 s (LLM inference); KG reasoning 7.70–7.80 ms (warm cache) | report as E1 decision latency (LLM ≈1 s vs rule ≈µs) |
+
+**How we re-run them (under the §0 controls).** E1-d1/d3/d4/d5 need only the seeded KG +
+the pinned `final_adapter_retrained` with `NETPROMPT_LLM_CONSTRAINED=1` — no testbed; E1-d2
+needs only synthetic graph contexts. Reuse the probe matrix in
+[planner-lora-eval.md](../planner/planner-lora-eval.md) (sets A/B/C) for the decision rows,
+score every decision against `validator.fallback_decision`, and log `selected_sfc` /
+`llm_parse_status` / adapter id per the §0 metric dictionary.
+
+**Guardrails — why each is scoped the way it is:**
+- **E1-d1 — provenance first.** The condition rows (congestion/relay/DDIL → ReliableRelay)
+  are the telemetry-driven case the promoted adapter **fails** (0/4 on sets B/C,
+  [planner-lora-eval §2](../planner/planner-lora-eval.md)). Either confirm the table came
+  from a model trained on those condition labels, or attribute the condition→SFC mapping to
+  the deterministic logic — do not report it as LLM "KG reasoning." Keep the query-latency
+  columns (honest Cypher latencies). (validity §3)
+- **E1-d2 — keep as is.** Synthetic, latency-only; the lowest-risk planner result. Mark the
+  contexts synthetic; never attach an SLA / performance claim.
+- **E1-d3 — label it set A.** "Same-distribution held-out" *is* the known 4-mission
+  taxonomy. Present the matrix as decision accuracy on the known taxonomy, **not**
+  generalization. (validity §3)
+- **E1-d4 — robustness of the *known* decision.** Format-validity is **guaranteed** by
+  constrained decoding, so JSON parseability / validator compliance is a *guarantee check*,
+  not a quality metric — frame the win as decision-stability under noisy context.
+- **E1-d5 — do not claim telemetry generalization.** If the counterfactuals vary telemetry,
+  a "changed appropriately" result contradicts 0/4 on telemetry-only missions. Restrict the
+  set to **mission-name** changes (set A), or present it as an **oracle-agreement** check.
+  (validity §3, §8; §6.2)
+- **E1-d6 — name the LLM cost.** ≈1 s per decision is LLM inference (vs rule-based ≈µs);
+  report it as overhead honestly rather than burying it.
+
+**Can claim (from this battery):** mission-sensitive, KG-grounded, always-valid SFC
+decisions on the known taxonomy, with sub-8 ms KG reasoning to 200 drones and decision
+stability under noisy context. **Cannot claim:** telemetry / condition generalization, or
+any single blended accuracy across the held-out + adversarial + counterfactual sets.
 
 ---
 

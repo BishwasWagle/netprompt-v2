@@ -1,13 +1,27 @@
 # 1 · Clean Architecture Breakdown
 
-## 1.1 The system in one sentence
+This breakdown is organized into three parts:
+
+* **[§1.1 Whole System](#11-whole-system)** — the two-loop MAPE-K shape and how
+  the loops coordinate.
+* **[§1.2 Slow Planner](#12-slow-planner--the-outer-loop)** — the outer loop:
+  the LLM that decides *which* SFC, then stops.
+* **[§1.3 Runtime Manager](#13-runtime-manager--the-inner-loop)** — the inner
+  loop and the primary subject of this review: the deterministic control loop
+  that deploys, observes, adapts, and commits.
+
+---
+
+## 1.1 Whole System
+
+### 1.1.1 The system in one sentence
 
 RuntimeManager is the **inner, mostly-deterministic control loop** of a two-loop
 MAPE-K (Monitor–Analyze–Plan–Execute over a Knowledge base) system that keeps a
 drone Service Function Chain (SFC) inside its SLA envelope on a live P4/BMv2
 network, escalating to a slow LLM planner only when no in-envelope fix exists.
 
-## 1.2 Two loops, two models
+### 1.1.2 Two loops, two models
 
 ```
  mission ─▶ SLOW PLANNER (outer loop) ──artifact──▶ RUNTIME MANAGER (inner loop) ──▶ live P4/BMv2
@@ -17,16 +31,141 @@ network, escalating to a slow LLM planner only when no in-envelope fix exists.
        llm_generated_experiment_config.json        Verdict + EscalationTicket → KG
 ```
 
-* **Outer loop** (untouched by this codebase's runtime side): an LLM reads the
-  Knowledge Graph + history, picks *which SFC* and *which path*, and writes a JSON
-  artifact. It then **stops** — it triggers no deploy.
-* **Inner loop** (`runtime/`): takes that artifact, deploys it, observes the live
-  network, and drives one *episode* to a terminal verdict using a deterministic
-  cost-ordered adaptation ladder. An LLM appears here only as an optional Tier-2
-  "regenerate the P4 rules" component — **the Runtime Manager itself is not an
-  LLM.**
+* **Outer loop** — the [Slow Planner](#12-slow-planner--the-outer-loop): an LLM
+  reads the Knowledge Graph + history, picks *which SFC* and *which path*, and
+  writes a JSON artifact. It then **stops** — it triggers no deploy.
+* **Inner loop** — the [Runtime Manager](#13-runtime-manager--the-inner-loop)
+  (`runtime/`): takes that artifact, deploys it, observes the live network, and
+  drives one *episode* to a terminal verdict using a deterministic cost-ordered
+  adaptation ladder. An LLM appears here only as an optional Tier-2 "regenerate
+  the P4 rules" component — **the Runtime Manager itself is not an LLM.**
 
-## 1.3 Component map (`runtime/`)
+The two LLMs are deliberately separate — different model, different GPU,
+different grounding source (see [05](05-evolution-from-original.md) §6 for the
+full model table):
+
+| | **Decision model** (planner) | **Tier-2 regen model** (runtime) |
+|---|---|---|
+| Base | `Qwen2.5-1.5B-Instruct` + LoRA | `Qwen2.5-Coder-1.5B-Instruct` (base) |
+| Device | `cuda:0` | `cuda:1` (no contention) |
+| Grounded in | the **KG** (strategic) | the deployer's live **`table_state`** (tactical) |
+| Role | *select which SFC/policy/path* | *regenerate P4 rules* when tier 0/1 fail |
+
+### 1.1.3 How the two loops coordinate
+
+The slow planner and the runtime manager **never call each other directly**.
+They coordinate through two channels:
+
+1. **A typed file/contract handoff.** The planner writes its artifact; the
+   runtime's [`planner_adapter.py`](#124-the-handoff--artifact--deploymentspec-then-it-stops)
+   normalizes it into a `DeploymentSpec` (planner → runtime), and the runtime
+   emits a `Verdict` + optional `EscalationTicket` (runtime → planner) when the
+   episode terminates.
+2. **The Knowledge Graph as a shared hub.** The planner reads strategic state
+   (SFC templates, field bounds, relay availability) and is *read-only*; the
+   runtime is the *sole writer* of operational state (switch status, verdicts,
+   snapshots). The loop closes through the KG: the runtime's measured
+   `ProgrammableSwitch.status` becomes the planner's `allowed_relays`, and
+   aggregated `Verdict`/`EscalationTicket` history becomes the planner's
+   `runtime_feedback`. Full treatment in
+   [06-knowledge-graph.md](06-knowledge-graph.md).
+
+---
+
+## 1.2 Slow Planner — the outer loop
+
+> This review's mandate is the inner loop; the planner is summarized here for
+> context and covered in depth in [05-evolution-from-original.md](05-evolution-from-original.md)
+> (§2 planner, §4 selector, §6 models, §7 retrain) and
+> [06-knowledge-graph.md](06-knowledge-graph.md) (§6.3 how the planner uses the
+> KG). The planner's decision kernel (`validator` / `prompt_builder` /
+> `kg_context` / `policy_compiler`) is Bishwas & Kiran's original
+> `llm_orchestrator/`, extended — not rewritten — this session.
+
+### 1.2.1 What it does
+
+The slow planner is the **outer loop**: given a mission, it reads the Knowledge
+Graph (topology + candidate SFC/policy set) plus a KG-RAG results history, and
+decides *which* SFC and *which* path to deploy. It emits a single JSON artifact
+(`outputs/llm_generated_experiment_config.json`) and then **stops** — it triggers
+no deploy and supervises no episode.
+
+Selection is deliberately the *slow* loop: it runs per mission / re-plan, not per
+control cycle (~1 s for the LLM decision vs ~3 µs for the old rule-based
+baseline; the LLM buys mission-/context-sensitivity and KG grounding at that
+cost — [05](05-evolution-from-original.md) §4).
+
+### 1.2.2 The decision pipeline
+
+`build_runtime_input_object` (`llm_orchestrator/orchestrate.py`) assembles the
+model input from KG-grounded sources, then `run_pipeline` prompts the fine-tuned
+model for a decision, validates it, and compiles the artifact:
+
+```
+KG topology snapshot (kg_context.get_topology_snapshot)   → allowed relays/paths
+KG candidate set    (kg_context.get_candidate_sfc_policy_set, REALIZED_BY_P4_POLICY) → action menu
+KG-RAG history (top-k=3) + runtime_feedback (per-SFC reliability)
+        │
+        ▼  assemble orchestration_constraints
+   run_pipeline → fine-tuned LLM → 6-key JSON decision
+        │   {selected_sfc, selected_policy, selected_path, selected_relay,
+        │    priority_class, deployment_mode}
+        ├─ valid?   ─▶ policy_compiler → llm_generated_experiment_config.json
+        └─ invalid? ─▶ validator.fallback_decision (deterministic rule oracle) ─▶ compile
+```
+
+The load-bearing detail is that the **same** `orchestration_constraints` feed
+*both* the constrained-decoding grammar (`decision_grammar.build_decision_gbnf`)
+and the validator (`validator.validate_generated_decision`):
+
+```
+KG candidate set + allowed relays/paths
+        ├─▶ build_decision_gbnf(...)         → GBNF the LLM decodes under
+        └─▶ validate_generated_decision(...) → the contract check
+                                   ⇒ grammar-valid ⇒ validator-valid by construction
+```
+
+So the LLM literally **cannot emit an SFC/policy pair the KG does not realize**,
+and with constrained decoding on (the production default) the deterministic
+fallback is **bypassed** — the LLM's choice ships. That is exactly why decision
+*quality* rested on the LoRA retrain ([05](05-evolution-from-original.md) §3.2,
+§7; [06](06-knowledge-graph.md) §6.3, §6.7).
+
+### 1.2.3 The decision model
+
+`Qwen2.5-1.5B-Instruct` + LoRA (`final_adapter_retrained`), on `cuda:0`, FP16,
+greedy decoding under a per-request GBNF grammar (default-on). It is distinct in
+every dimension from the runtime's optional Tier-2 regen model
+(`Qwen2.5-Coder-1.5B-Instruct`, `cuda:1`, grounded in live `table_state` rather
+than the KG). **The decision model is not the Runtime Manager**; the regen model
+is a component the deterministic RM *may call* at tier 2. Full model table and
+the retrain story: [05](05-evolution-from-original.md) §6–7.
+
+### 1.2.4 The handoff — artifact → DeploymentSpec, then it stops
+
+The planner writes `llm_generated_experiment_config.json` and stops. On the
+runtime side, [`planner_adapter.py`](runtime/planner_adapter.py) is the seam that
+normalizes that artifact into a typed `DeploymentSpec` **without modifying any
+planner code**:
+
+* It preserves the planner's *real* decisions — `selected_sfc` + `policy_type`,
+  carried verbatim — and **reconstructs** the canonical per-switch binding
+  (`<prefix>_s{1,2,3}_rules.txt` + `<prefix>.json`) rather than trusting the
+  artifact's literal rule paths (the orchestrator labels rule files by the
+  *active relay*, which would load s2 with s3's rules — see the module
+  docstring).
+* It supplies the two fields the artifact does not carry — `target_field`
+  (drives envelope derivation + the monitor's host map) and `correlation_id`
+  (ties deploy → monitor → verdict → escalation).
+* The runtime **never re-selects** the SFC or path (design §1.2).
+
+From the `DeploymentSpec`, control passes to the inner loop ([§1.3](#13-runtime-manager--the-inner-loop)).
+
+---
+
+## 1.3 Runtime Manager — the inner loop
+
+### 1.3.1 Component map (`runtime/`)
 
 | Layer | Module | Responsibility |
 |-------|--------|----------------|
@@ -47,7 +186,7 @@ network, escalating to a slow LLM planner only when no in-envelope fix exists.
 | **Test doubles** | `fakes.py`, `fixtures.py` | Off-node `FakeDeployer`/`FakeMonitor`/`ScriptedRunner` and scenario models. |
 | **Tools** | `tools/` | `soak.py`, `run_episode.py`, `run_from_planner.py`, `launch_network.py`, etc. |
 
-## 1.4 The core data contracts
+### 1.3.2 The core data contracts
 
 The whole loop is choreographed through a small set of immutable-ish dataclasses,
 which is a real strength — boundaries are explicit and timestamps are always
@@ -67,7 +206,7 @@ caller-supplied (deterministic under test). The key ones:
 * **`Verdict`** — the terminal outcome recorded to the KG: one of
   `healthy | marginal | rollback | escalated | system_fault | rejected`.
 
-## 1.5 End-to-end data flow of one episode
+### 1.3.3 End-to-end data flow of one episode
 
 ```
 DeploymentSpec
@@ -121,7 +260,7 @@ DeploymentSpec
 `EvalResult`; `ConfigSnapshot` is captured/rolled-back as an opaque snapshot and
 `BaselineSnapshot` is persisted to the KG.
 
-## 1.6 Architectural strengths (keep these)
+### 1.3.4 Architectural strengths (keep these)
 
 These are deliberate and good; the refactors in this review are careful **not** to
 disturb them:
@@ -141,7 +280,7 @@ disturb them:
 5. **Sound gate.** Conservative-by-default: without table state it *refuses*
    regen rather than hoping.
 
-## 1.7 The "north-star" clean architecture
+### 1.3.5 The "north-star" clean architecture
 
 The target end-state this review's refactors move toward — same behavior, sharper
 seams:
@@ -173,7 +312,11 @@ See [03-refactoring-strategy.md](03-refactoring-strategy.md).
 
 - **It's the deterministic inner loop of a two-loop MAPE-K system.** A slow LLM planner (Qwen Instruct on cuda:0) does KG-RAG to pick *which* SFC and path, writes `llm_generated_experiment_config.json`, and then stops — it never deploys. RuntimeManager (`runtime/`) takes that artifact, deploys it to the live P4/BMv2 network, and drives one episode to a terminal verdict via a cost-ordered ladder. The Runtime Manager itself is *not* an LLM; an LLM only appears as an optional Tier-2 "regenerate the P4 rules" component (Qwen Coder on cuda:1).
 
-- **Everything crosses boundaries as typed contracts.** The whole loop is choreographed through a small set of immutable-ish dataclasses in `contracts.py` (`DeploymentSpec`, `MonitorReport`, `Candidate`, `Diagnosis`, `Verdict`, `EscalationTicket`, `Envelope`, etc.), with timestamps always caller-supplied so behavior is deterministic under test. Boundaries are explicit: a `DeploymentSpec` is the planner→runtime handoff, and `Verdict` is the terminal outcome — one of `healthy | marginal | rollback | escalated | system_fault | rejected`.
+- **The doc is split into three altitudes: Whole System, Slow Planner, Runtime Manager.** §1.1 frames the two-loop shape and how the loops coordinate (a typed `DeploymentSpec`/`Verdict` contract plus the KG as shared hub — the two never call each other directly). §1.2 covers the outer loop — the planner reads KG topology + candidate set + KG-RAG history, emits a constrained 6-key decision, and stops, handing off via `planner_adapter.py`. §1.3 is the inner loop and the subject of this review.
+
+- **The planner's choice is load-bearing because the grammar *is* the KG.** The same `orchestration_constraints` feed both the GBNF grammar the LLM decodes under and the validator, so grammar-valid ⇒ validator-valid by construction and the LLM cannot emit an SFC/policy the KG doesn't realize. With constrained decoding on (production default) the deterministic fallback is bypassed and the LLM's choice ships — which is why decision quality rested on the LoRA retrain ([05](05-evolution-from-original.md) §7).
+
+- **Everything crosses boundaries as typed contracts.** The whole inner loop is choreographed through a small set of immutable-ish dataclasses in `contracts.py` (`DeploymentSpec`, `MonitorReport`, `Candidate`, `Diagnosis`, `Verdict`, `EscalationTicket`, `Envelope`, etc.), with timestamps always caller-supplied so behavior is deterministic under test. A `DeploymentSpec` is the planner→runtime handoff, and `Verdict` is the terminal outcome — one of `healthy | marginal | rollback | escalated | system_fault | rejected`.
 
 - **An episode runs as nested ladders, each with file/line anchors.** `run_episode()` (`runtime_manager.py:48`) gates first (rejecting without ever deploying), captures live table state, builds a fresh per-episode `Budget(N)`, observes a window into a `MonitorReport`, then calls `evaluate()` (`evaluator.py:77`). That 6-stage ladder checks system soundness → SLA met → regression-vs-baseline rollback → `adapt()` → displaced-harm relief → commit, and `adapt()` (`adapt.py:165`) is the cost-ordered hill-climb (tier 0 tune → 1 reroute → 2 regen LLM) that loops while budget remains.
 

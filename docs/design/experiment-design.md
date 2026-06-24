@@ -118,9 +118,9 @@ planner**: KG-RAG decision + constrained decoding, no runtime adaptation, no liv
 | ID | Draft source | What it measures | Draft headline result | E1 role / status |
 |---|---|---|---|---|
 | **E1-d1** | Table IV · §V.A | per-scenario selected SFC + relay path + P4 policy + KG query latency | baseline/low-lat → LowLatencyVideo·primary; battery → EnergyAware·primary; congestion/relay/DDIL → ReliableRelay·backup; SFC-query 1.20–2.64 ms, path-query 1.82–3.20 ms | decision-provenance table — **VERIFY provenance** (§6.0) |
-| **E1-d2** | Table V · §V.A | KG-reasoning latency vs graph size (10/50/100/200 synthetic drones, 20 runs) | total reasoning 4.37 → 7.80 ms; < 8 ms at every size | **adopt** — scalability adjunct |
+| **E1-d2** | Table V · §V.A | KG-reasoning latency vs graph size (10/50/100/200 synthetic drones, 20 runs) | total reasoning 4.37 → 7.80 ms; < 8 ms at every size | **adopt (lowest priority)** — "KG query latency"; needs net-new synthetic-KG tooling; drop if effort > value (§6.1) |
 | **E1-d3** | Fig. 6 · §V.D | decision accuracy — confusion matrix over the 4 SFC classes (same-distribution held-out) | LowLatencyVideo 99.5% · ReliableRelay 92.6% · EnergyAware 100% · BandwidthOptimized 88.9% | **adopt** — set-A accuracy presentation |
-| **E1-d4** | §V.D | robustness — decision under misleading advisory · stale KG · conflicting telemetry · noisy topology · format-shift | "remained robust"; outputs stayed parseable / validator-compliant / policy-consistent | **adopt** — robustness sub-study |
+| **E1-d4** | §V.D | robustness — decision under misleading advisory · stale KG · conflicting telemetry · noisy topology · format-shift | "remained robust"; outputs stayed parseable / validator-compliant / policy-consistent | **adopt** — robustness sub-study (note: *conflicting-telemetry* probe is near-circular — §6.1) |
 | **E1-d5** | §V.D | counterfactual — does the SFC change when one signal changes, others fixed | "changed appropriately"; errors concentrated among semantically similar SFCs | **reframe / let-go** as generalization (§6.2) |
 | **E1-d6** | Table VIII | planner-side control-plane cost | SFC selection ≈ 1.00 s (LLM inference); KG reasoning 7.70–7.80 ms (warm cache) | report as E1 decision latency (LLM ≈1 s vs rule ≈µs) |
 
@@ -284,7 +284,9 @@ cross-host reproducibility without pinned revisions.
 **Adopted from the KRONOS draft (§6).** E3 takes over the draft's **topology-equivalent
 control** (all arms on identical relay path + forwarding, to separate orchestration effect
 from topology-induced latency — Table VI), adds the **NoKG ablation** as a fourth arm
-(Table VII), and reports the **control-plane timing breakdown** (SFC-select / KG-update /
+(Table VII — *define what "NoKG" disables first; an empty KG also drops topology grounding,
+so it isn't a clean single-factor ablation*, §6.1), and reports the **control-plane timing
+breakdown** (SFC-select / KG-update /
 writeback — Table VIII) as the overhead DV. RTT is the headline measured dimension;
 throughput is shown only as offered load and loss only at coarse bounds — see §6.3 for
 the columns we remove/reframe.
@@ -337,25 +339,30 @@ that the draft is missing (E2).
 > **Fig. 6** matrix scores 88.9–100% per SFC class — both implying the planner reasons from
 > telemetry/condition. But our planner eval found the promoted adapter is **4/4 only on the
 > four known mission *names*** and **0/4 on telemetry/condition-only missions** (it defaults
-> to BandwidthOptimized) — [planner-lora-eval §2–3](../planner/planner-lora-eval.md). So
-> either the KRONOS numbers came from a **different model trained on condition labels** (then
-> the set A/B/C taxonomy in E1 must be re-pinned to *that* model before importing any of its
-> values), or the condition→SFC decisions came from the **deterministic oracle** (then they
-> must be labeled as such, not "emerged from KG reasoning"). **Verify which — against the
-> actual training set — before importing any Table IV / Fig. 6 number.** Until then we adopt
-> the *structure* of these experiments, never the *values*.
+> to BandwidthOptimized) — [planner-lora-eval §2–3](../planner/planner-lora-eval.md).
+>
+> **This is not an open "either/or" — one branch is forced.** `train_decision_lora.py:85-86`
+> trains the retrained adapter on **50% generic missions explicitly "to force telemetry
+> use,"** oracle-labelled — i.e. the model *was* trained on the telemetry/condition case and
+> **still** scores 0/4 on it. So a 88.9–100% Fig. 6 **cannot** be telemetry generalization;
+> it is necessarily on **name-correlated, same-distribution held-out data — i.e. set A.** The
+> only remaining question is *whether Fig. 6 came from the promoted `final_adapter_retrained`
+> or a different/earlier adapter*, settled cheaply by **reproducing the confusion matrix
+> under E1's A/B/C split** (the recommended way to retire this VERIFY). Either way, **no
+> Table IV / Fig. 6 value may be imported as a telemetry-reasoning result** — we adopt the
+> *structure* of these experiments, never the *values*.
 
 ### 6.1 Adopt — bring over into E1/E2/E3
 
 | Draft artifact | Maps to | How we adopt it | Guardrail (validity §) |
 |---|---|---|---|
 | **Table IV** — KG-driven SFC + path decision per scenario | E1 + E3 (decision provenance) | the per-scenario `selected_sfc` / path / policy provenance table | label by set A; attribute condition-only rows to the rule oracle, or to a model *verified* on those labels (§3) |
-| **Table V** — KG-reasoning scalability, 10–200 synthetic drones (4.37→7.80 ms) | **new E1 scalability adjunct** | a synthetic-graph query-latency sweep; cheap, needs no fabric | mark **synthetic**; report query latency only — never an SLA/performance claim |
+| **Table V** — KG-reasoning scalability, 10–200 synthetic drones (4.37→7.80 ms) | **new E1 adjunct — lowest priority** | rename to **"KG query latency"**: a synthetic-graph Neo4j query-latency sweep | **needs net-new tooling** (`generate_kg.py` hardcodes 10 drones — a synthetic-KG generator must be written); the result is *Neo4j query time on a small graph*, not "reasoning" — report query latency only, never an SLA/perf claim; **drop if effort > value** |
 | **Table VI** — topology-equivalent RTT/loss/throughput, 3 arms × 6 scenarios | E3 headline | the 3-arm × 6-scenario shape **and** the *topology-equivalent control* (all arms on identical relay/forwarding) | RTT is the honest dimension; throughput = offered load; coarse loss only (§2) |
-| **Table VII** — KG ablation (full vs NoKG) | E3 ablation arm | a NoKG arm isolating the KG's contribution to resilience | qualitative/coarse resilience, not precise loss % (§2.2) |
+| **Table VII** — KG ablation (full vs NoKG) | E3 ablation arm | a NoKG arm isolating the KG's contribution to resilience | **define "NoKG" operationally first** — an empty/unseeded KG routes the planner to `fallback_candidate_actions()` (`kg_context.py:294`), which *also* drops topology grounding and changes the grammar's candidate source, so it isn't a clean single-factor ablation. State precisely what NoKG disables (candidate set only? topology? grammar source?). Report qualitative/coarse resilience, not precise loss % (§2.2) |
 | **Table VIII** — control-plane timing (SFC 1.00 s / KG 0.51 s / writeback 0.54 s) | E3 overhead DV | the orchestration-overhead breakdown | report LLM ≈1 s vs rule ≈µs honestly (metric dict) |
 | **Fig. 6 + §V.D(1)** — held-out confusion matrix, 4 SFC classes | E1 set-A accuracy | the confusion-matrix presentation of decision accuracy | "same-distribution held-out" = the *known taxonomy*; this is set A, **not** generalization (§3) |
-| **§V.D(2)** — adversarial robustness (misleading advisory · stale KG · conflicting telemetry · noisy topology · format-shift) | **new E1 robustness sub-study** | perturb the context, check the set-A decision still holds | robustness of the *known* decision; format-validity is a constrained-decoding **guarantee check**, not a quality metric (metric dict) |
+| **§V.D(2)** — adversarial robustness (misleading advisory · stale KG · conflicting telemetry · noisy topology · format-shift) | **new E1 robustness sub-study** | perturb the context, check the set-A decision still holds | robustness of the *known* decision; format-validity is a constrained-decoding **guarantee check**, not a quality metric. **Caveat: the "conflicting telemetry" probe is near-circular** — since the planner keys on the mission *name* and ignores telemetry (0/4, §3), it will trivially "survive" telemetry conflict; frame it as *"robust to telemetry noise because (by the §3 limitation) it ignores telemetry,"* not a robustness win |
 
 ### 6.2 Let go — do not carry forward as a claim
 

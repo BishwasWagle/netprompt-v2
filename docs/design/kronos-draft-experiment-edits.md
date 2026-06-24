@@ -25,8 +25,16 @@ reasons from telemetry/condition. Our planner eval found the promoted adapter is
 on the four known mission *names*** and **0/4 on telemetry/condition-only missions** (it
 defaults to BandwidthOptimized) — [planner-lora-eval §2–3](../planner/planner-lora-eval.md).
 
-**VERIFY which model + training set produced Table IV and Fig. 6**, and record the adapter
-id + base-model revision in §IV:
+**One branch is already forced.** `train_decision_lora.py:85-86` trains the retrained
+adapter on **50% generic missions explicitly "to force telemetry use"** (oracle-labelled),
+so the model *was* trained on the telemetry/condition case and **still** scores 0/4 on it.
+A 88.9–100% Fig. 6 therefore **cannot** be telemetry generalization — it is necessarily on
+name-correlated, same-distribution held-out data (**set A**). So the figure stays only if
+**relabelled "known-taxonomy (set A) accuracy,"** never "generalization."
+
+**VERIFY which model + training set produced Table IV and Fig. 6** (the only open part —
+which adapter), and record the adapter id + base-model revision in §IV; the cleanest
+resolution is to **reproduce the confusion matrix under E1's A/B/C split**:
 
 - If a **different model trained on condition labels** produced them → legitimate, but the
   decision-accuracy framing must be tied to *that* model's taxonomy, and the planner-eval

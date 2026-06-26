@@ -18,7 +18,7 @@ teardown() {
 }
 trap teardown EXIT
 
-sudo -v
+sudo -n true 2>/dev/null || { echo "passwordless sudo required (sudo -n failed)"; exit 1; }
 "$PY" -m runtime.tools.seed_kg
 teardown                                 # clean slate before launching
 

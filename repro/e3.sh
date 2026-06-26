@@ -13,7 +13,7 @@ source "$(dirname "${BASH_SOURCE[0]}")/common.sh"
 REPEATS="${1:-3}"
 OUT="${2:-/tmp/e3_full.jsonl}"
 
-sudo -v                                  # cache sudo creds up front (the driver shells out to sudo)
+sudo -n true 2>/dev/null || { echo "passwordless sudo required (sudo -n failed)"; exit 1; }
 "$PY" -m runtime.tools.seed_kg
 
 "$PY" -m runtime.tools.e3_compare --repeats "$REPEATS" --out "$OUT"

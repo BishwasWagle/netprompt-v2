@@ -288,7 +288,7 @@ repro/e3.sh 3 /tmp/e3_full.jsonl
 ```
 
 **Preconditions:** (1) passwordless `sudo` — the driver launches/measures/tears down BMv2 +
-Mininet (the script runs `sudo -v` first); (2) a running, **freshly seeded** Neo4j on
+Mininet (the script checks `sudo -n` first); (2) a running, **freshly seeded** Neo4j on
 `localhost:7687` (sourcing `gpu-node.env` exports `NETPROMPT_KG_URI=bolt://localhost:7687`,
 reconciling `config.py`'s `controller-node` default with the driver's `localhost` default);
 (3) the GPU with the promoted Qwen adapter on `cuda:0` for the proposed arm. The driver

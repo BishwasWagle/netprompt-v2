@@ -218,6 +218,20 @@ python3 -m runtime.tools.results_to_csv e3 --in /tmp/e3_full.jsonl --outdir docs
 python3 -m runtime.tools.results_to_csv e1 --indir /tmp --outdir docs/design/results
 ```
 
+**Figures** (`docs/design/results/plots/`) are rendered from those CSVs by
+`plot_results` (matplotlib, headless — `pip install matplotlib`):
+
+```bash
+python3 -m runtime.tools.plot_results --resultsdir docs/design/results
+```
+
+| Figure | Shows |
+|---|---|
+| `e3_rtt_by_scenario_arm.png` | F1 RTT (mean ± sd) per scenario × arm vs the 70 ms SLA line — proposed is the only arm under the bound across both fault locations |
+| `e3_sla_met_by_scenario_arm.png` | SLA-met repeats (of 3) per scenario × arm |
+| `e3_overhead_by_scenario_arm.png` | orchestration wall time per scenario × arm |
+| `e1_accuracy_by_set.png` | planner accuracy by probe set (A known-taxonomy 4/4 vs B/C held-out 0/4) |
+
 The committed CSVs are from the **2026-06-24** E3 run (36/36 cells) and the E1 probe
 set; the summary reproduces the E3 table exactly (e.g. `backup_fault`/proposed
 35.0 ms at tier 1, `ddil`/proposed escalate at tier 2).

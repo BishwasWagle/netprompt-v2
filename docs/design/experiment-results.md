@@ -99,9 +99,7 @@ mirror the E2a model-mode results (reroute-commit / escalate / tune-commit). Wit
 E2a + E1 + this, the **validity readiness gate (validity §9) is complete**; only the
 short real-monitor soak and E3 remain before collecting comparative data.
 
-*Reproduce:* launch `low_latency` fabric → `sudo -E env NETPROMPT_TREE_ROOT=$NETPROMPT_ROOT
-… pytest tests/integration/test_m5_monitor_node.py tests/integration/test_m6_acceptance_node.py -v`
-→ `sudo mn -c`.
+*Reproduce:* see [Reproduce → E2b](#e2b--live-readiness-m5--m6-on-the-fabric).
 
 ---
 
@@ -173,15 +171,8 @@ pick fails, and via **tier-1 reroute** where a non-adaptive arm with the *same* 
 deterministic → ~0 sd); goodput (bw is offered load); sub-10 % loss fidelity
 (`ping_count=2`, loss read 0 % throughout); off-taxonomy generalization (E1: 0/4).
 
-**Reproduce:** `source deploy/gpu-node/gpu-node.env && python3 -m runtime.tools.e3_compare
---repeats 3 --out /tmp/e3_full.jsonl` (each cell self-launches + tears down the fabric).
-**Preconditions:** (1) passwordless `sudo` — the driver launches/measures/tears down BMv2 +
-Mininet (`sudo -v` first); (2) a running, **freshly seeded** Neo4j on `localhost:7687`
-(`python -m runtime.tools.seed_kg`) — sourcing `gpu-node.env` is required (it exports
-`NETPROMPT_KG_URI=bolt://localhost:7687`, reconciling `config.py`'s `controller-node` default
-with the driver's `localhost` default); (3) the GPU with the promoted Qwen adapter on `cuda:0`
-for the proposed arm. The driver re-seeds the KG per cell; the episode runs with `kg=None`
-(writes nothing back), so no cell pollutes the planner's history.
+**Reproduce:** see [Reproduce → E3](#e3--whole-system-3-arms--4-scenarios-live) (driver
+invocation, CSV/figure export, and the full preconditions).
 
 ---
 
@@ -240,24 +231,80 @@ set; the summary reproduces the E3 table exactly (e.g. `backup_fault`/proposed
 
 ## Reproduce
 
+Shared preamble (all subsections assume the repo + venv from `deploy/gpu-node/BRINGUP.md`):
+
 ```bash
 cd ~/Run-time-Manager && source deploy/gpu-node/gpu-node.env
 python -m runtime.tools.seed_kg                       # re-seed clean + calibrated KG
-
-# E2a — off-node behavioral gate (no GPU/fabric): the 6 scenarios through run_episode
-#   (canonical setups: see tests/unit/test_{evaluator,runtime_manager}.py)
-pytest tests/unit/test_evaluator.py tests/unit/test_runtime_manager.py -q
-
-# E1 — planner confusion matrix (8 probes, promoted adapter, constrained-on)
-cd "$NETPROMPT_ROOT"
-for probe in "emergency_alert_relay 20 25 2 80" "bulk_data_transfer 80 40 1 90" \
-             "real_time_pest_detection 40 6 1 80" "long_term_soil_monitoring 15 50 1 25" \
-             "real_time_video 40 10 1 80" "soil_moisture_survey 15 50 1 25" \
-             "routine_field_patrol 20 5 1 80" "routine_field_patrol 15 50 1 20"; do
-  set -- $probe
-  python -m llm_orchestrator.orchestrate --mission "$1" --bandwidth "$2" --delay "$3" \
-    --loss "$4" --battery "$5" --neo4j-uri bolt://localhost:7687 --neo4j-password netprompt123 \
-    --device-map cuda:0 --no-4bit --output /tmp/e1.json
-  python3 -c "import json;d=json.load(open('/tmp/e1.json'));x=d.get('decision',d);print('$1',x['selected_sfc'],x['llm_parse_status'])"
-done
 ```
+
+**E2a + E1** need only the venv + seeded Neo4j. **E2b + E3** also need the Mininet/BMv2
+testbed (`deploy/gpu-node/setup_testbed_node.sh --build-bmv2`) and passwordless `sudo`.
+
+### E2a — runtime behavioral gate (off-node)
+
+The 6 fixture scenarios through `run_episode` (no GPU/fabric); the same scenarios as
+the unit assertions (canonical setups: `tests/unit/test_{evaluator,runtime_manager}.py`).
+
+```bash
+pytest tests/unit/test_evaluator.py tests/unit/test_runtime_manager.py -q
+```
+
+### E1 — planner confusion matrix (8 probes)
+
+Promoted adapter, constrained-on. Each probe is written to `/tmp/e1_<ID>.json` (the IDs
+match `results_to_csv`'s `E1_PROBES`), then the converter emits `e1_confusion.csv`.
+
+```bash
+cd "$NETPROMPT_ROOT"
+# id mission bw delay loss batt
+for probe in "A1 emergency_alert_relay 20 25 2 80" "A2 bulk_data_transfer 80 40 1 90" \
+             "A3 real_time_pest_detection 40 6 1 80" "A4 long_term_soil_monitoring 15 50 1 25" \
+             "B1 real_time_video 40 10 1 80" "B2 soil_moisture_survey 15 50 1 25" \
+             "C1 routine_field_patrol 20 5 1 80" "C2 routine_field_patrol 15 50 1 20"; do
+  set -- $probe; id=$1; mission=$2
+  python -m llm_orchestrator.orchestrate --mission "$mission" --bandwidth "$3" --delay "$4" \
+    --loss "$5" --battery "$6" --neo4j-uri bolt://localhost:7687 --neo4j-password netprompt123 \
+    --device-map cuda:0 --no-4bit --output /tmp/e1_$id.json
+  python3 -c "import json;d=json.load(open('/tmp/e1_$id.json'));x=d.get('decision',d);print('$id','$mission',x['selected_sfc'],x['llm_parse_status'])"
+done
+cd ~/Run-time-Manager
+python3 -m runtime.tools.results_to_csv e1 --indir /tmp --outdir docs/design/results
+```
+
+### E2b — live readiness: M5 + M6 on the fabric
+
+A resident `low_latency` BMv2 fabric is held in one shell; the node-gated M5/M6
+integration suites run against it in another, then it is torn down.
+
+```bash
+# shell A — stand up the 3-switch fabric (thrift 9090/9091/9092); blocks, Ctrl-C to stop
+sudo -E python3 -m runtime.tools.launch_network \
+  --p4-json "$NETPROMPT_ROOT/compiled_p4/low_latency.json" \
+  --rules-dir "$NETPROMPT_ROOT/p4_multihop_rules" \
+  --sfc low_latency --scenario low_latency
+
+# shell B — once thrift is up, run the node-gated suites, then tear down
+sudo -E env NETPROMPT_TREE_ROOT="$NETPROMPT_ROOT" ~/netprompt-venv/bin/python -m pytest \
+  tests/integration/test_m5_monitor_node.py tests/integration/test_m6_acceptance_node.py -v
+sudo mn -c
+```
+
+### E3 — whole system, 3 arms × 4 scenarios (live)
+
+Each cell self-launches + tears down the fabric. The driver writes the JSONL and
+**auto-emits** the cells/flows/summary CSVs next to `--out`; `plot_results` renders the
+figures.
+
+```bash
+python3 -m runtime.tools.e3_compare --repeats 3 --out /tmp/e3_full.jsonl
+python3 -m runtime.tools.results_to_csv e3 --in /tmp/e3_full.jsonl --outdir docs/design/results
+python3 -m runtime.tools.plot_results --resultsdir docs/design/results
+```
+
+**Preconditions:** (1) passwordless `sudo` — the driver launches/measures/tears down BMv2 +
+Mininet (`sudo -v` first); (2) a running, **freshly seeded** Neo4j on `localhost:7687`
+(sourcing `gpu-node.env` exports `NETPROMPT_KG_URI=bolt://localhost:7687`, reconciling
+`config.py`'s `controller-node` default with the driver's `localhost` default); (3) the GPU
+with the promoted Qwen adapter on `cuda:0` for the proposed arm. The driver re-seeds the KG
+per cell and runs the episode with `kg=None`, so no cell pollutes the planner's history.

@@ -1,0 +1,9 @@
+id,set,mission,expected_sfc,selected_sfc,parse_status,correct
+A1,A,emergency_alert_relay,ReliableRelaySFC,ReliableRelaySFC,parsed_json,True
+A2,A,bulk_data_transfer,BandwidthOptimizedSFC,BandwidthOptimizedSFC,parsed_json,True
+A3,A,real_time_pest_detection,LowLatencyVideoSFC,LowLatencyVideoSFC,parsed_json,True
+A4,A,long_term_soil_monitoring,EnergyAwareSFC,EnergyAwareSFC,parsed_json,True
+B1,B,real_time_video,LowLatencyVideoSFC,BandwidthOptimizedSFC,parsed_json,False
+B2,B,soil_moisture_survey,EnergyAwareSFC,BandwidthOptimizedSFC,parsed_json,False
+C1,C,routine_field_patrol,LowLatencyVideoSFC,BandwidthOptimizedSFC,parsed_json,False
+C2,C,routine_field_patrol,EnergyAwareSFC,BandwidthOptimizedSFC,parsed_json,False

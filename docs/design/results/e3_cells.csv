@@ -1,0 +1,37 @@
+scenario,arm,repeat,sfc,fault,outcome,tier_reached,reason,final_path,target_sla_met,headroom,wall_seconds,switch_s1,switch_s2,switch_s3,f1_rtt_ms,f1_throughput_mbps,f1_loss_pct,f1_met,f1_margin,f2_rtt_ms,f2_throughput_mbps,f2_loss_pct,f2_met,f2_margin
+healthy,static,0,LowLatencyVideoSFC,none,met,,,primary,True,0.5702,15.41,Active,Active,Standby,30.086,16.18,0.0,True,0.5702,35.05,21.575,0.0,True,0.7079
+healthy,static,1,LowLatencyVideoSFC,none,met,,,primary,True,0.5701,15.45,Active,Active,Standby,30.095,16.181,0.0,True,0.5701,35.047,21.574,0.0,True,0.7079
+healthy,static,2,LowLatencyVideoSFC,none,met,,,primary,True,0.5708,15.48,Active,Active,Standby,30.044,16.178,0.0,True,0.5708,34.975,21.573,0.0,True,0.7085
+healthy,rule,0,LowLatencyVideoSFC,none,met,,,primary,True,0.5695,15.34,Active,Active,Standby,30.137,16.174,0.0,True,0.5695,35.133,21.578,0.0,True,0.7072
+healthy,rule,1,LowLatencyVideoSFC,none,met,,,primary,True,0.5702,15.42,Active,Active,Standby,30.087,16.178,0.0,True,0.5702,35.046,21.575,0.0,True,0.708
+healthy,rule,2,LowLatencyVideoSFC,none,met,,,primary,True,0.5701,15.44,Active,Active,Standby,30.092,16.182,0.0,True,0.5701,34.974,21.575,0.0,True,0.7086
+healthy,proposed,0,LowLatencyVideoSFC,none,healthy,0,,primary,True,0.5708,24.82,Active,Active,Standby,30.041,16.18,0.0,True,0.5708,35.05,21.564,0.0,True,0.7079
+healthy,proposed,1,LowLatencyVideoSFC,none,healthy,0,,primary,True,0.5703,24.89,Active,Active,Standby,30.078,16.178,0.0,True,0.5703,35.099,21.571,0.0,True,0.7075
+healthy,proposed,2,LowLatencyVideoSFC,none,healthy,0,,primary,True,0.5694,24.67,Active,Active,Standby,30.142,16.184,0.0,True,0.5694,35.184,21.571,0.0,True,0.7068
+primary_fault,static,0,LowLatencyVideoSFC,primary_relay,violated,,,primary,False,0.0,15.89,Degraded,Degraded,Standby,120.171,16.179,0.0,False,-0.7167,125.12,21.574,0.0,False,-0.0427
+primary_fault,static,1,LowLatencyVideoSFC,primary_relay,violated,,,primary,False,0.0,15.93,Degraded,Degraded,Standby,120.099,16.181,0.0,False,-0.7157,125.107,21.573,0.0,False,-0.0426
+primary_fault,static,2,LowLatencyVideoSFC,primary_relay,violated,,,primary,False,0.0,15.84,Degraded,Degraded,Standby,120.217,16.179,0.0,False,-0.7174,125.22,21.572,0.0,False,-0.0435
+primary_fault,rule,0,ReliableRelaySFC,primary_relay,met,,,backup,True,0.3244,15.55,Active,Standby,Active,47.29,16.179,0.0,True,0.3244,47.117,21.569,0.0,True,0.6074
+primary_fault,rule,1,ReliableRelaySFC,primary_relay,met,,,backup,True,0.3226,15.52,Active,Standby,Active,47.416,16.184,0.0,True,0.3226,47.413,21.567,0.0,True,0.6049
+primary_fault,rule,2,ReliableRelaySFC,primary_relay,met,,,backup,True,0.3277,15.42,Active,Standby,Active,47.058,16.18,0.0,True,0.3277,47.046,21.573,0.0,True,0.608
+primary_fault,proposed,0,ReliableRelaySFC,primary_relay,healthy,0,,backup,True,0.3268,25.12,Active,Standby,Active,47.127,16.179,0.0,True,0.3268,47.253,21.577,0.0,True,0.6062
+primary_fault,proposed,1,ReliableRelaySFC,primary_relay,healthy,0,,backup,True,0.3263,24.99,Active,Standby,Active,47.162,16.178,0.0,True,0.3263,47.142,21.575,0.0,True,0.6072
+primary_fault,proposed,2,ReliableRelaySFC,primary_relay,healthy,0,,backup,True,0.3271,24.91,Active,Standby,Active,47.103,16.175,0.0,True,0.3271,47.101,21.572,0.0,True,0.6075
+backup_fault,static,0,LowLatencyVideoSFC,backup_relay,met,,,primary,True,0.5697,15.51,Active,Active,Standby,30.122,16.181,0.0,True,0.5697,35.068,21.574,0.0,True,0.7078
+backup_fault,static,1,LowLatencyVideoSFC,backup_relay,met,,,primary,True,0.5697,15.42,Active,Active,Standby,30.118,16.175,0.0,True,0.5697,35.055,21.572,0.0,True,0.7079
+backup_fault,static,2,LowLatencyVideoSFC,backup_relay,met,,,primary,True,0.5705,15.55,Active,Active,Standby,30.066,16.183,0.0,True,0.5705,34.965,21.569,0.0,True,0.7086
+backup_fault,rule,0,ReliableRelaySFC,backup_relay,violated,,,backup,False,0.0,15.85,Degraded,Standby,Degraded,132.124,16.184,0.0,False,-0.8875,132.224,21.572,0.0,False,-0.1019
+backup_fault,rule,1,ReliableRelaySFC,backup_relay,violated,,,backup,False,0.0,15.85,Degraded,Standby,Degraded,132.003,16.174,0.0,False,-0.8858,131.989,21.57,0.0,False,-0.0999
+backup_fault,rule,2,ReliableRelaySFC,backup_relay,violated,,,backup,False,0.0,15.9,Degraded,Standby,Degraded,132.136,16.183,0.0,False,-0.8877,132.117,21.575,0.0,False,-0.101
+backup_fault,proposed,0,ReliableRelaySFC,backup_relay,healthy,1,,primary,True,0.5002,31.3,Active,Active,Standby,34.988,16.173,0.0,True,0.5002,34.959,21.57,0.0,True,0.7087
+backup_fault,proposed,1,ReliableRelaySFC,backup_relay,healthy,1,,primary,True,0.499,31.38,Active,Active,Standby,35.07,16.175,0.0,True,0.499,35.025,21.572,0.0,True,0.7081
+backup_fault,proposed,2,ReliableRelaySFC,backup_relay,healthy,1,,primary,True,0.4991,31.44,Active,Active,Standby,35.06,16.178,0.0,True,0.4991,35.023,21.572,0.0,True,0.7081
+ddil,static,0,LowLatencyVideoSFC,both_relays,violated,,,primary,False,0.0,16.0,Degraded,Degraded,Standby,120.008,16.18,0.0,False,-0.7144,125.106,21.576,0.0,False,-0.0425
+ddil,static,1,LowLatencyVideoSFC,both_relays,violated,,,primary,False,0.0,15.87,Degraded,Degraded,Standby,120.13,16.18,0.0,False,-0.7161,125.021,21.575,0.0,False,-0.0418
+ddil,static,2,LowLatencyVideoSFC,both_relays,violated,,,primary,False,0.0,15.91,Degraded,Degraded,Standby,120.184,16.181,0.0,False,-0.7169,124.971,21.574,0.0,False,-0.0414
+ddil,rule,0,ReliableRelaySFC,both_relays,violated,,,backup,False,0.0,15.97,Degraded,Standby,Degraded,132.177,16.18,0.0,False,-0.8882,132.239,21.573,0.0,False,-0.102
+ddil,rule,1,ReliableRelaySFC,both_relays,violated,,,backup,False,0.0,15.89,Degraded,Standby,Degraded,132.234,16.18,0.0,False,-0.8891,132.194,21.568,0.0,False,-0.1016
+ddil,rule,2,ReliableRelaySFC,both_relays,violated,,,backup,False,0.0,15.97,Degraded,Standby,Degraded,132.197,16.178,0.0,False,-0.8885,132.29,21.57,0.0,False,-0.1024
+ddil,proposed,0,ReliableRelaySFC,both_relays,escalated,2,all tiers exhausted,backup,False,0.0,29.07,Degraded,Standby,Degraded,132.461,16.177,0.0,False,-0.8923,132.407,21.57,0.0,False,-0.1034
+ddil,proposed,1,ReliableRelaySFC,both_relays,escalated,2,all tiers exhausted,backup,False,0.0,28.87,Degraded,Standby,Degraded,132.202,16.176,0.0,False,-0.8886,131.965,21.57,0.0,False,-0.0997
+ddil,proposed,2,ReliableRelaySFC,both_relays,escalated,2,all tiers exhausted,backup,False,0.0,28.83,Degraded,Standby,Degraded,132.243,16.181,0.0,False,-0.8892,132.132,21.572,0.0,False,-0.1011

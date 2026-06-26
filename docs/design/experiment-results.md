@@ -197,6 +197,33 @@ for the proposed arm. The driver re-seeds the KG per cell; the episode runs with
 
 ---
 
+## CSV exports (for result tables & figures)
+
+The Markdown tables above are generated from CSVs under `docs/design/results/`, so
+they can be re-plotted or pasted into a spreadsheet without re-deriving anything:
+
+| File | Shape | Feeds |
+|---|---|---|
+| `e3_summary.csv` | one row per scenario × arm — mean ± population-sd over repeats, SLA-met count | the **E3 table** above |
+| `e3_cells.csv` | one row per scenario × arm × repeat (F1/F2 flattened) — raw | raw per-run inspection |
+| `e3_flows.csv` | one row per flow per cell (tidy/long, `is_target` flag) | bar/scatter figures (pandas `groupby`) |
+| `e1_confusion.csv` | one row per probe — `expected_sfc` vs `selected_sfc`, parse status | the **E1 confusion matrix** above |
+
+`e3_compare` **auto-writes** these next to its `--out` JSONL after every campaign
+(best-effort — a CSV error never loses the JSONL). To (re)generate from an existing
+run, or convert the E1 probe dumps:
+
+```bash
+python3 -m runtime.tools.results_to_csv e3 --in /tmp/e3_full.jsonl --outdir docs/design/results
+python3 -m runtime.tools.results_to_csv e1 --indir /tmp --outdir docs/design/results
+```
+
+The committed CSVs are from the **2026-06-24** E3 run (36/36 cells) and the E1 probe
+set; the summary reproduces the E3 table exactly (e.g. `backup_fault`/proposed
+35.0 ms at tier 1, `ddil`/proposed escalate at tier 2).
+
+---
+
 ## Reproduce
 
 ```bash

@@ -158,6 +158,8 @@ def main():
     ap.add_argument("--arms", default=",".join(ARMS))
     ap.add_argument("--repeats", type=int, default=1)
     ap.add_argument("--out", default="/tmp/e3_results.jsonl")
+    ap.add_argument("--csv-dir", default=None,
+                    help="dir for the cells/flows/summary CSVs (default: alongside --out)")
     args = ap.parse_args()
     scen = [s for s in args.scenarios.split(",") if s]
     arms = [a for a in args.arms.split(",") if a]
@@ -188,6 +190,17 @@ def main():
                     finally:
                         teardown()
     print("E3 done ->", args.out)
+
+    # Self-record as CSV (cells/flows/summary) next to the JSONL, for result tables
+    # and figures. Best-effort: a CSV error must never lose the just-collected JSONL.
+    csv_dir = args.csv_dir or os.path.dirname(os.path.abspath(args.out)) or "."
+    try:
+        from runtime.tools.results_to_csv import e3 as e3_to_csv
+        os.makedirs(csv_dir, exist_ok=True)
+        e3_to_csv(args.out, csv_dir)
+        print("E3 CSVs ->", csv_dir)
+    except Exception as e:                       # noqa: BLE001 — never fail the campaign on export
+        print(f"WARN: CSV export failed ({e}); JSONL is intact at {args.out}", flush=True)
 
 
 if __name__ == "__main__":

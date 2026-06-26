@@ -7,7 +7,7 @@
 # Override either with NETPROMPT_PY / NETPROMPT_SYS_PY.
 
 REPRO_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-REPO="$(cd "$REPRO_DIR/../../.." && pwd)"
+REPO="$(cd "$REPRO_DIR/.." && pwd)"
 cd "$REPO"
 
 set +u                                   # gpu-node.env is sourced defensively

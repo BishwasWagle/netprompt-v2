@@ -231,17 +231,17 @@ set; the summary reproduces the E3 table exactly (e.g. `backup_fault`/proposed
 
 ## Reproduce
 
-Each experiment is an executable script under [`repro/`](repro/) — run it directly instead
+Each experiment is an executable script under [`repro/`](../../repro/) — run it directly instead
 of copy-pasting. The scripts self-locate the repo root and source
 `deploy/gpu-node/gpu-node.env`, so they work from any directory and resolve the venv python
 themselves (override with `NETPROMPT_PY`); each (re)seeds the KG as needed.
 
 | Experiment | Run | Needs |
 |---|---|---|
-| E2a | `docs/design/repro/e2a.sh` | venv only |
-| E1  | `docs/design/repro/e1.sh` | venv · seeded Neo4j · GPU |
-| E2b | `docs/design/repro/e2b.sh` | testbed · passwordless `sudo` |
-| E3  | `docs/design/repro/e3.sh [repeats] [out.jsonl]` | testbed · `sudo` · GPU |
+| E2a | `repro/e2a.sh` | venv only |
+| E1  | `repro/e1.sh` | venv · seeded Neo4j · GPU |
+| E2b | `repro/e2b.sh` | testbed · passwordless `sudo` |
+| E3  | `repro/e3.sh [repeats] [out.jsonl]` | testbed · `sudo` · GPU |
 
 ### E2a — runtime behavioral gate (off-node)
 
@@ -249,7 +249,7 @@ The 6 fixture scenarios through `run_episode` (no GPU/fabric); the same scenario
 the unit assertions (canonical setups: `tests/unit/test_{evaluator,runtime_manager}.py`).
 
 ```bash
-docs/design/repro/e2a.sh
+repro/e2a.sh
 ```
 
 ### E1 — planner confusion matrix (8 probes)
@@ -258,7 +258,7 @@ Promoted adapter, constrained-on. Writes `/tmp/e1_<ID>.json` per probe (the IDs 
 `results_to_csv`'s `E1_PROBES`) and emits `docs/design/results/e1_confusion.csv`.
 
 ```bash
-docs/design/repro/e1.sh
+repro/e1.sh
 ```
 
 ### E2b — live readiness: M5 + M6 on the fabric
@@ -268,7 +268,7 @@ for it, runs the node-gated M5/M6 suites against it, then tears it down — the 
 flow automated in one process (fabric log in `/tmp/e2b_fabric.log`).
 
 ```bash
-docs/design/repro/e2b.sh
+repro/e2b.sh
 ```
 
 ### E3 — whole system, 3 arms × 4 scenarios (live)
@@ -278,7 +278,7 @@ writes the cells/flows/summary CSVs and renders the figures into `docs/design/re
 Args default to `3 /tmp/e3_full.jsonl`.
 
 ```bash
-docs/design/repro/e3.sh 3 /tmp/e3_full.jsonl
+repro/e3.sh 3 /tmp/e3_full.jsonl
 ```
 
 **Preconditions:** (1) passwordless `sudo` — the driver launches/measures/tears down BMv2 +

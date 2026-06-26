@@ -190,7 +190,7 @@ invocation, CSV/figure export, and the full preconditions).
 
 ## CSV exports (for result tables & figures)
 
-The Markdown tables above are generated from CSVs under `docs/design/results/`, so
+The Markdown tables above are generated from CSVs under `docs/experiments/results/`, so
 they can be re-plotted or pasted into a spreadsheet without re-deriving anything:
 
 | File | Shape | Feeds |
@@ -205,15 +205,15 @@ they can be re-plotted or pasted into a spreadsheet without re-deriving anything
 run, or convert the E1 probe dumps:
 
 ```bash
-python3 -m runtime.tools.results_to_csv e3 --in /tmp/e3_full.jsonl --outdir docs/design/results
-python3 -m runtime.tools.results_to_csv e1 --indir /tmp --outdir docs/design/results
+python3 -m runtime.tools.results_to_csv e3 --in /tmp/e3_full.jsonl --outdir docs/experiments/results
+python3 -m runtime.tools.results_to_csv e1 --indir /tmp --outdir docs/experiments/results
 ```
 
-**Figures** (`docs/design/results/plots/`) are rendered from those CSVs by
+**Figures** (`docs/experiments/results/plots/`) are rendered from those CSVs by
 `plot_results` (matplotlib, headless — `pip install matplotlib`):
 
 ```bash
-python3 -m runtime.tools.plot_results --resultsdir docs/design/results
+python3 -m runtime.tools.plot_results --resultsdir docs/experiments/results
 ```
 
 | Figure | Shows |
@@ -255,7 +255,7 @@ repro/e2a.sh
 ### E1 — planner confusion matrix (8 probes)
 
 Promoted adapter, constrained-on. Writes `/tmp/e1_<ID>.json` per probe (the IDs match
-`results_to_csv`'s `E1_PROBES`) and emits `docs/design/results/e1_confusion.csv`.
+`results_to_csv`'s `E1_PROBES`) and emits `docs/experiments/results/e1_confusion.csv`.
 
 ```bash
 repro/e1.sh
@@ -274,7 +274,7 @@ repro/e2b.sh
 ### E3 — whole system, 3 arms × 4 scenarios (live)
 
 Runs the comparative campaign (each cell self-launches + tears down the fabric), then
-writes the cells/flows/summary CSVs and renders the figures into `docs/design/results/`.
+writes the cells/flows/summary CSVs and renders the figures into `docs/experiments/results/`.
 Args default to `3 /tmp/e3_full.jsonl`.
 
 ```bash

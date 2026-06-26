@@ -2,7 +2,7 @@
 # E3 — whole system, 3 arms x 4 scenarios (live, topology-equivalent).
 #
 # Runs the comparative campaign (each cell self-launches + tears down the fabric),
-# then writes the tidy CSVs and renders the figures into docs/design/results/. Needs
+# then writes the tidy CSVs and renders the figures into docs/experiments/results/. Needs
 # the Mininet/BMv2 testbed, passwordless sudo, and the GPU (promoted adapter on cuda:0
 # for the proposed arm) + a freshly seeded Neo4j on localhost:7687.
 #
@@ -17,5 +17,5 @@ sudo -v                                  # cache sudo creds up front (the driver
 "$PY" -m runtime.tools.seed_kg
 
 "$PY" -m runtime.tools.e3_compare --repeats "$REPEATS" --out "$OUT"
-"$PY" -m runtime.tools.results_to_csv e3 --in "$OUT" --outdir docs/design/results
-"$PY" -m runtime.tools.plot_results --resultsdir docs/design/results
+"$PY" -m runtime.tools.results_to_csv e3 --in "$OUT" --outdir docs/experiments/results
+"$PY" -m runtime.tools.plot_results --resultsdir docs/experiments/results

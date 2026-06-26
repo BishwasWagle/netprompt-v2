@@ -235,7 +235,7 @@ baselines — and does the closed analytics loop function?
 the planner picks the SFC → a live episode deploys + adapts → `Verdict`/snapshots to
 the KG. **3 arms × 4 scenarios**, all on the *same* 3-switch fabric.
 
-### As-built design (revised from pilots — `docs/design/experiment-results.md`)
+### As-built design (revised from pilots — `docs/experiments/experiment-results.md`)
 
 The first plan reused the published `run_comparative_experiments.sh` and its six
 netem conditions. **Two live pilots disproved that approach** and the design was

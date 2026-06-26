@@ -1,13 +1,13 @@
 """Render E1/E3 result figures from the CSVs written by `results_to_csv`.
 
 Mirrors the milestone-II `generate_final_plots.py` pipeline (CSV -> matplotlib
-PNGs) for the E1/E3 experiments in `docs/design/experiment-results.md`. Reads the
+PNGs) for the E1/E3 experiments in `docs/experiments/experiment-results.md`. Reads the
 aggregated `e3_summary.csv` (mean +/- population-sd per scenario x arm) and
 `e1_confusion.csv`, and writes PNGs under `<resultsdir>/plots/`.
 
 Stdlib csv + matplotlib only (no pandas). Headless (Agg backend).
 
-  python3 -m runtime.tools.plot_results --resultsdir docs/design/results
+  python3 -m runtime.tools.plot_results --resultsdir docs/experiments/results
 """
 from __future__ import annotations
 
@@ -133,7 +133,7 @@ def plot_e1(resultsdir: str, plots: str) -> list[str]:
 def main():
     ap = argparse.ArgumentParser(description=__doc__,
                                  formatter_class=argparse.RawDescriptionHelpFormatter)
-    ap.add_argument("--resultsdir", default="docs/design/results")
+    ap.add_argument("--resultsdir", default="docs/experiments/results")
     args = ap.parse_args()
     plots = os.path.join(args.resultsdir, "plots")
     os.makedirs(plots, exist_ok=True)

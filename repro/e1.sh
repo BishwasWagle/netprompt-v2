@@ -3,7 +3,7 @@
 #
 # Runs the 8 probes (sets A/B/C) through llm_orchestrator.orchestrate, writing one
 # /tmp/e1_<ID>.json per probe (IDs match results_to_csv's E1_PROBES), then emits
-# docs/design/results/e1_confusion.csv. Needs the venv, a seeded Neo4j, and the GPU.
+# docs/experiments/results/e1_confusion.csv. Needs the venv, a seeded Neo4j, and the GPU.
 set -euo pipefail
 source "$(dirname "${BASH_SOURCE[0]}")/common.sh"
 
@@ -33,4 +33,4 @@ for probe in "${PROBES[@]}"; do
 done
 
 cd "$REPO"
-"$PY" -m runtime.tools.results_to_csv e1 --indir /tmp --outdir docs/design/results
+"$PY" -m runtime.tools.results_to_csv e1 --indir /tmp --outdir docs/experiments/results

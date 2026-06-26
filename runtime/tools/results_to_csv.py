@@ -5,7 +5,7 @@ one JSON object per (scenario × arm × repeat) cell to a `.jsonl`, and the E1
 planner probes land as one `orchestrate --output` JSON each. This tool turns
 those into tidy CSVs that pandas/matplotlib (or a spreadsheet) can consume
 directly — mirroring the milestone-II `*_results_clean.csv` -> `generate_final_plots.py`
-pipeline, but for the E1/E3 experiments in `docs/design/experiment-results.md`.
+pipeline, but for the E1/E3 experiments in `docs/experiments/experiment-results.md`.
 
 E3 (`e3` subcommand) reads the campaign JSONL and writes three views:
   e3_cells.csv    one row per cell (target field F1 + non-target F2 flattened) — raw.
@@ -16,8 +16,8 @@ E3 (`e3` subcommand) reads the campaign JSONL and writes three views:
 E1 (`e1` subcommand) reads the 8 probe JSONs + the fixed expected-oracle map and
 writes the confusion matrix (one row per probe, expected vs selected, parse status).
 
-  python3 -m runtime.tools.results_to_csv e3 --in /tmp/e3_full.jsonl --outdir docs/design/results
-  python3 -m runtime.tools.results_to_csv e1 --indir /tmp --outdir docs/design/results
+  python3 -m runtime.tools.results_to_csv e3 --in /tmp/e3_full.jsonl --outdir docs/experiments/results
+  python3 -m runtime.tools.results_to_csv e1 --indir /tmp --outdir docs/experiments/results
 """
 from __future__ import annotations
 
@@ -202,11 +202,11 @@ def main():
 
     pe3 = sub.add_parser("e3", help="E3 campaign JSONL -> cells/flows/summary CSVs")
     pe3.add_argument("--in", dest="in_path", default="/tmp/e3_results.jsonl")
-    pe3.add_argument("--outdir", default="docs/design/results")
+    pe3.add_argument("--outdir", default="docs/experiments/results")
 
     pe1 = sub.add_parser("e1", help="E1 probe JSONs -> confusion-matrix CSV")
     pe1.add_argument("--indir", default="/tmp")
-    pe1.add_argument("--outdir", default="docs/design/results")
+    pe1.add_argument("--outdir", default="docs/experiments/results")
 
     args = ap.parse_args()
     os.makedirs(args.outdir, exist_ok=True)

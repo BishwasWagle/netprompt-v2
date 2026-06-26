@@ -38,5 +38,12 @@ done
 [ "$ready" = 1 ] || { echo "fabric not ready; see /tmp/e2b_fabric.log"; exit 1; }
 
 echo ">> running M5/M6 node-gated suites ..."
+rc=0
 sudo -E env NETPROMPT_TREE_ROOT="$NETPROMPT_ROOT" "$PY" -m pytest \
-  tests/integration/test_m5_monitor_node.py tests/integration/test_m6_acceptance_node.py -v
+  tests/integration/test_m5_monitor_node.py tests/integration/test_m6_acceptance_node.py -v \
+  --junitxml=/tmp/e2b_junit.xml || rc=$?
+
+# record per-test results (runs even on failure, so a red run is captured too)
+"$PY" -m runtime.tools.results_to_csv e2b --junit /tmp/e2b_junit.xml \
+  --outdir docs/experiments/results || true
+exit "$rc"

@@ -195,18 +195,22 @@ they can be re-plotted or pasted into a spreadsheet without re-deriving anything
 
 | File | Shape | Feeds |
 |---|---|---|
+| `e2a_gate.csv` | one row per fixture scenario — verdict/tier/reason vs the designed verdict, `pass` | the **E2a gate table** above |
+| `e2b_integration.csv` | one row per node-gated test — `outcome` + `time_s` | the **E2b M5/M6 table** above |
+| `e1_confusion.csv` | one row per probe — `expected_sfc` vs `selected_sfc`, parse status | the **E1 confusion matrix** above |
 | `e3_summary.csv` | one row per scenario × arm — mean ± population-sd over repeats, SLA-met count | the **E3 table** above |
 | `e3_cells.csv` | one row per scenario × arm × repeat (F1/F2 flattened) — raw | raw per-run inspection |
 | `e3_flows.csv` | one row per flow per cell (tidy/long, `is_target` flag) | bar/scatter figures (pandas `groupby`) |
-| `e1_confusion.csv` | one row per probe — `expected_sfc` vs `selected_sfc`, parse status | the **E1 confusion matrix** above |
 
-`e3_compare` **auto-writes** these next to its `--out` JSONL after every campaign
-(best-effort — a CSV error never loses the JSONL). To (re)generate from an existing
-run, or convert the E1 probe dumps:
+`e3_compare` **auto-writes** the E3 CSVs next to its `--out` JSONL after every campaign
+(best-effort — a CSV error never loses the JSONL). Each `repro/*.sh` also emits its
+experiment's CSV. To (re)generate directly:
 
 ```bash
-python3 -m runtime.tools.results_to_csv e3 --in /tmp/e3_full.jsonl --outdir docs/experiments/results
-python3 -m runtime.tools.results_to_csv e1 --indir /tmp --outdir docs/experiments/results
+python3 -m runtime.tools.results_to_csv e2a --outdir docs/experiments/results   # runs the off-node gate
+python3 -m runtime.tools.results_to_csv e2b --junit /tmp/e2b_junit.xml --outdir docs/experiments/results
+python3 -m runtime.tools.results_to_csv e1  --indir /tmp --outdir docs/experiments/results
+python3 -m runtime.tools.results_to_csv e3  --in /tmp/e3_full.jsonl --outdir docs/experiments/results
 ```
 
 **Figures** (`docs/experiments/results/plots/`) are rendered from those CSVs by
@@ -247,6 +251,7 @@ themselves (override with `NETPROMPT_PY`); each (re)seeds the KG as needed.
 
 The 6 fixture scenarios through `run_episode` (no GPU/fabric); the same scenarios as
 the unit assertions (canonical setups: `tests/unit/test_{evaluator,runtime_manager}.py`).
+Runs the pytest gate, then emits `docs/experiments/results/e2a_gate.csv`.
 
 ```bash
 repro/e2a.sh
@@ -265,7 +270,8 @@ repro/e1.sh
 
 Stands up a resident `low_latency` BMv2 fabric (3 switches, thrift 9090/9091/9092), waits
 for it, runs the node-gated M5/M6 suites against it, then tears it down — the two-shell
-flow automated in one process (fabric log in `/tmp/e2b_fabric.log`).
+flow automated in one process (fabric log in `/tmp/e2b_fabric.log`). Emits
+`docs/experiments/results/e2b_integration.csv` from the run's JUnit output.
 
 ```bash
 repro/e2b.sh

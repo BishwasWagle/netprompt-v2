@@ -16,8 +16,18 @@ E3 (`e3` subcommand) reads the campaign JSONL and writes three views:
 E1 (`e1` subcommand) reads the 8 probe JSONs + the fixed expected-oracle map and
 writes the confusion matrix (one row per probe, expected vs selected, parse status).
 
+E2a (`e2a` subcommand) is instant + off-node, so it RUNS the gate itself: the 6
+fixture scenarios through `RuntimeManager.run_episode` (FakeDeployer + FakeMonitor,
+the canonical `tests/unit/test_runtime_manager.py` rig) and writes one row per
+scenario — verdict/tier/reason vs the designed verdict (`e2a_gate.csv`).
+
+E2b (`e2b` subcommand) parses a pytest JUnit XML (the node-gated M5/M6 suites,
+`pytest --junitxml=...`) into one row per test — outcome + time (`e2b_integration.csv`).
+
   python3 -m runtime.tools.results_to_csv e3 --in /tmp/e3_full.jsonl --outdir docs/experiments/results
   python3 -m runtime.tools.results_to_csv e1 --indir /tmp --outdir docs/experiments/results
+  python3 -m runtime.tools.results_to_csv e2a --outdir docs/experiments/results
+  python3 -m runtime.tools.results_to_csv e2b --junit /tmp/e2b_junit.xml --outdir docs/experiments/results
 """
 from __future__ import annotations
 
@@ -195,6 +205,73 @@ def e1(indir: str, outdir: str):
         print(f"  E1: {n_ok}/{len(rows)} correct · {n_valid}/{len(rows)} constrained-valid")
 
 
+# E2a behavioral gate: scenario -> (expected outcome, expected tier). The canonical
+# off-node setup mirrors tests/unit/test_runtime_manager.py rig(); only causal_regression
+# needs the prior bad deploy applied (the rest reach their verdict from a clean deployer).
+E2A_EXPECTED = {
+    "healthy": ("healthy", 0), "causal_regression": ("rollback", 0),
+    "path_quality_fault": ("healthy", 1), "contention_harm_with_knob": ("marginal", 0),
+    "contention_harm_no_knob": ("escalated", 2), "ddil": ("escalated", 2),
+}
+
+
+def e2a(outdir: str) -> int:
+    """Run the 6-scenario off-node behavioral gate and write e2a_gate.csv.
+    Returns the number of scenarios that missed their designed verdict (0 = all pass)."""
+    from runtime.contracts import Candidate, TUNE
+    from runtime.fakes import FakeDeployer, FakeMonitor
+    from runtime.fixtures import ALL_SCENARIOS
+    from runtime.gate import ValidationGate
+    from runtime.runtime_manager import RuntimeManager
+
+    pre = {"causal_regression": Candidate(TUNE, ("pfifo_limit", 5))}  # the prior bad deploy
+    rows, fails = [], 0
+    for name, cls in ALL_SCENARIOS.items():
+        model = cls()
+        deployer = FakeDeployer()
+        if name in pre:
+            deployer.apply(pre[name])
+        rm = RuntimeManager(deployer, FakeMonitor(model, deployer), ValidationGate(),
+                            active_capacity_ok=lambda c: True)
+        res = rm.run_episode(model.spec())
+        v = res.verdict
+        exp_out, exp_tier = E2A_EXPECTED.get(name, ("", ""))
+        ok = (v.outcome == exp_out and v.tier_reached == exp_tier)
+        fails += not ok
+        rows.append({
+            "scenario": name, "sfc": model.sfc, "outcome": v.outcome,
+            "tier_reached": v.tier_reached, "reason": res.ticket.reason if res.ticket else "",
+            "headroom": round(v.headroom, 4), "expected_outcome": exp_out,
+            "expected_tier": exp_tier, "pass": ok,
+        })
+    _write_csv(os.path.join(outdir, "e2a_gate.csv"),
+               ["scenario", "sfc", "outcome", "tier_reached", "reason", "headroom",
+                "expected_outcome", "expected_tier", "pass"], rows)
+    print(f"  E2a: {len(rows) - fails}/{len(rows)} reach their designed verdict")
+    return fails
+
+
+def e2b(junit_path: str, outdir: str):
+    """Parse a pytest JUnit XML (the node-gated M5/M6 suites) into e2b_integration.csv."""
+    import xml.etree.ElementTree as ET
+    root = ET.parse(junit_path).getroot()
+    rows = []
+    for tc in root.iter("testcase"):
+        child = next((c.tag for c in tc if c.tag in ("failure", "error", "skipped")), None)
+        outcome = {"failure": "failed", "error": "error", "skipped": "skipped",
+                   None: "passed"}[child]
+        cls = tc.get("classname", "")
+        suite = cls.split(".")[-1] if cls else ""           # e.g. test_m6_acceptance_node
+        rows.append({
+            "suite": suite, "test": tc.get("name", ""), "outcome": outcome,
+            "time_s": round(float(tc.get("time", 0) or 0), 3),
+        })
+    _write_csv(os.path.join(outdir, "e2b_integration.csv"),
+               ["suite", "test", "outcome", "time_s"], rows)
+    n_pass = sum(1 for r in rows if r["outcome"] == "passed")
+    print(f"  E2b: {n_pass}/{len(rows)} passed")
+
+
 def main():
     ap = argparse.ArgumentParser(description=__doc__,
                                  formatter_class=argparse.RawDescriptionHelpFormatter)
@@ -208,12 +285,23 @@ def main():
     pe1.add_argument("--indir", default="/tmp")
     pe1.add_argument("--outdir", default="docs/experiments/results")
 
+    pe2a = sub.add_parser("e2a", help="run the off-node behavioral gate -> e2a_gate.csv")
+    pe2a.add_argument("--outdir", default="docs/experiments/results")
+
+    pe2b = sub.add_parser("e2b", help="pytest JUnit XML -> e2b_integration.csv")
+    pe2b.add_argument("--junit", required=True, help="pytest --junitxml output path")
+    pe2b.add_argument("--outdir", default="docs/experiments/results")
+
     args = ap.parse_args()
     os.makedirs(args.outdir, exist_ok=True)
     if args.cmd == "e3":
         e3(args.in_path, args.outdir)
     elif args.cmd == "e1":
         e1(args.indir, args.outdir)
+    elif args.cmd == "e2a":
+        raise SystemExit(1 if e2a(args.outdir) else 0)
+    elif args.cmd == "e2b":
+        e2b(args.junit, args.outdir)
 
 
 if __name__ == "__main__":

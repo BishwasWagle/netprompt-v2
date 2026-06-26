@@ -1,0 +1,7 @@
+scenario,sfc,outcome,tier_reached,reason,headroom,expected_outcome,expected_tier,pass
+healthy,LowLatencyVideoSFC,healthy,0,,0.375,healthy,0,True
+causal_regression,LowLatencyVideoSFC,rollback,0,,0.5,rollback,0,True
+path_quality_fault,LowLatencyVideoSFC,healthy,1,,0.2,healthy,1,True
+contention_harm_with_knob,BandwidthOptimizedSFC,marginal,0,,0.125,marginal,0,True
+contention_harm_no_knob,BandwidthOptimizedSFC,escalated,2,no harm-free config,0.75,escalated,2,True
+ddil,LowLatencyVideoSFC,escalated,2,all tiers exhausted,0.0,escalated,2,True

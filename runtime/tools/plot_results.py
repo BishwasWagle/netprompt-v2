@@ -1,9 +1,13 @@
-"""Render E1/E3 result figures from the CSVs written by `results_to_csv`.
+"""Render E1–E4 result figures from the CSVs written by `results_to_csv`.
 
-Mirrors the milestone-II `generate_final_plots.py` pipeline (CSV -> matplotlib
-PNGs) for the E1/E3 experiments in `docs/experiments/experiment-results.md`. Reads the
-aggregated `e3_summary.csv` (mean +/- population-sd per scenario x arm) and
-`e1_confusion.csv`, and writes PNGs under `<resultsdir>/plots/`.
+Mirrors the milestone-II `generate_final_plots.py` pipeline (CSV -> matplotlib PNGs)
+for the experiments in `docs/experiments/experiment-results.md`. Each plotter is a
+no-op if its CSV is absent, so this runs after any subset of experiments:
+  E1  e1_confusion.csv      -> accuracy by probe set
+  E2a e2a_gate.csv          -> tier/verdict per scenario (6/6 gate)
+  E2b e2b_integration.csv   -> per-test wall time (M5/M6 pass)
+  E3  e3_summary.csv         -> RTT / SLA-met / overhead by scenario x arm
+  E4  e4_summary.csv         -> recover correctness by arm + reject safety
 
 Stdlib csv + matplotlib only (no pandas). Headless (Agg backend).
 
@@ -130,6 +134,102 @@ def plot_e1(resultsdir: str, plots: str) -> list[str]:
     return [p]
 
 
+def plot_e2a(resultsdir: str, plots: str) -> list[str]:
+    path = os.path.join(resultsdir, "e2a_gate.csv")
+    if not os.path.exists(path):
+        return []
+    rows = list(reversed(_read(path)))               # first scenario on top
+    tiers = [int(_f(r["tier_reached"])) for r in rows]
+    passed = [str(r["pass"]).lower() == "true" for r in rows]
+    fig, ax = plt.subplots(figsize=(9, 5))
+    y = list(range(len(rows)))
+    ax.barh(y, tiers, height=0.6,
+            color=["#2e8b57" if p else "#c0392b" for p in passed])
+    for yi, r, t in zip(y, rows, tiers):             # outcome label (works at tier 0)
+        ax.text(t + 0.05, yi, r["outcome"], va="center", ha="left", fontsize=9)
+    ax.set_yticks(y); ax.set_yticklabels([r["scenario"] for r in rows])
+    ax.set_xlim(0, max(tiers) + 1.1); ax.set_xticks(range(max(tiers) + 1))
+    ax.set_xlabel("tier reached  (0 = commit · 1 = reroute · 2 = escalate)")
+    ax.set_title(f"E2a — off-node gate: {sum(passed)}/{len(rows)} scenarios "
+                 f"reach their designed verdict")
+    p = os.path.join(plots, "e2a_gate.png")
+    fig.tight_layout(); fig.savefig(p, dpi=300); plt.close(fig)
+    return [p]
+
+
+def plot_e2b(resultsdir: str, plots: str) -> list[str]:
+    path = os.path.join(resultsdir, "e2b_integration.csv")
+    if not os.path.exists(path):
+        return []
+    rows = list(reversed(_read(path)))
+    times = [_f(r["time_s"]) for r in rows]
+    passed = [r["outcome"] == "passed" for r in rows]
+    fig, ax = plt.subplots(figsize=(10, 5))
+    y = list(range(len(rows)))
+    ax.barh(y, times, height=0.6,
+            color=["#2e8b57" if p else "#c0392b" for p in passed])
+    for yi, t in zip(y, times):
+        ax.text(t + max(times) * 0.01, yi, f"{t:.0f}s", va="center", ha="left", fontsize=9)
+    ax.set_yticks(y)
+    ax.set_yticklabels([f"{r['suite'].replace('test_', '')}::{r['test'].replace('test_', '')}"
+                        for r in rows], fontsize=8)
+    ax.set_xlabel("wall time (s)")
+    ax.set_title(f"E2b — M5/M6 node-gated suites: {sum(passed)}/{len(rows)} passed "
+                 f"(Σ {sum(times):.0f}s)")
+    p = os.path.join(plots, "e2b_integration.png")
+    fig.tight_layout(); fig.savefig(p, dpi=300); plt.close(fig)
+    return [p]
+
+
+def plot_e4(resultsdir: str, plots: str) -> list[str]:
+    path = os.path.join(resultsdir, "e4_summary.csv")
+    if not os.path.exists(path):
+        return []
+    rows = _read(path)
+    saved = []
+
+    # Fig 1 — recover correctness by arm: the model-capability frontier. stub proves
+    # the machinery (≈100% everywhere); real shows the 1.5B Coder is safe-but-not-recovery.
+    rec = {r["arm"]: r for r in rows if r["group"] == "recover"}
+    arms = [a for a in ("stub", "real") if a in rec]
+    metrics = [("grammar_valid_rate", "grammar-valid"),
+               ("gate_pass_rate", "gate-safe"), ("recovery_rate", "recovers")]
+    arm_color = {"stub": "#2e8b57", "real": "#5b8fb9"}
+    fig, ax = plt.subplots(figsize=(8, 5))
+    n = len(arms); width = 0.8 / max(n, 1); x = list(range(len(metrics)))
+    for i, arm in enumerate(arms):
+        vals = [_f(rec[arm][k]) * 100 for k, _ in metrics]
+        off = [xi + (i - (n - 1) / 2) * width for xi in x]
+        for b, v in zip(ax.bar(off, vals, width, label=arm, color=arm_color.get(arm)), vals):
+            ax.text(b.get_x() + b.get_width() / 2, v + 1.5, f"{v:.0f}",
+                    ha="center", va="bottom", fontsize=9)
+    ax.set_xticks(x); ax.set_xticklabels([lbl for _, lbl in metrics])
+    ax.set_ylim(0, 109); ax.set_ylabel("rate (%)"); ax.legend(title="arm")
+    ax.set_title("E4 — recover correctness by arm "
+                 "(stub = machinery · real = 1.5B Coder frontier)")
+    p = os.path.join(plots, "e4_recover_by_arm.png")
+    fig.tight_layout(); fig.savefig(p, dpi=300); plt.close(fig); saved.append(p)
+
+    # Fig 2 — reject safety: every deliberately-broken script is refused, by fault class.
+    rej = [r for r in rows if r["group"].startswith("reject:")]
+    guard = {"syntactic": "grammar", "runtime": "gate L2"}
+    fig, ax = plt.subplots(figsize=(7, 5))
+    labels = [r["group"].split(":")[1] for r in rej]
+    rates = [_f(r["caught_rate"]) * 100 for r in rej]
+    bars = ax.bar(range(len(labels)), rates, color="#2e8b57")
+    for b, r in zip(bars, rej):
+        n_ = int(_f(r["n"])); c = round(_f(r["caught_rate"]) * n_)
+        ax.text(b.get_x() + b.get_width() / 2, _f(r["caught_rate"]) * 100 + 1.5,
+                f"{c}/{n_}", ha="center", va="bottom", fontsize=10)
+    ax.set_xticks(range(len(labels)))
+    ax.set_xticklabels([f"{l}\n(by {guard.get(l, '?')})" for l in labels])
+    ax.set_ylim(0, 109); ax.set_ylabel("scripts refused (%)")
+    ax.set_title("E4 — deliberately-broken scripts refused (safety)")
+    p = os.path.join(plots, "e4_reject_safety.png")
+    fig.tight_layout(); fig.savefig(p, dpi=300); plt.close(fig); saved.append(p)
+    return saved
+
+
 def main():
     ap = argparse.ArgumentParser(description=__doc__,
                                  formatter_class=argparse.RawDescriptionHelpFormatter)
@@ -144,6 +244,9 @@ def main():
     else:
         print("  note: no e3_summary.csv — run results_to_csv e3 first")
     saved += plot_e1(args.resultsdir, plots)
+    saved += plot_e2a(args.resultsdir, plots)
+    saved += plot_e2b(args.resultsdir, plots)
+    saved += plot_e4(args.resultsdir, plots)
 
     for p in saved:
         print(f"  wrote {p}")

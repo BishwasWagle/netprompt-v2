@@ -10,3 +10,4 @@ source "$(dirname "${BASH_SOURCE[0]}")/common.sh"
 
 "$PY" -m pytest tests/unit/test_evaluator.py tests/unit/test_runtime_manager.py -q
 "$PY" -m runtime.tools.results_to_csv e2a --outdir docs/experiments/results
+"$PY" -m runtime.tools.plot_results --resultsdir docs/experiments/results

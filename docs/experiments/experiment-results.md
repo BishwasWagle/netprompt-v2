@@ -267,10 +267,14 @@ python3 -m runtime.tools.plot_results --resultsdir docs/experiments/results
 
 | Figure | Shows |
 |---|---|
+| `e1_accuracy_by_set.png` | planner accuracy by probe set (A known-taxonomy 4/4 vs B/C held-out 0/4) |
+| `e2a_gate.png` | tier reached + verdict per scenario — 6/6 reach their designed verdict |
+| `e2b_integration.png` | per-test wall time, M5/M6 node-gated suites — 6/6 passed |
 | `e3_rtt_by_scenario_arm.png` | F1 RTT (mean ± sd) per scenario × arm vs the 70 ms SLA line — proposed is the only arm under the bound across both fault locations |
 | `e3_sla_met_by_scenario_arm.png` | SLA-met repeats (of 3) per scenario × arm |
 | `e3_overhead_by_scenario_arm.png` | orchestration wall time per scenario × arm |
-| `e1_accuracy_by_set.png` | planner accuracy by probe set (A known-taxonomy 4/4 vs B/C held-out 0/4) |
+| `e4_recover_by_arm.png` | recover correctness by arm — stub 100/100/100 vs real (1.5B Coder) 100/75/**0** (the frontier) |
+| `e4_reject_safety.png` | broken scripts refused by fault class — syntactic 8/8 (grammar), runtime 4/4 (gate L2) |
 
 The committed CSVs are from the **2026-06-24** E3 run (36/36 cells) and the E1 probe
 set; the summary reproduces the E3 table exactly (e.g. `backup_fault`/proposed

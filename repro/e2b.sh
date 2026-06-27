@@ -46,4 +46,5 @@ sudo -E env NETPROMPT_TREE_ROOT="$NETPROMPT_ROOT" "$PY" -m pytest \
 # record per-test results (runs even on failure, so a red run is captured too)
 "$PY" -m runtime.tools.results_to_csv e2b --junit /tmp/e2b_junit.xml \
   --outdir docs/experiments/results || true
+"$PY" -m runtime.tools.plot_results --resultsdir docs/experiments/results || true
 exit "$rc"

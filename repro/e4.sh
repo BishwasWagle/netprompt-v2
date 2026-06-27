@@ -14,3 +14,4 @@ OUT=/tmp/e4_regen.jsonl
 
 "$PY" -m runtime.tools.e4_regen --arms "$ARMS" --out "$OUT"
 "$PY" -m runtime.tools.results_to_csv e4 --in "$OUT" --outdir docs/experiments/results
+"$PY" -m runtime.tools.plot_results --resultsdir docs/experiments/results

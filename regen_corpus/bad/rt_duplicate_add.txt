@@ -1,0 +1,2 @@
+# BAD (duplicate): re-adds drone 1's key (already installed)
+table_add forward_table forward 00:00:00:00:00:01 => 5

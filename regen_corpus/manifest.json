@@ -1,0 +1,178 @@
+{
+  "switch": "s1",
+  "base": "base.txt",
+  "items": [
+    {
+      "id": "syn_unknown_table",
+      "kind": "reject",
+      "fault_class": "syntactic",
+      "subtype": "unknown_table",
+      "switch": "s1",
+      "bad": "bad/syn_unknown_table.txt",
+      "expect_reject_layer": "grammar",
+      "note": "names a table not in the P4 program"
+    },
+    {
+      "id": "syn_unknown_action",
+      "kind": "reject",
+      "fault_class": "syntactic",
+      "subtype": "unknown_action",
+      "switch": "s1",
+      "bad": "bad/syn_unknown_action.txt",
+      "expect_reject_layer": "grammar",
+      "note": "action does not exist on forward_table"
+    },
+    {
+      "id": "syn_action_table_mismatch",
+      "kind": "reject",
+      "fault_class": "syntactic",
+      "subtype": "action_table_mismatch",
+      "switch": "s1",
+      "bad": "bad/syn_action_table_mismatch.txt",
+      "expect_reject_layer": "grammar",
+      "note": "forward is not a legal action for priority_table"
+    },
+    {
+      "id": "syn_bad_port_range",
+      "kind": "reject",
+      "fault_class": "syntactic",
+      "subtype": "bad_port_range",
+      "switch": "s1",
+      "bad": "bad/syn_bad_port_range.txt",
+      "expect_reject_layer": "grammar",
+      "note": "egress port 99 is out of range on s1 (1..12)"
+    },
+    {
+      "id": "syn_leading_zero_port",
+      "kind": "reject",
+      "fault_class": "syntactic",
+      "subtype": "leading_zero_port",
+      "switch": "s1",
+      "bad": "bad/syn_leading_zero_port.txt",
+      "expect_reject_layer": "grammar",
+      "note": "leading-zero port (simple_switch_CLI reads octal)"
+    },
+    {
+      "id": "syn_wrong_key_type",
+      "kind": "reject",
+      "fault_class": "syntactic",
+      "subtype": "wrong_key_type",
+      "switch": "s1",
+      "bad": "bad/syn_wrong_key_type.txt",
+      "expect_reject_layer": "grammar",
+      "note": "IPv4 key on a MAC-keyed table"
+    },
+    {
+      "id": "syn_noarg_with_arg",
+      "kind": "reject",
+      "fault_class": "syntactic",
+      "subtype": "noarg_with_arg",
+      "switch": "s1",
+      "bad": "bad/syn_noarg_with_arg.txt",
+      "expect_reject_layer": "grammar",
+      "note": "drop is a no-arg action but carries a port"
+    },
+    {
+      "id": "syn_prose_commentary",
+      "kind": "reject",
+      "fault_class": "syntactic",
+      "subtype": "prose_commentary",
+      "switch": "s1",
+      "bad": "bad/syn_prose_commentary.txt",
+      "expect_reject_layer": "grammar",
+      "note": "model wraps the answer in prose; the prose line is not a command"
+    },
+    {
+      "id": "rt_blackhole_drone",
+      "kind": "reject",
+      "fault_class": "runtime",
+      "subtype": "blackhole",
+      "switch": "s1",
+      "bad": "bad/rt_blackhole_drone.txt",
+      "expect_reject_layer": "L2",
+      "note": "drops drone 4 (handle 3) -> unroutable blackhole"
+    },
+    {
+      "id": "rt_duplicate_add",
+      "kind": "reject",
+      "fault_class": "runtime",
+      "subtype": "duplicate",
+      "switch": "s1",
+      "bad": "bad/rt_duplicate_add.txt",
+      "expect_reject_layer": "L2",
+      "note": "re-adds drone 1's key (already installed)"
+    },
+    {
+      "id": "rt_dangling_handle",
+      "kind": "reject",
+      "fault_class": "runtime",
+      "subtype": "dangling_handle",
+      "switch": "s1",
+      "bad": "bad/rt_dangling_handle.txt",
+      "expect_reject_layer": "L2",
+      "note": "modifies a handle that does not exist"
+    },
+    {
+      "id": "rt_edge_blackhole",
+      "kind": "reject",
+      "fault_class": "runtime",
+      "subtype": "edge_blackhole",
+      "switch": "s1",
+      "bad": "bad/rt_edge_blackhole.txt",
+      "expect_reject_layer": "L2",
+      "note": "drops the edge MAC (handle 10) -> edge unreachable"
+    },
+    {
+      "id": "rt_misport_d4",
+      "kind": "recover",
+      "fault_class": "runtime",
+      "subtype": "misport",
+      "switch": "s1",
+      "bad": "bad/rt_misport_d4.txt",
+      "recovery_target": {
+        "mac": "00:00:00:00:00:04",
+        "right_port": 4
+      },
+      "note": "drone 4 installed pointing at port 5 instead of 4"
+    },
+    {
+      "id": "rt_misport_d7",
+      "kind": "recover",
+      "fault_class": "runtime",
+      "subtype": "misport",
+      "switch": "s1",
+      "bad": "bad/rt_misport_d7.txt",
+      "recovery_target": {
+        "mac": "00:00:00:00:00:07",
+        "right_port": 7
+      },
+      "note": "drone 7 installed pointing at port 9 instead of 7"
+    },
+    {
+      "id": "rt_misport_d2",
+      "kind": "recover",
+      "fault_class": "runtime",
+      "subtype": "misport",
+      "switch": "s1",
+      "bad": "bad/rt_misport_d2.txt",
+      "recovery_target": {
+        "mac": "00:00:00:00:00:02",
+        "right_port": 2
+      },
+      "note": "drone 2 installed pointing at port 8 instead of 2"
+    },
+    {
+      "id": "rt_drop_target_d6",
+      "kind": "recover",
+      "fault_class": "runtime",
+      "subtype": "drop_target",
+      "switch": "s1",
+      "bad": "bad/rt_drop_target_d6.txt",
+      "recovery_target": {
+        "mac": "00:00:00:00:00:06",
+        "right_port": 6
+      },
+      "note": "drone 6 installed with a drop action (black-holed). Unlike the misport items (whose faulty table passes the gate's L2 — only _recovers sees the misroute), this faulty state is itself a gate-visible L2 blackhole; the fix un-blackholes it."
+    }
+  ]
+}

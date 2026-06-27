@@ -1,0 +1,2 @@
+# BAD (unknown_table): names a table not in the P4 program
+table_modify magic_table forward 0 => 2

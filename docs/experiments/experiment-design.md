@@ -324,6 +324,31 @@ at coarse bounds (§6.3).
 
 ---
 
+## E4 — Tier-2 regen correction (broken-SFC corpus, in isolation)
+
+**Question.** When the regen subsystem is handed *broken* SFC rules — not the safe premade
+ones — does it (a) refuse the unsafe ones, and (b) regenerate a correct fix? E4 isolates the
+Tier-2 regen LLM the way E1 isolates the planner: off the live loop, against a fixed corpus.
+
+**Corpus** ([`regen_corpus/`](../../regen_corpus/), 16 items, guarded by
+`tests/unit/test_regen_corpus.py`). Two kinds: **reject** items — a bad candidate that must be
+refused (8 *syntactic*, caught by `grammar.validate()`; 4 *runtime*, grammar-valid but
+gate-**L2** blackhole/duplicate/dangling) — and **recover** items — a faulty installed table
+(mis-port / drop) the regen must repair with a corrective `table_modify`.
+
+**Three correctness layers, reported separately** (never blended — like E1's set A vs B/C):
+*grammar-valid* (passes the GBNF/`validate()`), *gate-safe* (L0+L2 accept, no blackhole),
+*recovers* (restores the route, `_recovers` oracle). **Arms:** `gate` (deterministic safety),
+`stub` (deterministic recovery machinery), `real` (live Qwen2.5-Coder-1.5B on `cuda:1`).
+
+**Expected & found** (see results §E4): safety is total (12/12 refused, real model 4/4
+grammar · 3/4 gate-safe); **exact recovery is the model frontier — 0/4 at 1.5B**, with `stub`
+4/4 proving the gap is the model, not the pipeline. This is the regen analogue of E1's
+known-taxonomy-vs-generalization split: the *machinery* is correct; the small *model* is
+safe-but-not-yet-capable. Driver `runtime/tools/e4_regen.py`; reproduce `repro/e4.sh`.
+
+---
+
 ## 4. Threats to validity & how each experiment controls them
 
 | Threat | Affects | Control |

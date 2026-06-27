@@ -1,0 +1,2 @@
+# BAD (bad_port_range): egress port 99 is out of range on s1 (1..12)
+table_modify forward_table forward 0 => 99

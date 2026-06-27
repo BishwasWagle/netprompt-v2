@@ -1,0 +1,2 @@
+# BAD (unknown_action): action does not exist on forward_table
+table_modify forward_table reroute 0 => 2

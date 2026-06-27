@@ -1,0 +1,2 @@
+# BAD (dangling_handle): modifies a handle that does not exist
+table_modify forward_table forward 999 => 4

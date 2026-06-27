@@ -1,0 +1,13 @@
+# FAULTY s1 forward_table (misport): drone 2 installed pointing at port 8 instead of 2
+# regen must emit a table_modify that re-routes 00:00:00:00:00:02 to port 2.
+table_add forward_table forward 00:00:00:00:00:01 => 1
+table_add forward_table forward 00:00:00:00:00:02 => 8
+table_add forward_table forward 00:00:00:00:00:03 => 3
+table_add forward_table forward 00:00:00:00:00:04 => 4
+table_add forward_table forward 00:00:00:00:00:05 => 5
+table_add forward_table forward 00:00:00:00:00:06 => 6
+table_add forward_table forward 00:00:00:00:00:07 => 7
+table_add forward_table forward 00:00:00:00:00:08 => 8
+table_add forward_table forward 00:00:00:00:00:09 => 9
+table_add forward_table forward 00:00:00:00:00:0a => 10
+table_add forward_table forward 00:00:00:00:00:0b => 11

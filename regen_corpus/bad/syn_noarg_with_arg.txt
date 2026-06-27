@@ -1,0 +1,2 @@
+# BAD (noarg_with_arg): drop is a no-arg action but carries a port
+table_modify forward_table drop 0 => 5

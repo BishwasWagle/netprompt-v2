@@ -1,0 +1,2 @@
+# BAD (edge_blackhole): drops the edge MAC (handle 10) -> edge unreachable
+table_modify forward_table drop 10

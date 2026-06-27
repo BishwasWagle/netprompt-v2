@@ -1,0 +1,2 @@
+# BAD (action_table_mismatch): forward is not a legal action for priority_table
+table_modify priority_table forward 0 => 2

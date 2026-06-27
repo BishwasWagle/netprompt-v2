@@ -176,6 +176,48 @@ invocation, CSV/figure export, and the full preconditions).
 
 ---
 
+## E4 — Tier-2 regen correction (deliberately-broken SFC corpus)
+
+The premade SFC rule files are safe; E4 feeds the Tier-2 regen subsystem a corpus of
+**broken** s1 forward-table scripts ([`regen_corpus/`](../../regen_corpus/), 16 items) and
+measures the three nested correctness layers the M7 design separates (regen-llm.md): a rule
+can be **grammar-valid**, **gate-safe** (no blackhole), and/or **recovery-capable** (restores
+the route) — independently. Two item kinds:
+
+- **reject** — a bad *candidate* the guardians must refuse: 8 **syntactic** (caught by
+  `grammar.validate()`, the proposer's pre-filter) + 4 **runtime** (grammar-valid but the
+  `ValidationGate` rejects at **L2**: blackhole / duplicate / dangling handle).
+- **recover** — a faulty *installed* table (a drone mis-ported or dropped); the regen must
+  emit a corrective `table_modify` that is grammar-valid, gate-accepted, and recovers.
+
+Three arms — `gate` (deterministic safety, all reject items), `stub` (deterministic recovery
+*machinery*, the synthesized correct fix), `real` (the live Qwen2.5-Coder-1.5B on `cuda:1`,
+the model-capability frontier).
+
+| Group | Arm | n | grammar-valid | gate-safe | recovers | note |
+|---|---|---|---|---|---|---|
+| reject · syntactic | gate | 8 | — | — | — | **8/8 refused** (by `grammar`) |
+| reject · runtime | gate | 4 | — | — | — | **4/4 refused** (by gate **L2**) |
+| recover | **stub** | 4 | 4/4 | 4/4 | **4/4** | validate→gate→recover machinery works (given the right line) |
+| recover | **real** | 4 | 4/4 | 3/4 | **0/4** | safe, but never the exact corrective row |
+
+**The honest finding (reproduces the M7 size-sweep).** The *safety* property is total: every
+broken script is refused, and the 1.5B Coder stays grammar-valid (4/4) and almost always
+blackhole-safe (3/4) — an unsafe rule never reaches the network. But **exact recovery is the
+model frontier: 0/4.** The real model emits well-formed `table_modify` lines that target the
+wrong handles (1–2) or echo the already-broken port, never the exact corrective row, so the
+route is never restored; the `stub` arm proves the gap is the model, not the machinery (4/4
+recovery given the right line — it exercises validate→gate→recover, not generation).
+
+**Can claim:** the gate/grammar refuse 12/12 deliberately-broken scripts at the expected
+layer; the recovery path is correct end-to-end (stub 4/4); a small Coder is safe-but-not-
+recovery-capable (real 0/4), matching the M7 finding. **Cannot claim:** that the *model*
+repairs faults (it doesn't, at 1.5B) — E4 measures that frontier, it doesn't close it.
+
+**Reproduce:** see [Reproduce → E4](#e4--regen-correction-over-the-bad-sfc-corpus).
+
+---
+
 ## Status
 
 | Experiment | State |
@@ -184,6 +226,7 @@ invocation, CSV/figure export, and the full preconditions).
 | E1 (planner decision quality) | ✅ 4/4 set A · 0/4 B/C · 8/8 valid — reproduces the eval; VERIFY resolved |
 | E2b (runtime on the live fabric) | ◑ foundation verified — M5/M6 6/6 live; full real-monitor soak still pending |
 | E3 (end-to-end vs baselines) | ✅ 36/36 cells (3 arms × 4 scenarios × 3 reps) — proposed in-SLA across both fault locations (tier-1 reroute on `backup_fault`), honest escalate on `ddil` |
+| E4 (regen correction) | ✅ safety total — 12/12 broken scripts refused, stub recovery 4/4; real Coder 4/4 grammar · 3/4 gate-safe · **0/4 recovery** (model frontier, per M7) |
 | Validity readiness gate (validity §9) | ✅ complete (unit 212 · E2a 6/6 · E1 · M5/M6 6/6 live) |
 
 ---
@@ -201,6 +244,8 @@ they can be re-plotted or pasted into a spreadsheet without re-deriving anything
 | `e3_summary.csv` | one row per scenario × arm — mean ± population-sd over repeats, SLA-met count | the **E3 table** above |
 | `e3_cells.csv` | one row per scenario × arm × repeat (F1/F2 flattened) — raw | raw per-run inspection |
 | `e3_flows.csv` | one row per flow per cell (tidy/long, `is_target` flag) | bar/scatter figures (pandas `groupby`) |
+| `e4_corpus.csv` | one row per corpus item × arm — grammar/gate/recover or reject-layer, `pass` | the **E4 table** above |
+| `e4_summary.csv` | one row per group × arm — caught/grammar/gate/recovery rates | the **E4 table** above |
 
 `e3_compare` **auto-writes** the E3 CSVs next to its `--out` JSONL after every campaign
 (best-effort — a CSV error never loses the JSONL). Each `repro/*.sh` also emits its
@@ -246,6 +291,7 @@ themselves (override with `NETPROMPT_PY`); each (re)seeds the KG as needed.
 | E1  | `repro/e1.sh` | venv · seeded Neo4j · GPU |
 | E2b | `repro/e2b.sh` | testbed · passwordless `sudo` |
 | E3  | `repro/e3.sh [repeats] [out.jsonl]` | testbed · `sudo` · GPU |
+| E4  | `repro/e4.sh [arms]` | venv only (`gate,stub`); GPU for the `real` arm |
 
 ### E2a — runtime behavioral gate (off-node)
 
@@ -294,3 +340,15 @@ reconciling `config.py`'s `controller-node` default with the driver's `localhost
 (3) the GPU with the promoted Qwen adapter on `cuda:0` for the proposed arm. The driver
 re-seeds the KG per cell and runs the episode with `kg=None`, so no cell pollutes the
 planner's history.
+
+### E4 — regen correction over the bad-SFC corpus
+
+Runs the broken-SFC corpus ([`regen_corpus/`](../../regen_corpus/)) through the regen
+guardians + corrector and writes `e4_corpus.csv` + `e4_summary.csv`. Default arms `gate,stub`
+are deterministic (no GPU); add `real` for the live Qwen2.5-Coder frontier (loads the Coder
+on `cuda:1`). The `tests/unit/test_regen_corpus.py` guard keeps the corpus honest in CI.
+
+```bash
+repro/e4.sh                 # gate + stub (deterministic, committed)
+repro/e4.sh gate,stub,real  # + the live model arm (needs the GPU; downloads the Coder once)
+```

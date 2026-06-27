@@ -1,0 +1,2 @@
+# BAD (leading_zero_port): leading-zero port (simple_switch_CLI reads octal)
+table_modify forward_table forward 0 => 03

@@ -1,0 +1,21 @@
+id,kind,fault_class,subtype,switch,arm,grammar_valid,gate_ok,reject_layer,expected_layer,reject_reason,gate_pass,recovers,latency_s,error,pass
+syn_unknown_table,reject,syntactic,unknown_table,s1,gate,False,False,grammar,grammar,L0: unknown table 'magic_table',,,,,True
+syn_unknown_action,reject,syntactic,unknown_action,s1,gate,False,False,grammar,grammar,L0: action 'reroute' not valid for forward_table,,,,,True
+syn_action_table_mismatch,reject,syntactic,action_table_mismatch,s1,gate,False,False,grammar,grammar,L0: action 'forward' not valid for priority_table,,,,,True
+syn_bad_port_range,reject,syntactic,bad_port_range,s1,gate,False,False,grammar,grammar,L0: port 99 not valid on s1,,,,,True
+syn_leading_zero_port,reject,syntactic,leading_zero_port,s1,gate,False,False,grammar,grammar,L0: port 03 not valid on s1,,,,,True
+syn_wrong_key_type,reject,syntactic,wrong_key_type,s1,gate,False,False,grammar,grammar,L0: malformed MAC key '10.0.0.4',,,,,True
+syn_noarg_with_arg,reject,syntactic,noarg_with_arg,s1,gate,False,False,grammar,grammar,"L0: drop takes no args, got ('5',)",,,,,True
+syn_prose_commentary,reject,syntactic,prose_commentary,s1,gate,False,False,grammar,grammar,L0: unsupported command 'Here',,,,,True
+rt_blackhole_drone,reject,runtime,blackhole,s1,gate,True,False,L2,L2,L2: 00:00:00:00:00:04 not routable after regen (blackhole),,,,,True
+rt_duplicate_add,reject,runtime,duplicate,s1,gate,True,False,L2,L2,L2: duplicate entry for 00:00:00:00:00:01 in forward_table,,,,,True
+rt_dangling_handle,reject,runtime,dangling_handle,s1,gate,True,False,L2,L2,L2: no entry with handle 999 in forward_table,,,,,True
+rt_edge_blackhole,reject,runtime,edge_blackhole,s1,gate,True,False,L2,L2,L2: edge unreachable on every edge MAC (blackhole),,,,,True
+rt_misport_d4,recover,runtime,misport,s1,stub,True,,,,,True,True,0.0,,True
+rt_misport_d7,recover,runtime,misport,s1,stub,True,,,,,True,True,0.0,,True
+rt_misport_d2,recover,runtime,misport,s1,stub,True,,,,,True,True,0.0,,True
+rt_drop_target_d6,recover,runtime,drop_target,s1,stub,True,,,,,True,True,0.0,,True
+rt_misport_d4,recover,runtime,misport,s1,real,True,,,,,True,False,44.534,,False
+rt_misport_d7,recover,runtime,misport,s1,real,True,,,,,True,False,4.069,,False
+rt_misport_d2,recover,runtime,misport,s1,real,True,,,,,True,False,4.06,,False
+rt_drop_target_d6,recover,runtime,drop_target,s1,real,True,,,,,False,False,4.052,,False

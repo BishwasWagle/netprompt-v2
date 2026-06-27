@@ -251,6 +251,50 @@ def e2a(outdir: str) -> int:
     return fails
 
 
+def e4(in_path: str, outdir: str):
+    """E4 regen-correction JSONL -> e4_corpus.csv (per item×arm) + e4_summary.csv."""
+    recs = _load_jsonl(in_path)
+    rejects = [r for r in recs if r.get("kind") == "reject"]
+    recovers = [r for r in recs if r.get("kind") == "recover"]
+
+    _write_csv(os.path.join(outdir, "e4_corpus.csv"),
+               ["id", "kind", "fault_class", "subtype", "switch", "arm", "grammar_valid",
+                "gate_ok", "reject_layer", "expected_layer", "reject_reason", "gate_pass",
+                "recovers", "latency_s", "error", "pass"], recs)
+
+    def _rate(rows, key):
+        return round(sum(1 for r in rows if r.get(key)) / len(rows), 3) if rows else ""
+
+    def _caught_rate(rows):                       # refused by grammar OR the gate
+        return round(sum(1 for r in rows
+                         if not (r.get("grammar_valid") and r.get("gate_ok"))) / len(rows), 3)
+
+    summary = []
+    # reject items grouped by fault class (the gate arm — the safety result).
+    for fc in ("syntactic", "runtime"):
+        g = [r for r in rejects if r["fault_class"] == fc]
+        if not g:
+            continue
+        summary.append({"group": f"reject:{fc}", "arm": "gate", "n": len(g),
+                        "caught_rate": _caught_rate(g), "pass_rate": _rate(g, "pass")})
+    # recover items per arm (stub = machinery, real = model frontier).
+    for arm in sorted({r["arm"] for r in recovers}):
+        g = [r for r in recovers if r["arm"] == arm]
+        lat = [r["latency_s"] for r in g if isinstance(r.get("latency_s"), (int, float))]
+        summary.append({"group": "recover", "arm": arm, "n": len(g),
+                        "grammar_valid_rate": _rate(g, "grammar_valid"),
+                        "gate_pass_rate": _rate(g, "gate_pass"),
+                        "recovery_rate": _rate(g, "recovers"),
+                        "mean_latency_s": round(mean(lat), 2) if lat else ""})
+    _write_csv(os.path.join(outdir, "e4_summary.csv"),
+               ["group", "arm", "n", "caught_rate", "pass_rate", "grammar_valid_rate",
+                "gate_pass_rate", "recovery_rate", "mean_latency_s"], summary)
+
+    nrej = sum(1 for r in rejects if r.get("pass"))
+    print(f"  E4: reject {nrej}/{len(rejects)} refused at the expected layer; "
+          f"recover arms {sorted({r['arm'] for r in recovers})}")
+
+
 def e2b(junit_path: str, outdir: str):
     """Parse a pytest JUnit XML (the node-gated M5/M6 suites) into e2b_integration.csv."""
     import xml.etree.ElementTree as ET
@@ -292,6 +336,10 @@ def main():
     pe2b.add_argument("--junit", required=True, help="pytest --junitxml output path")
     pe2b.add_argument("--outdir", default="docs/experiments/results")
 
+    pe4 = sub.add_parser("e4", help="E4 regen-correction JSONL -> corpus/summary CSVs")
+    pe4.add_argument("--in", dest="in_path", default="/tmp/e4_regen.jsonl")
+    pe4.add_argument("--outdir", default="docs/experiments/results")
+
     args = ap.parse_args()
     os.makedirs(args.outdir, exist_ok=True)
     if args.cmd == "e3":
@@ -302,6 +350,8 @@ def main():
         raise SystemExit(1 if e2a(args.outdir) else 0)
     elif args.cmd == "e2b":
         e2b(args.junit, args.outdir)
+    elif args.cmd == "e4":
+        e4(args.in_path, args.outdir)
 
 
 if __name__ == "__main__":

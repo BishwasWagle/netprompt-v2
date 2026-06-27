@@ -1,0 +1,5 @@
+group,arm,n,caught_rate,pass_rate,grammar_valid_rate,gate_pass_rate,recovery_rate,mean_latency_s
+reject:syntactic,gate,8,1.0,1.0,,,,
+reject:runtime,gate,4,1.0,1.0,,,,
+recover,real,4,,,1.0,0.75,0.0,14.18
+recover,stub,4,,,1.0,1.0,1.0,0.0

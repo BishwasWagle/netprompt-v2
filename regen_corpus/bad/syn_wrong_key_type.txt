@@ -1,0 +1,2 @@
+# BAD (wrong_key_type): IPv4 key on a MAC-keyed table
+table_add forward_table forward 10.0.0.4 => 4

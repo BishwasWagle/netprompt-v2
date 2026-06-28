@@ -235,7 +235,7 @@ baselines — and does the closed analytics loop function?
 the planner picks the SFC → a live episode deploys + adapts → `Verdict`/snapshots to
 the KG. **3 arms × 4 scenarios**, all on the *same* 3-switch fabric.
 
-### As-built design (revised from pilots — `docs/experiments/experiment-results.md`)
+### As-built design (revised from pilots — `docs/experiments/results/experiment-results.md`)
 
 The first plan reused the published `run_comparative_experiments.sh` and its six
 netem conditions. **Two live pilots disproved that approach** and the design was
@@ -305,7 +305,7 @@ context only.
 **Pilot evidence (1 rep, live):** `primary_fault` → {static *violated* 120 ms, rule *met*
 47 ms, proposed *met* tier 0 47 ms}; `backup_fault` → {static *met* 30 ms (dodged), rule
 *violated* 132 ms, **proposed *healthy* tier 1, rerouted backup→primary, 35 ms**}. The full
-4×3×3 matrix (with variance) is in `experiment-results.md`.
+4×3×3 matrix (with variance) is in `results/experiment-results.md`.
 
 **Can claim:** end-to-end, on the calibrated fabric, the proposed arm is the only one that
 keeps the target in-SLA across both relay-fault locations — dodging via SFC choice where a
@@ -409,7 +409,7 @@ that the draft is missing (E2).
 > *structure* of these experiments, never the *values*.
 >
 > **✅ RESOLVED (2026-06-24).** E1 reproduced the matrix with the promoted adapter — set A
-> 4/4, B/C 0/4, 8/8 valid ([experiment-results.md](experiment-results.md)). The promoted
+> 4/4, B/C 0/4, 8/8 valid ([experiment-results.md](results/experiment-results.md)). The promoted
 > adapter itself yields the high known-taxonomy accuracy; Fig-6 is **set-A accuracy, not
 > generalization**. Relabel accordingly.
 

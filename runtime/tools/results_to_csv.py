@@ -5,7 +5,7 @@ one JSON object per (scenario × arm × repeat) cell to a `.jsonl`, and the E1
 planner probes land as one `orchestrate --output` JSON each. This tool turns
 those into tidy CSVs that pandas/matplotlib (or a spreadsheet) can consume
 directly — mirroring the milestone-II `*_results_clean.csv` -> `generate_final_plots.py`
-pipeline, but for the E1/E3 experiments in `docs/experiments/experiment-results.md`.
+pipeline, but for the E1/E3 experiments in `docs/experiments/results/experiment-results.md`.
 
 E3 (`e3` subcommand) reads the campaign JSONL and writes three views:
   e3_cells.csv    one row per cell (target field F1 + non-target F2 flattened) — raw.

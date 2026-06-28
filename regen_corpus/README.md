@@ -3,7 +3,7 @@
 The premade SFC rule files (`network/.../p4_multihop_rules/*.txt`) are **safe**. This
 folder is the opposite: a corpus of deliberately **broken** s1 forward-table scripts the
 Tier-2 regen subsystem must handle. It drives the **E4** experiment
-([../docs/experiments/experiment-results.md](../docs/experiments/experiment-results.md))
+([../docs/experiments/results/experiment-results.md](../docs/experiments/results/experiment-results.md))
 and the `tests/unit/test_regen_corpus.py` guard.
 
 Each item is one `bad/<id>.txt` rule file plus a metadata row in `manifest.json`.

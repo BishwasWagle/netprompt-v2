@@ -1,7 +1,7 @@
 # Experiment Results
 
-Recorded results for the experiments in [experiment-design.md](experiment-design.md),
-run under the controls in [experiment-validity.md](experiment-validity.md). All four
+Recorded results for the experiments in [experiment-design.md](../experiment-design.md),
+run under the controls in [experiment-validity.md](../experiment-validity.md). All four
 are now reported: **E2a** + **E1** (off-testbed), **E2b** (M5/M6 live foundation), and
 **E3** (the full 3-arm × 4-scenario comparative on the live fabric).
 
@@ -41,7 +41,7 @@ with the canonical per-scenario setup (mirroring `tests/unit/test_{evaluator,run
 
 ## E1 — Slow Planner decision quality (confusion matrix)
 
-8 probes (sets A/B/C from [planner-lora-eval.md](../planner/planner-lora-eval.md))
+8 probes (sets A/B/C from [planner-lora-eval.md](../../planner/planner-lora-eval.md))
 through the production `llm_orchestrator.orchestrate` CLI, promoted adapter,
 constrained-on. Expected = the deterministic oracle (`validator.fallback_decision`).
 
@@ -68,7 +68,7 @@ consistent with set-A / known-taxonomy accuracy of this same adapter**; no
 different/condition-trained model need be posited. Combined with the *forced*
 argument (the model was trained on telemetry — `train_decision_lora.py:85-86` — yet
 fails it), **Fig-6 must be labelled "known-taxonomy accuracy," never "telemetry
-generalization."** → [kronos-draft-experiment-edits.md §0](kronos-draft-experiment-edits.md)
+generalization."** → [kronos-draft-experiment-edits.md §0](../kronos-draft-experiment-edits.md)
 is now **RESOLVED**.
 
 **Honest limit:** this reproduced the *direction* (4/4 set A, 0/4 B/C) with **one
@@ -107,7 +107,7 @@ short real-monitor soak and E3 remain before collecting comparative data.
 
 The full design-doc E3, **as-built** with the fault-injection harness
 (`runtime/tools/e3_compare.py` + `e3_measure.py`; see
-[experiment-design.md §E3 "As-built design"](experiment-design.md) for why this
+[experiment-design.md §E3 "As-built design"](../experiment-design.md) for why this
 replaced the published `run_comparative_experiments.sh`). All three arms run on the
 *identical* 3-switch fabric (clean `low_latency` access, 5 Mbit/drone load); the only
 differences are *which SFC is chosen* and *whether the runtime adapts*. After a healthy
@@ -179,7 +179,7 @@ invocation, CSV/figure export, and the full preconditions).
 ## E4 — Tier-2 regen correction (deliberately-broken SFC corpus)
 
 The premade SFC rule files are safe; E4 feeds the Tier-2 regen subsystem a corpus of
-**broken** s1 forward-table scripts ([`regen_corpus/`](../../regen_corpus/), 16 items) and
+**broken** s1 forward-table scripts ([`regen_corpus/`](../../../regen_corpus/), 16 items) and
 measures the three nested correctness layers the M7 design separates (regen-llm.md): a rule
 can be **grammar-valid**, **gate-safe** (no blackhole), and/or **recovery-capable** (restores
 the route) — independently. Two item kinds:
@@ -284,7 +284,7 @@ set; the summary reproduces the E3 table exactly (e.g. `backup_fault`/proposed
 
 ## Reproduce
 
-Each experiment is an executable script under [`repro/`](../../repro/) — run it directly instead
+Each experiment is an executable script under [`repro/`](../../../repro/) — run it directly instead
 of copy-pasting. The scripts self-locate the repo root and source
 `deploy/gpu-node/gpu-node.env`, so they work from any directory and resolve the venv python
 themselves (override with `NETPROMPT_PY`); each (re)seeds the KG as needed.
@@ -347,7 +347,7 @@ planner's history.
 
 ### E4 — regen correction over the bad-SFC corpus
 
-Runs the broken-SFC corpus ([`regen_corpus/`](../../regen_corpus/)) through the regen
+Runs the broken-SFC corpus ([`regen_corpus/`](../../../regen_corpus/)) through the regen
 guardians + corrector and writes `e4_corpus.csv` + `e4_summary.csv`. Default arms `gate,stub`
 are deterministic (no GPU); add `real` for the live Qwen2.5-Coder frontier (loads the Coder
 on `cuda:1`). The `tests/unit/test_regen_corpus.py` guard keeps the corpus honest in CI.

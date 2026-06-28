@@ -21,7 +21,7 @@ confirm before the number can stay).
 
 > **Resolved by reproduction.** E1 re-ran the A/B/C confusion matrix with the promoted
 > `final_adapter_retrained` (constrained-on): **set A 4/4, sets B+C 0/4, 8/8 valid** —
-> identical to the planner eval ([experiment-results.md](experiment-results.md)). So the
+> identical to the planner eval ([experiment-results.md](results/experiment-results.md)). So the
 > promoted adapter *itself* produces the high known-taxonomy accuracy and fails telemetry —
 > the draft's **Fig-6 is set-A / known-taxonomy accuracy, not telemetry generalization**, and
 > no different/condition-trained model need be posited. **Action: relabel Fig-6 + Table IV

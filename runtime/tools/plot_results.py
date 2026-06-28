@@ -1,7 +1,7 @@
 """Render E1–E4 result figures from the CSVs written by `results_to_csv`.
 
 Mirrors the milestone-II `generate_final_plots.py` pipeline (CSV -> matplotlib PNGs)
-for the experiments in `docs/experiments/experiment-results.md`. Each plotter is a
+for the experiments in `docs/experiments/results/experiment-results.md`. Each plotter is a
 no-op if its CSV is absent, so this runs after any subset of experiments:
   E1  e1_confusion.csv      -> accuracy by probe set
   E2a e2a_gate.csv          -> tier/verdict per scenario (6/6 gate)

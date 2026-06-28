@@ -284,6 +284,11 @@ never a single blended accuracy**.
   (edits-doc recommendation). Do **not** claim history-driven path selection on the strength of
   the migration results. Until backed, treat the loop as **functioning** (writes/reads verdicts),
   not as **improving** decisions — same guardrail as the "loop learns" row in §4.
+- **Design drafted:** [historical-path-ab-design.md](historical-path-ab-design.md) — the wiring is
+  **plumbed-but-ignored** (the runtime writes no per-path history; the path decision binds from
+  `allowed_*` sets / deterministic fallback, never from history), so the as-is A/B is **expected
+  null**. The design gives both a cheap as-is A/B (Design A) and the 3-edit close-the-loop version
+  that actually backs the claim (Design B), with a run-A-then-decide gate.
 
 ---
 
@@ -334,8 +339,9 @@ Ordered by value-per-effort. All are small; none needs new hardware.
 7. **Table V scalability** — synthetic-KG generator + `kg_scale.py` sweep. *(Lowest priority;
    skip candidate.)*
 8. **Historical-path-selection experiment** — KG-seeded prior-verdict A/B that changes the next
-   path choice. *(Design decision first: build to back the abstract claim, or drop the sentence.
-   Needs the testbed; bounded by whether history feeds the decision today.)*
+   path choice. Design: [historical-path-ab-design.md](historical-path-ab-design.md). *Run Design A
+   first (cheap, no testbed, expected null at the orchestrate boundary); if null, build Design B
+   (3 edits to close the loop on the path axis) or drop the abstract sentence.*
 
 ---
 

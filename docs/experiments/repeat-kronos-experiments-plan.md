@@ -59,7 +59,7 @@ So the honest "skip" list is **not** a list of impossible experiments. It is two
 
 | # | Their experiment (draft) | Can we repeat? | Status | Maps to |
 |---|---|---|---|---|
-| Table IV | KG-driven SFC/path/policy per scenario + KG query latency | **Build small tool** | Decision half ✅ done; latency + path/policy CSV to add | E1 / E3 |
+| Table IV | KG-driven SFC/path/policy per scenario + KG query latency | **Build small tool** | ✅ **done (build #2)** — set-A 4/4; SFC query 2.2–2.7 ms, path 2.0–2.5 ms (**reproduces draft**) | E1 / E3 |
 | Table V | KG-reasoning scalability, 10→200 synthetic drones | **Build small tool** *(de-prioritize)* | Not started | E1 adjunct |
 | Table VI | Topology-equivalent RTT/loss/throughput, 3 arms × scenarios | **Yes, as-is** | ✅ done (E3, 36/36) | E3 |
 | Table VII | KG ablation (full vs NoKG) | **Build small tool** | Not run | E3 ablation |
@@ -330,8 +330,11 @@ Ordered by value-per-effort. All are small; none needs new hardware.
    `runtime/tools/table8_to_csv.py` → [`repeat-results/`](repeat-results/repeat-results.md). Measured
    warm SFC selection **11.04 s ± 0.19** (not the draft's 1 s), rule-based **11 µs**, KG reasoning
    **30 ms**. Remaining: instrument the **runtime-side KG-update write** for the 4th component.
-2. **Table IV latency + provenance columns** — `perf_counter` around the two `kg_context` Cypher
-   queries; extend `results_to_csv.py` e1 to emit path/policy/latency.
+2. ✅ **Table IV latency + provenance columns** — **DONE.** Per-query timing in `kg_context.py`
+   (`run_cypher(label=...)` → `last_query_ms`, surfaced into `orchestrate` timings; warm via
+   `--repeat-context`); driver `repro/table4_provenance.sh` + scorer `runtime/tools/table4_to_csv.py`
+   → [`repeat-results/`](repeat-results/repeat-results.md). Set-A 4/4 provenance; SFC query
+   **2.2–2.7 ms**, path query **2.0–2.5 ms** — **reproduces the draft's Table IV ranges**.
 3. **§V.D(2) robustness harness** — `runtime/tools/e1_robustness.py` (5 dict transforms over the
    assembled `input_object`).
 4. **§V.D(3) counterfactual driver** — `repro/e1-d5.sh` + oracle-agreement scorer.

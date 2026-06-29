@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from time import perf_counter
 from typing import Any, Dict, List, Optional
 
 from .utils import normalize_text
@@ -19,14 +20,22 @@ class Neo4jContextClient:
         if not password:
             raise ValueError("Neo4j password is missing. Set NEO4J_PASSWORD or pass it to RuntimeConfig.")
         self.driver = GraphDatabase.driver(uri, auth=(user, password))
+        # Per-query latency (ms), keyed by label, for KRONOS Table IV provenance.
+        # Populated by run_cypher(..., label=...); last-write-wins per label.
+        self.last_query_ms: Dict[str, float] = {}
 
     def close(self) -> None:
         self.driver.close()
 
-    def run_cypher(self, query: str, params: Optional[Dict[str, Any]] = None) -> List[Dict[str, Any]]:
+    def run_cypher(self, query: str, params: Optional[Dict[str, Any]] = None,
+                   label: Optional[str] = None) -> List[Dict[str, Any]]:
+        _t = perf_counter()
         with self.driver.session() as session:
             result = session.run(query, params or {})
-            return [dict(record) for record in result]
+            rows = [dict(record) for record in result]
+        if label is not None:
+            self.last_query_ms[label] = (perf_counter() - _t) * 1000.0
+        return rows
 
     def get_topology_snapshot(self) -> Dict[str, Any]:
         switch_query = """
@@ -77,9 +86,9 @@ class Neo4jContextClient:
         ORDER BY properties(pd).scenario
         """
 
-        switches = self.run_cypher(switch_query)
-        links = self.run_cypher(link_query)
-        path_decisions = self.run_cypher(path_query)
+        switches = self.run_cypher(switch_query, label="switch_query")
+        links = self.run_cypher(link_query, label="link_query")
+        path_decisions = self.run_cypher(path_query, label="path_query")
 
         normalized_switches = []
         for s in switches:
@@ -194,7 +203,7 @@ class Neo4jContextClient:
             coalesce(properties(p).path_preference, "unknown") AS path_preference
         ORDER BY properties(s).id
         """
-        rows = self.run_cypher(query)
+        rows = self.run_cypher(query, label="sfc_query")
         return [
             {
                 "sfc_id": row.get("sfc_id"),

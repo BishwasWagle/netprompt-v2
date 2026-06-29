@@ -45,6 +45,7 @@ def build_runtime_input_object(
     observed_throughput_mbps: Optional[float],
     use_fallback_candidates: bool = False,
     timings: Optional[Dict[str, float]] = None,
+    repeat_context: int = 1,
 ) -> Dict[str, Any]:
     # Control-plane timing (KRONOS Table VIII): when a `timings` dict is supplied,
     # the KG read side ("KG Reasoning" — the warm-cache Cypher context queries) and
@@ -60,10 +61,18 @@ def build_runtime_input_object(
         # {} when there's no history or NETPROMPT_PLANNER_FEEDBACK=0.
         from .analytics import feedback_for_planner
         runtime_feedback = feedback_for_planner(kg_client.run_cypher)
+        # Table IV warm query latency: re-run the KG reads so last_query_ms ends warm
+        # (server-side cache hot). Pass 0 = cold single read. Does not touch the LLM.
+        for _ in range(max(0, repeat_context - 1)):
+            kg_client.get_topology_snapshot()
+            kg_client.get_candidate_sfc_policy_set()
     finally:
         kg_client.close()
     if timings is not None:
         timings["kg_reasoning_s"] = perf_counter() - _t
+        # Per-query KG latency (KRONOS Table IV): sfc_query_ms, path_query_ms, ...
+        for _label, _ms in kg_client.last_query_ms.items():
+            timings[f"{_label}_ms"] = _ms
 
     if use_fallback_candidates or not candidate_actions:
         candidate_actions = fallback_candidate_actions()
@@ -214,6 +223,8 @@ def parse_args() -> argparse.Namespace:
                         help="Also save the control-plane timing breakdown (Table VIII) next to the output config")
     parser.add_argument("--repeat-decision", type=int, default=1,
                         help="Run the LLM decode N times on the loaded model (warm timing; run 0 is cold) for Table VIII")
+    parser.add_argument("--repeat-context", type=int, default=1,
+                        help="Re-run the KG context reads N times so per-query latency (Table IV) is warm-cache")
     return parser.parse_args()
 
 
@@ -248,6 +259,7 @@ def main() -> None:
         observed_throughput_mbps=args.observed_throughput,
         use_fallback_candidates=args.fallback_candidates,
         timings=timings,
+        repeat_context=args.repeat_context,
     )
 
     result = run_pipeline(

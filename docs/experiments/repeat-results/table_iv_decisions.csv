@@ -1,0 +1,5 @@
+mission,expected_sfc,selected_sfc,correct,selected_path,selected_policy,selected_relay,parse_status,sfc_query_ms,path_query_ms
+bulk_data_transfer,BandwidthOptimizedSFC,BandwidthOptimizedSFC,1,primary,bandwidth_policy_table_bulk_marking,s2,parsed_json,2.2398,2.0908
+emergency_alert_relay,ReliableRelaySFC,ReliableRelaySFC,1,backup,backup_path_reliable_relay,s3,parsed_json,2.6780,2.3171
+long_term_soil_monitoring,EnergyAwareSFC,EnergyAwareSFC,1,primary,energy_policy_table_essential_only,s2,parsed_json,2.4292,1.9706
+real_time_pest_detection,LowLatencyVideoSFC,LowLatencyVideoSFC,1,primary,primary_path_low_latency,s2,parsed_json,2.5600,2.5429

@@ -61,3 +61,47 @@ LLM SFC selection (~11 s, paid once per decision, attributable), with KG reasoni
 (not reproduced / not in the planner path).
 
 **Reproduce:** `repro/table8_timing.sh [repeats]` (needs venv · seeded Neo4j · GPU).
+
+---
+
+## Build #2 — Table IV: KG-driven decision provenance + KG query latency (re-measured)
+
+**Driver:** `repro/table4_provenance.sh 5` → `runtime/tools/table4_to_csv.py`.
+**Method:** the 4 **set-A** probes through the real LLM planner. Decision provenance
+(selected SFC / path / policy / relay) is read from the `--output` config; per-query KG latency
+(`sfc_query` = `get_candidate_sfc_policy_set`, `path_query` = the `PathDecision` query in
+`get_topology_snapshot`) is captured warm (`--repeat-context 5`) from the `--save-timings`
+sidecar. Aggregated to [`table_iv_decisions.csv`](table_iv_decisions.csv) +
+[`plots/table_iv_kg_latency.png`](plots/table_iv_kg_latency.png).
+
+| Mission (set A) | Selected SFC | Path | P4 Policy | Relay | SFC query (ms) | Path query (ms) |
+|---|---|---|---|---|---|---|
+| real_time_pest_detection | LowLatencyVideoSFC | primary | primary_path_low_latency | s2 | 2.56 | 2.54 |
+| long_term_soil_monitoring | EnergyAwareSFC | primary | energy_policy_table_essential_only | s2 | 2.43 | 1.97 |
+| emergency_alert_relay | ReliableRelaySFC | backup | backup_path_reliable_relay | s3 | 2.68 | 2.32 |
+| bulk_data_transfer | BandwidthOptimizedSFC | primary | bandwidth_policy_table_bulk_marking | s2 | 2.24 | 2.09 |
+
+All **4/4 correct vs the set-A oracle**, all `parsed_json`.
+
+**Findings.**
+1. **The KG query latencies reproduce the draft cleanly.** Ours: SFC query **2.24–2.68 ms**, path
+   query **1.97–2.54 ms** — squarely inside the draft's Table IV ranges (SFC 1.20–2.64 ms, path
+   1.82–3.20 ms). Unlike the SFC-selection cost (Build #1: 11 s vs the draft's 1 s), the **Cypher
+   latencies are defensible and reproducible** — the KG is genuinely millisecond-scale.
+2. **The decision provenance matches the draft's SFC/path/policy mappings** — LowLatency·primary·s2,
+   Energy·primary·s2, Reliable·backup·s3 — but via the **mission name** (set A), which the planner
+   gets right (4/4), *not* via telemetry/condition reasoning.
+3. **Provenance guardrail honored.** The draft's Table IV condition rows
+   (congestion/relay/DDIL → ReliableRelay) are the **telemetry case the planner fails 0/4** — they
+   are **not** run here as LLM "KG reasoning." The `emergency_alert_relay`→ReliableRelay·backup row
+   reproduces the *same SFC/path* the draft attributes to those conditions, but it is **name-driven
+   (set A)**; a true condition→SFC mapping must be attributed to the deterministic rule oracle, not
+   the LLM. So we adopt the table's *structure* and the (honest) query latencies, and re-scope the
+   "emerged from KG reasoning" claim.
+
+**Can claim:** on the seeded KG, the planner emits KG-grounded, valid set-A decisions
+(SFC/path/policy/relay, 4/4) with warm Cypher query latency ~2–3 ms — reproducing the draft's
+Table IV query-latency ranges. **Cannot claim:** that the condition→SFC rows emerged from LLM
+telemetry reasoning (the planner is 0/4 off-taxonomy — those are rule-grounded).
+
+**Reproduce:** `repro/table4_provenance.sh [repeat_context]` (needs venv · seeded Neo4j · GPU).

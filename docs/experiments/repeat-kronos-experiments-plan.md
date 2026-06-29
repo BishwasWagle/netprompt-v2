@@ -62,7 +62,7 @@ So the honest "skip" list is **not** a list of impossible experiments. It is two
 | Table IV | KG-driven SFC/path/policy per scenario + KG query latency | **Build small tool** | ✅ **done (build #2)** — set-A 4/4; SFC query 2.2–2.7 ms, path 2.0–2.5 ms (**reproduces draft**) | E1 / E3 |
 | Table V | KG-reasoning scalability, 10→200 synthetic drones | **Build small tool** *(de-prioritize)* | Not started | E1 adjunct |
 | Table VI | Topology-equivalent RTT/loss/throughput, 3 arms × scenarios | **Yes, as-is** | ✅ done (E3, 36/36) | E3 |
-| Table VII | KG ablation (full vs NoKG) | **Build small tool** | Not run | E3 ablation |
+| Table VII | KG ablation (full vs NoKG) | **Build small tool** | ✅ **done (build #5)** — backup_fault: proposed reroutes (35 ms) where nokg/rule are stuck (132 ms) | E3 ablation |
 | Table VIII | Control-plane timing breakdown | **Build small tool** | ✅ **done (build #1)** — SFC sel **11.04 s** (not 1 s), KG ~30 ms, rule ~11 µs; KG-update gap | E1 / E3 |
 | Fig. 6 / §V.D(1) | Confusion matrix, 4 SFC classes | **Yes** (set-A); build tool for exact % | ✅ **done (build #6)** — set-A 100% diagonal; full set collapses to Bandwidth (mode), not semantic | E1 |
 | §V.D(2) | Adversarial robustness (5 perturbations) | **Build small tool** | ✅ **done (build #3)** — 20/20 stable & valid (robust *by insensitivity*) | E1 sub-study |
@@ -346,8 +346,11 @@ Ordered by value-per-effort. All are small; none needs new hardware.
    counterfactually **sensitive to the mission name** (4 distinct SFCs, 4/4 oracle agreement) and
    **flat to telemetry** (delay/loss/battery: planner 1 SFC vs oracle 2) — scored as oracle-agreement
    (10/19), re-scoping the draft's "changed appropriately" away from telemetry generalization.
-5. **Table VII NoKG arm** — `nokg` arm in `e3_compare.py`/`e3_measure.py` + operational NoKG
-   definition (candidate-set-only). *(Needs the testbed.)*
+5. ✅ **Table VII NoKG arm** — **DONE.** `nokg` arm in `e3_measure.py`/`e3_compare.py` (single
+   factor: the KG-derived REROUTE tier removed) + driver `repro/table7_nokg.sh` + scorer
+   `runtime/tools/table7_to_csv.py` → [`repeat-results/`](repeat-results/repeat-results.md). On
+   `backup_fault`, **proposed reroutes to 35 ms (healthy)** while **nokg escalates** and **rule is
+   violated** (both 132 ms) — the KG's resilience contribution is the topology-grounded reroute.
 6. ✅ **Fig. 6 confusion matrix** — **DONE.** Held-out probe set (`repro/fig6_probes.json`, 28 probes
    workflow-generated) + `runtime/tools/fig6_confusion.py` + `repro/fig6_confusion.sh` →
    [`repeat-results/`](repeat-results/repeat-results.md). Set-A **100% diagonal** (the Fig-6 analog);

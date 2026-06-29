@@ -20,7 +20,7 @@ corrected. ❌ **Not reproduced** — our measurement contradicts the draft's va
 | **Table IV** — decision provenance | scenario → SFC/path/policy | set-A **4/4** (SFC/path/policy/relay) | ⚠️ Re-scoped (name-driven, not telemetry) | build #2 |
 | **Table V** — KG scalability | 4.37 → 7.80 ms to 200 drones | — | ⏭ Skip candidate (needs synthetic-KG tooling) | build #7 |
 | **Table VI** — RTT / loss / tput | topology-equiv, 3 arms × scenarios | E3 **36/36**; proposed in-SLA both faults | ⚠️ Re-scoped (RTT headline; tput=offered load; coarse loss) | E3 (prior) |
-| **Table VII** — NoKG ablation | NoKG loss 2.0 / 6.67 % | — | ◑ Pending | build #5 |
+| **Table VII** — NoKG ablation | NoKG loss 2.0 / 6.67 % | backup_fault: proposed **35 ms healthy**; nokg/rule **132 ms** | ✅ Reproduces (re-scoped: RTT not loss %) | build #5 |
 | **Table VIII** — SFC selection | ~**1.00 s** | **11.04 s ± 0.19** | ❌ Not reproduced (P100 + constrained decode) | build #1 |
 | **Table VIII** — KG reasoning | 7.70–7.80 ms (warm) | **~30 ms** (cold/near-warm) | ✅ Reproduces (order) | build #1 |
 | **Table VIII** — KG update / writeback | 0.51 s / 0.54 s | planner write **sub-ms**; KG write is runtime-side | ⚠️ Re-scoped (architecture gap) | build #1 |
@@ -76,11 +76,12 @@ honest contributions survive; the overreaching claims are re-scoped or dropped.
 
 ## 3. Remaining work
 
-| Build | Experiment | Why not done | Needs |
+| Build | Experiment | Status | Needs |
 |---|---|---|---|
-| #5 | Table VII — NoKG ablation | next | live fabric + `sudo` |
 | #7 | Table V — KG scalability | skip candidate (low value) | synthetic-KG generator |
 | #8 | Historical-path A/B | build-or-drop (design ready) | Design A is planner-side; Design B needs 3 edits |
+
+All other experiments (Tables IV, VI, VII, VIII, Fig. 6, §V.D(2)/(3)) are done — builds #1–#6 + E3.
 
 ---
 

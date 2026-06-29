@@ -233,3 +233,50 @@ known-taxonomy). **Cannot claim:** the draft's generalization framing or "semant
 error structure — off the known names the planner mode-collapses to BandwidthOptimized.
 
 **Reproduce:** `repro/fig6_confusion.sh` (needs venv · seeded Neo4j · GPU).
+
+---
+
+## Build #5 — Table VII: KG ablation (full vs NoKG), live fabric (re-measured)
+
+**Driver:** `repro/table7_nokg.sh` → `e3_compare --arms rule,proposed,nokg` → `runtime/tools/table7_to_csv.py`.
+**Operational NoKG (single factor).** We added a `nokg` arm to the E3 harness:
+the full proposed pipeline (LLM SFC + adaptive runtime) **but with the KG-derived REROUTE tier
+stripped** — `build_envelope` grants ReliableRelay the reroute tier *because the KG knows the
+alternative relay path*; NoKG removes exactly that, nothing else (`e3_measure.py`). We also report
+`rule` (the draft's NoKG ≈ static scenario mappings, no adaptation). 3 scenarios × 3 arms, live
+BMv2. Output: [`table_vii_ablation.csv`](table_vii_ablation.csv) +
+[`plots/table_vii_ablation.png`](plots/table_vii_ablation.png).
+
+| Scenario | Arm | Outcome | Tier | Final path | F1 RTT | SLA |
+|---|---|---|---|---|---|---|
+| healthy | rule / nokg / proposed | met / healthy / healthy | — / 0 / 0 | primary | **30 ms** | 3/3 ✓ |
+| **backup_fault** | rule | **violated** | — | backup | **132 ms** | ✗ |
+| **backup_fault** | **nokg** | **escalated** | 2 | backup | **132 ms** | ✗ |
+| **backup_fault** | **proposed** | **healthy** | **1** | **primary** | **35 ms** | ✓ |
+| ddil | rule / nokg / proposed | violated / escalated / escalated | — / 2 / 2 | backup | 132 ms | ✗ |
+
+**Findings.**
+1. **The KG's resilience contribution is isolated to one thing: the reroute.** On `backup_fault`,
+   only **proposed** (full KRONOS) escapes — it reroutes backup→primary (tier 1) to 35 ms, healthy.
+   **NoKG** (same SFC, same adaptive loop, only the KG reroute removed) is **stuck on the degraded
+   backup at 132 ms and escalates**; `rule` (no adaptation at all) is violated at 132 ms. This is
+   the draft's "NoKG saw loss under relay failure where KRONOS did not," reproduced as a clean
+   single-factor ablation.
+2. **When there's no fault, the KG makes no difference** (healthy: all arms 30 ms) — matching the
+   draft's Table VII baseline/low-latency/congestion rows (no impact).
+3. **DDIL is genuinely infeasible for all** (both relays +100 ms → 132 ms). `proposed` and `nokg`
+   **escalate honestly** (tier 2, ticket); `rule` is violated. Per the guardrail, DDIL "success" is
+   honest escalation, not a maintained-SLA win.
+4. **Loss is reported qualitatively.** It read 0 % throughout at `ping_count=2` (below resolution),
+   so — unlike the draft's 2.0 % / 6.67 % — **RTT is the honest resilience dimension** here
+   (132 ms violated vs 35 ms healthy).
+5. **`nokg` vs `rule` nuance:** both stay at 132 ms, but `nokg` *runs the adaptive loop and
+   escalates* (tries, can't reroute without the KG) while `rule` *never adapts* (violated). The KG
+   is what turns an attempted adaptation into a successful reroute.
+
+**Can claim:** the KG's contribution to resilience is the topology-grounded **reroute** — only the
+full pipeline keeps the target in-SLA across a path fault; remove the KG-derived reroute and it
+escalates (NoKG) or is violated (rule). **Cannot claim:** the draft's precise NoKG loss percentages
+(below resolution) — the honest signal is RTT/SLA.
+
+**Reproduce:** `repro/table7_nokg.sh [repeats]` (needs testbed · `sudo` · GPU · seeded Neo4j).

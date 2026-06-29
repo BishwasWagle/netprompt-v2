@@ -113,9 +113,9 @@ def run_cell(arm: str, scenario: str, sfc: str | None, fault: str | None) -> dic
             sfc = STATIC_SFC
         elif arm == "rule":
             sfc = RULE_LADDER[scenario]
-        elif arm == "proposed":
+        elif arm in ("proposed", "nokg"):
             if not sfc:
-                raise SystemExit("--sfc is required for the proposed arm (the LLM's pick)")
+                raise SystemExit(f"--sfc is required for the {arm} arm (the LLM's pick)")
         else:
             raise SystemExit(f"unknown arm {arm!r}")
         base = kg.build_envelope(sfc, TARGET_FIELD)        # per-SFC action space
@@ -124,8 +124,17 @@ def run_cell(arm: str, scenario: str, sfc: str | None, fault: str | None) -> dic
 
     # calibrated bounds + the SFC's own legal action space (LowLatency=primary-only;
     # ReliableRelay=primary+backup -> reroute possible).
+    legal_tiers, legal_paths = base.legal_tiers, base.legal_paths
+    if arm == "nokg":
+        # NoKG ablation (Table VII): keep the SFC + the adaptive loop, but remove the
+        # KG's topology reasoning. build_envelope derives the REROUTE tier from the KG
+        # knowing the alternative relay path; without the KG that path is unknown, so
+        # reroute is unavailable and a path fault cannot be escaped (the resilience the
+        # KG enables; cf. the draft's NoKG losing under relay-failure/DDIL). Single
+        # factor: only the KG-enabled reroute capability is removed.
+        legal_tiers = base.legal_tiers - frozenset({REROUTE})
     env = Envelope(max_latency_ms=CAL_LAT, min_bandwidth_mbps=CAL_BW, max_loss_percent=CAL_LOSS,
-                   legal_tiers=base.legal_tiers, legal_paths=base.legal_paths,
+                   legal_tiers=legal_tiers, legal_paths=legal_paths,
                    knob_ranges=base.knob_ranges)
     cid = f"e3-{arm}-{scenario}"
     spec = DeploymentSpec(sfc=sfc, binding=real_binding(sfc), envelope=env,
@@ -139,7 +148,7 @@ def run_cell(arm: str, scenario: str, sfc: str | None, fault: str | None) -> dic
     monitor.capture_baseline()                             # healthy, pre-fault
     inject_fault(fault)                                    # <-- the scenario fault
 
-    if arm == "proposed":
+    if arm in ("proposed", "nokg"):
         rm = RuntimeManager(deployer, monitor, ValidationGate())
         result = rm.run_episode(spec)
         v = result.verdict
@@ -164,7 +173,7 @@ def run_cell(arm: str, scenario: str, sfc: str | None, fault: str | None) -> dic
 
 def main():
     ap = argparse.ArgumentParser(description=__doc__)
-    ap.add_argument("--arm", required=True, choices=("static", "rule", "proposed"))
+    ap.add_argument("--arm", required=True, choices=("static", "rule", "proposed", "nokg"))
     ap.add_argument("--scenario", required=True, choices=sorted(SCENARIO_FAULT))
     ap.add_argument("--sfc", default=None, help="proposed arm only: the LLM-chosen SFC")
     ap.add_argument("--fault", default=None,

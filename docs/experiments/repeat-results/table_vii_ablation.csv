@@ -1,0 +1,10 @@
+scenario,arm,sfc,outcome,tier_reached,final_path,f1_rtt_ms,f1_loss_pct,sla_met
+healthy,rule,LowLatencyVideoSFC,met,,primary,30.1,0.0,1/1
+healthy,nokg,LowLatencyVideoSFC,healthy,0,primary,30.15,0.0,1/1
+healthy,proposed,LowLatencyVideoSFC,healthy,0,primary,30.0,0.0,1/1
+backup_fault,rule,ReliableRelaySFC,violated,,backup,132.29,0.0,0/1
+backup_fault,nokg,ReliableRelaySFC,escalated,2,backup,132.25,0.0,0/1
+backup_fault,proposed,ReliableRelaySFC,healthy,1,primary,35.04,0.0,1/1
+ddil,rule,ReliableRelaySFC,violated,,backup,132.33,0.0,0/1
+ddil,nokg,ReliableRelaySFC,escalated,2,backup,132.59,0.0,0/1
+ddil,proposed,ReliableRelaySFC,escalated,2,backup,132.1,0.0,0/1

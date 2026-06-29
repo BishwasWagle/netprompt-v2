@@ -143,7 +143,7 @@ def measure(arm, scenario, sfc) -> dict:
     cmd = ["sudo", "-E", "env", f"NETPROMPT_TREE_ROOT={NETPROMPT_ROOT}",
            f"NETPROMPT_KG_URI={KG_URI}", f"NETPROMPT_KG_PASS={KG_PASS}",
            VENV, "-m", "runtime.tools.e3_measure", "--arm", arm, "--scenario", scenario]
-    if arm == "proposed":
+    if arm in ("proposed", "nokg"):
         cmd += ["--sfc", sfc]
     out = subprocess.run(cmd, cwd=ROOT, capture_output=True, text=True, timeout=300)
     lines = [l for l in out.stdout.strip().splitlines() if l.startswith("{")]

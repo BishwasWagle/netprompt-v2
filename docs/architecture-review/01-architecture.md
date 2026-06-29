@@ -16,10 +16,20 @@ This breakdown is organized into three parts:
 
 ### 1.1.1 The system in one sentence
 
-RuntimeManager is the **inner, mostly-deterministic control loop** of a two-loop
-MAPE-K (Monitor–Analyze–Plan–Execute over a Knowledge base) system that keeps a
-drone Service Function Chain (SFC) inside its SLA envelope on a live P4/BMv2
-network, escalating to a slow LLM planner only when no in-envelope fix exists.
+The system is a **Knowledge Graph–driven, two-loop MAPE-K**
+(Monitor–Analyze–Plan–Execute over a Knowledge base) orchestrator for drone-edge
+networks: a **slow LLM planner** (outer loop) does KG-RAG over a Neo4j Knowledge
+Graph to decide *which* Service Function Chain (SFC) and relay path; a
+**mostly-deterministic RuntimeManager** (inner loop) deploys that decision onto a
+live P4/BMv2 network and holds the SFC inside its SLA envelope through a
+cost-ordered adaptation ladder, escalating back to the planner only when no
+in-envelope fix exists; and the **Knowledge Graph** is the shared hub the planner
+reads (strategic state) and the runtime writes back to (operational verdicts) —
+closing the loop.
+
+> **Scope.** This review's primary subject is the inner loop (`RuntimeManager`,
+> §1.3); the outer-loop planner is summarized in §1.2 and the Knowledge Graph is
+> detailed in [06-knowledge-graph.md](06-knowledge-graph.md).
 
 ### 1.1.2 Two loops, two models
 

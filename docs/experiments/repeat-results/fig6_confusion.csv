@@ -1,0 +1,5 @@
+true\predicted,LowLatencyVideoSFC,ReliableRelaySFC,EnergyAwareSFC,BandwidthOptimizedSFC
+LowLatencyVideoSFC,14.3,0.0,0.0,85.7
+ReliableRelaySFC,0.0,14.3,0.0,85.7
+EnergyAwareSFC,0.0,0.0,14.3,85.7
+BandwidthOptimizedSFC,0.0,0.0,0.0,100.0

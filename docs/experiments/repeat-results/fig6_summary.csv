@@ -1,0 +1,12 @@
+scope,metric,correct,n,accuracy_pct
+all,overall,10,28,35.7
+set_A_known_taxonomy,overall,4,4,100.0
+set_BC_off_taxonomy,overall,6,24,25.0
+class:LowLatencyVideoSFC,all,1,7,14.3
+class:LowLatencyVideoSFC,setA,1,1,100.0
+class:ReliableRelaySFC,all,1,7,14.3
+class:ReliableRelaySFC,setA,1,1,100.0
+class:EnergyAwareSFC,all,1,7,14.3
+class:EnergyAwareSFC,setA,1,1,100.0
+class:BandwidthOptimizedSFC,all,7,7,100.0
+class:BandwidthOptimizedSFC,setA,1,1,100.0

@@ -190,3 +190,46 @@ a clean, honest characterization. **Cannot claim:** telemetry-driven counterfact
 generalization (the draft's framing) — that is contradicted here, as in E1.
 
 **Reproduce:** `repro/vd3_counterfactual.sh` (needs venv · seeded Neo4j · GPU).
+
+---
+
+## Build #6 — Fig. 6: SFC decision confusion matrix (re-measured)
+
+**Driver:** `repro/fig6_confusion.sh` → `runtime/tools/fig6_confusion.py`; probe set
+`repro/fig6_probes.json` (28 probes, 7/class: 1 set-A known name + ~3 set-B novel + ~3 set-C
+generic, generated + validated by the `fig6-probe-generation` workflow). Output:
+[`fig6_confusion.csv`](fig6_confusion.csv) + [`fig6_summary.csv`](fig6_summary.csv) +
+[`fig6_probes.csv`](fig6_probes.csv) + [`plots/fig6_confusion.png`](plots/fig6_confusion.png).
+
+**Set-A (known taxonomy) — the Fig-6 analog: a perfect 4×4 identity (4/4, 100% diagonal).**
+
+Full held-out set (row-normalized %, true × predicted):
+
+| true \ predicted | LowLat | Reliable | Energy | Bandwidth |
+|---|---|---|---|---|
+| LowLatencyVideo | 14.3 | 0 | 0 | **85.7** |
+| ReliableRelay | 0 | 14.3 | 0 | **85.7** |
+| EnergyAware | 0 | 0 | 14.3 | **85.7** |
+| BandwidthOptimized | 0 | 0 | 0 | **100.0** |
+
+Per-set accuracy: **set-A 4/4 (100%)**, set-B/C **6/24 (25%)**, full **10/28 (35.7%)**.
+
+**Findings.**
+1. **On the known taxonomy the matrix is a clean diagonal (100%).** This is the defensible reading
+   of Fig. 6 — *known-taxonomy (set-A) decision accuracy* (settled in [E1](../results/experiment-results.md)
+   + §0). Our set-A is 100% (deterministic greedy + constrained), at least as strong as the draft's
+   88.9–100% — but on the *known names*, not generalization.
+2. **The full held-out set collapses to BandwidthOptimized.** Every off-taxonomy (set-B/C) probe —
+   regardless of true class — is predicted BandwidthOptimized (the off-taxonomy default,
+   [planner-lora-eval](../planner/planner-lora-eval.md)). So the 3 non-Bandwidth classes score 1/7
+   each (only their set-A name), and Bandwidth scores 7/7 only because the default *is* Bandwidth.
+3. **The draft's "errors concentrated among semantically similar SFCs" is NOT reproduced.** Our
+   errors are not semantically distributed — they pile into **one column (the mode)**. The model
+   fails by **mode-collapse off the known names**, not by graceful semantic confusion. This is a
+   sharper, more honest characterization than the draft's.
+
+**Can claim:** 100% set-A decision accuracy presented as a confusion matrix (the Fig-6 analog,
+known-taxonomy). **Cannot claim:** the draft's generalization framing or "semantically similar"
+error structure — off the known names the planner mode-collapses to BandwidthOptimized.
+
+**Reproduce:** `repro/fig6_confusion.sh` (needs venv · seeded Neo4j · GPU).

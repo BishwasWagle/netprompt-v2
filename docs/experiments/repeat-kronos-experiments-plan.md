@@ -64,7 +64,7 @@ So the honest "skip" list is **not** a list of impossible experiments. It is two
 | Table VI | Topology-equivalent RTT/loss/throughput, 3 arms × scenarios | **Yes, as-is** | ✅ done (E3, 36/36) | E3 |
 | Table VII | KG ablation (full vs NoKG) | **Build small tool** | Not run | E3 ablation |
 | Table VIII | Control-plane timing breakdown | **Build small tool** | ✅ **done (build #1)** — SFC sel **11.04 s** (not 1 s), KG ~30 ms, rule ~11 µs; KG-update gap | E1 / E3 |
-| Fig. 6 / §V.D(1) | Confusion matrix, 4 SFC classes | **Yes** (set-A); build tool for exact % | ✅ done (direction); exact % to add | E1 |
+| Fig. 6 / §V.D(1) | Confusion matrix, 4 SFC classes | **Yes** (set-A); build tool for exact % | ✅ **done (build #6)** — set-A 100% diagonal; full set collapses to Bandwidth (mode), not semantic | E1 |
 | §V.D(2) | Adversarial robustness (5 perturbations) | **Build small tool** | ✅ **done (build #3)** — 20/20 stable & valid (robust *by insensitivity*) | E1 sub-study |
 | §V.D(3) | Counterfactual sensitivity | **Build small tool** | ✅ **done (build #4)** — sensitive to name (4/4), **flat to telemetry** (planner 1 vs oracle 2 SFCs) | E1 |
 | Abstract/§IV | Historical-performance-aware path selection | **Build, or drop the claim** | Claimed in paper, **no result** | E3 / closed loop |
@@ -348,8 +348,11 @@ Ordered by value-per-effort. All are small; none needs new hardware.
    (10/19), re-scoping the draft's "changed appropriately" away from telemetry generalization.
 5. **Table VII NoKG arm** — `nokg` arm in `e3_compare.py`/`e3_measure.py` + operational NoKG
    definition (candidate-set-only). *(Needs the testbed.)*
-6. **Fig. 6 exact %** — held-out probe generator (N/class) + per-class confusion aggregator.
-   *(Optional — direction already settled.)*
+6. ✅ **Fig. 6 confusion matrix** — **DONE.** Held-out probe set (`repro/fig6_probes.json`, 28 probes
+   workflow-generated) + `runtime/tools/fig6_confusion.py` + `repro/fig6_confusion.sh` →
+   [`repeat-results/`](repeat-results/repeat-results.md). Set-A **100% diagonal** (the Fig-6 analog);
+   full held-out set **mode-collapses to BandwidthOptimized** (set-B/C 25%) — errors pile into one
+   column, NOT "semantically similar" as the draft claims.
 7. **Table V scalability** — synthetic-KG generator + `kg_scale.py` sweep. *(Lowest priority;
    skip candidate.)*
 8. **Historical-path-selection experiment** — KG-seeded prior-verdict A/B that changes the next

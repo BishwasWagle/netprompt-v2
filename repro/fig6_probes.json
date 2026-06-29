@@ -1,0 +1,33 @@
+{
+  "_provenance": "Held-out probe set for build #6 (Fig. 6 confusion matrix). Generated + validated by the fig6-probe-generation workflow (4 per-class generators + 1 verifier). 28 probes, 7 per SFC class: 1 set-A exact known name + ~3 set-B novel/paraphrase + ~3 set-C generic (telemetry-disambiguated). true_sfc = the intended class.",
+  "probes": [
+    {"mission": "real_time_pest_detection", "bandwidth": 45, "delay": 12, "loss": 0.2, "battery": 82, "set": "A", "true_sfc": "LowLatencyVideoSFC"},
+    {"mission": "live_drone_video_feed", "bandwidth": 50, "delay": 15, "loss": 0.3, "battery": 78, "set": "B", "true_sfc": "LowLatencyVideoSFC"},
+    {"mission": "fpv_obstacle_avoidance_stream", "bandwidth": 42, "delay": 9, "loss": 0.1, "battery": 85, "set": "B", "true_sfc": "LowLatencyVideoSFC"},
+    {"mission": "interactive_crop_inspection_cam", "bandwidth": 48, "delay": 18, "loss": 0.4, "battery": 74, "set": "B", "true_sfc": "LowLatencyVideoSFC"},
+    {"mission": "routine_field_patrol", "bandwidth": 46, "delay": 13, "loss": 0.2, "battery": 80, "set": "C", "true_sfc": "LowLatencyVideoSFC"},
+    {"mission": "perimeter_survey_run", "bandwidth": 43, "delay": 16, "loss": 0.3, "battery": 76, "set": "C", "true_sfc": "LowLatencyVideoSFC"},
+    {"mission": "standard_observation_sortie", "bandwidth": 47, "delay": 11, "loss": 0.2, "battery": 83, "set": "C", "true_sfc": "LowLatencyVideoSFC"},
+    {"mission": "emergency_alert_relay", "bandwidth": 20, "delay": 25, "loss": 7, "battery": 80, "set": "A", "true_sfc": "ReliableRelaySFC"},
+    {"mission": "disaster_response_backhaul", "bandwidth": 18, "delay": 45, "loss": 11, "battery": 78, "set": "B", "true_sfc": "ReliableRelaySFC"},
+    {"mission": "degraded_link_message_forwarding", "bandwidth": 14, "delay": 50, "loss": 9, "battery": 72, "set": "B", "true_sfc": "ReliableRelaySFC"},
+    {"mission": "high_loss_telemetry_relay", "bandwidth": 22, "delay": 35, "loss": 8, "battery": 83, "set": "B", "true_sfc": "ReliableRelaySFC"},
+    {"mission": "field_patrol_circuit", "bandwidth": 16, "delay": 48, "loss": 10, "battery": 76, "set": "C", "true_sfc": "ReliableRelaySFC"},
+    {"mission": "perimeter_sensor_sweep", "bandwidth": 19, "delay": 40, "loss": 6, "battery": 81, "set": "C", "true_sfc": "ReliableRelaySFC"},
+    {"mission": "scheduled_crop_survey", "bandwidth": 24, "delay": 55, "loss": 12, "battery": 69, "set": "C", "true_sfc": "ReliableRelaySFC"},
+    {"mission": "long_term_soil_monitoring", "bandwidth": 2, "delay": 120, "loss": 1, "battery": 18, "set": "A", "true_sfc": "EnergyAwareSFC"},
+    {"mission": "battery_saver_periodic_sampling", "bandwidth": 1.5, "delay": 140, "loss": 1.2, "battery": 15, "set": "B", "true_sfc": "EnergyAwareSFC"},
+    {"mission": "low_power_crop_health_logging", "bandwidth": 2.5, "delay": 110, "loss": 1.5, "battery": 22, "set": "B", "true_sfc": "EnergyAwareSFC"},
+    {"mission": "extended_endurance_environment_survey", "bandwidth": 2, "delay": 150, "loss": 1, "battery": 12, "set": "B", "true_sfc": "EnergyAwareSFC"},
+    {"mission": "daily_field_patrol", "bandwidth": 3, "delay": 130, "loss": 1.3, "battery": 17, "set": "C", "true_sfc": "EnergyAwareSFC"},
+    {"mission": "scheduled_perimeter_check", "bandwidth": 2.2, "delay": 125, "loss": 0.9, "battery": 20, "set": "C", "true_sfc": "EnergyAwareSFC"},
+    {"mission": "background_data_collection", "bandwidth": 2.8, "delay": 160, "loss": 1.1, "battery": 14, "set": "C", "true_sfc": "EnergyAwareSFC"},
+    {"mission": "bulk_data_transfer", "bandwidth": 150, "delay": 48, "loss": 0.2, "battery": 88, "set": "A", "true_sfc": "BandwidthOptimizedSFC"},
+    {"mission": "orthomosaic_map_upload", "bandwidth": 180, "delay": 52, "loss": 0.3, "battery": 84, "set": "B", "true_sfc": "BandwidthOptimizedSFC"},
+    {"mission": "multispectral_imagery_offload", "bandwidth": 165, "delay": 50, "loss": 0.4, "battery": 81, "set": "B", "true_sfc": "BandwidthOptimizedSFC"},
+    {"mission": "nightly_log_sync", "bandwidth": 120, "delay": 58, "loss": 0.5, "battery": 79, "set": "B", "true_sfc": "BandwidthOptimizedSFC"},
+    {"mission": "field_patrol_rounds", "bandwidth": 140, "delay": 55, "loss": 0.4, "battery": 83, "set": "C", "true_sfc": "BandwidthOptimizedSFC"},
+    {"mission": "scheduled_data_dump", "bandwidth": 175, "delay": 56, "loss": 0.3, "battery": 86, "set": "C", "true_sfc": "BandwidthOptimizedSFC"},
+    {"mission": "end_of_shift_transfer", "bandwidth": 130, "delay": 59, "loss": 0.6, "battery": 77, "set": "C", "true_sfc": "BandwidthOptimizedSFC"}
+  ]
+}

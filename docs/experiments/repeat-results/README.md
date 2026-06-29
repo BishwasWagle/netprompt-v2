@@ -8,6 +8,9 @@ plan's §5). It is kept separate from [../results/](../results/), which holds th
 E1–E4 results (2026-06-24). Plans/designs live one level up in `docs/experiments/`; **only
 results + figures are sorted in here.**
 
+**Narrative:** [repeat-results.md](repeat-results.md) — per-build detail & findings ·
+[scorecard.md](scorecard.md) — the consolidated draft-vs-re-measured scorecard.
+
 ```
 repeat-results/
 ├── README.md          (this file)

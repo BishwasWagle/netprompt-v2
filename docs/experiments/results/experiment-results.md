@@ -218,6 +218,68 @@ repairs faults (it doesn't, at 1.5B) — E4 measures that frontier, it doesn't c
 
 ---
 
+## M7 — cross-family Tier-2 regen comparison (multi-LLM)
+
+Extends the M7 Qwen-Coder size-sweep ([m7-regen-comparison.md](../../regen/m7-regen-comparison.md))
+to **other model families**, to test whether Tier-2's safety property is Qwen-specific. The
+harness ([`regen_compare`](../../../runtime/tools/regen_compare.py)) runs the same
+mis-ported-drone fault through **propose → gate** OFFLINE, and tags every model with a
+**category** so a cross-family table reports *why* a family is in or out, not just a bare error.
+
+Run metadata (2026-06-29, P100 `cuda:1`, FP16, greedy, GBNF-constrained, `max_new_tokens=64`):
+torch 2.3.1+cu121 · transformers 4.46.3 · transformers-cfg 0.2.7. **Every model is pinned to a
+fixed commit** (the `revision` column, 12-char; full SHAs in [`m7_xfam.csv`](m7_xfam.csv) /
+[`m7_xfam.json`](m7_xfam.json)) via the harness's `org/model@<sha>` syntax — a cross-family run
+must **not** inherit a single model's `NETPROMPT_REGEN_REVISION` pin across all repos.
+
+| Model (params) | Family | Tokenizer | Rev | Category | grammar-valid | gate-accept | recovers | latency |
+|---|---|---|---|---|---|---|---|---|
+| Qwen2.5-Coder-0.5B-Instruct | Qwen2 | Qwen2 | `ea3f2471cf1b` | runs | 100% | 100% | **0%** | 5.6 s |
+| Qwen2.5-Coder-1.5B-Instruct | Qwen2 | Qwen2 | `2e1fd397ee46` | runs | 100% | 100% | **0%** | 6.1 s |
+| Qwen2.5-Coder-3B-Instruct | Qwen2 | Qwen2 | `488639f1ff80` | runs | 100% | 100% | **0%** | 8.0 s |
+| Qwen2.5-1.5B-Instruct (generalist) | Qwen2 | Qwen2 | `989aa7980e4c` | runs | 100% | 0% | **0%** | 6.3 s |
+| TinyLlama-1.1B-Chat-v1.0 | Llama | Llama | `fe8a4ea1ffed` | runs | 0% | 0% | **0%** | 4.0 s |
+| deepseek-coder-1.3b-instruct | Llama | Llama | `e063262dac83` | runs | 100% | 100% | **0%** | 4.5 s |
+| SmolLM2-1.7B-Instruct | Llama | GPT2 | `31b70e2e869a` | runs | 0% | 0% | **0%** | 4.5 s |
+| granite-3.0-2b-instruct | Granite | GPT2 | `5ad66c190631` | runs | 0% | 0% | **0%** | 8.0 s |
+| Phi-3-mini-4k-instruct | Phi3 | Llama | `f39ac1d28e92` | runs | 100% | 0% | **0%** | 7.6 s |
+| stable-code-instruct-3b | StableLm | GPTNeoX | `20e21f0e817b` | **fail_unsupported_tokenizer** | — | — | — | — |
+| starcoder2-3b | Starcoder2 | GPT2 | `733247c55e3f` | **fail_no_chat_template** | — | — | — | — |
+
+9 models run across **4 architecture families** (Qwen2, Llama, Phi3, Granite) and **3 tokenizer
+classes**; 2 probes sit at the load/decoding frontier. The honest findings:
+
+- **Gate *soundness* holds across every family; recovery is the frontier everywhere.** No row is
+  gate-accepted while grammar-invalid — the sound gate accepts nothing non-conformant, in any
+  family — and **recovery is 0% for all nine runners** (no model emits the corrective row). Only
+  two families ever produce a gate-*accepted* candidate (`deepseek`/Llama and the Qwen2.5-Coder
+  sizes/Qwen2), so the cross-family evidence is "a non-Qwen model *can* clear the gate" + total
+  soundness — not a broad per-family safety sweep.
+- **The Qwen-Coder size sweep reproduces inside the cross-family run:** 0.5B/1.5B/3B are all
+  100% / 100% / **0%** (safe, gate-vetted, never the corrective row) — matching the standalone
+  size-sweep, and size still doesn't buy recovery.
+- **Three models are *completely unsuccessful* (0% grammar-valid): TinyLlama, SmolLM2, granite.**
+  They never produce a usable candidate, for **two distinct** reasons — both caught before the gate,
+  neither a regression. TinyLlama is **truncation**: all three outputs
+  let the unbounded grammar (`root ::= line+`) burn the 64-token budget on an over-long key field,
+  cut mid-line (no `=>`/port); raising `max_new_tokens` would likely fix it. SmolLM2 and granite
+  instead emit a **wrong action** — `set_low_latency_class` on `forward_table`, which that table
+  disallows (granite's three outputs are all complete lines ending in `=>`; SmolLM2's are too, except
+  one that *also* overruns the token budget). The GBNF doesn't condition action on table (a documented
+  over-accept in `grammar.py`), so `validate()` rejects them regardless of completeness. These three
+  are **omitted from the rates figure** (every bar would be 0); they remain in `m7_xfam.csv` and the
+  latency figure.
+- **The hard frontier is the tokenizer + chat-template, not model quality.** `stable-code` loads
+  fine but its `GPTNeoXTokenizerFast` isn't in transformers-cfg's exact-match set; `starcoder2-3b`
+  is a base model with no chat template. Both are categorized cleanly instead of crashing the sweep.
+
+Figures: [`m7_xfam_rates.png`](plots/m7_xfam_rates.png) (grammar/gate/recovery — the **6 models
+that produced grammar-valid output**; the three 0%-grammar models above are omitted) and
+[`m7_xfam_latency.png`](plots/m7_xfam_latency.png) (latency by family, all 9 runners).
+**Reproduce:** see [Reproduce → M7](#m7--cross-family-regen-comparison-multi-llm).
+
+---
+
 ## Status
 
 | Experiment | State |
@@ -227,6 +289,7 @@ repairs faults (it doesn't, at 1.5B) — E4 measures that frontier, it doesn't c
 | E2b (runtime on the live fabric) | ◑ foundation verified — M5/M6 6/6 live; full real-monitor soak still pending |
 | E3 (end-to-end vs baselines) | ✅ 36/36 cells (3 arms × 4 scenarios × 3 reps) — proposed in-SLA across both fault locations (tier-1 reroute on `backup_fault`), honest escalate on `ddil` |
 | E4 (regen correction) | ✅ safety total — 12/12 broken scripts refused, stub recovery 4/4; real Coder 4/4 grammar · 3/4 gate-safe · **0/4 recovery** (model frontier, per M7) |
+| M7 (cross-family regen) | ✅ 9/11 run across 4 families (Qwen2/Llama/Phi3/Granite); gate soundness total, **recovery 0/9** (frontier); 2 probes categorized (unsupported-tokenizer · no-chat-template) |
 | Validity readiness gate (validity §9) | ✅ complete (unit 212 · E2a 6/6 · E1 · M5/M6 6/6 live) |
 
 ---
@@ -246,6 +309,8 @@ they can be re-plotted or pasted into a spreadsheet without re-deriving anything
 | `e3_flows.csv` | one row per flow per cell (tidy/long, `is_target` flag) | bar/scatter figures (pandas `groupby`) |
 | `e4_corpus.csv` | one row per corpus item × arm — grammar/gate/recover or reject-layer, `pass` | the **E4 table** above |
 | `e4_summary.csv` | one row per group × arm — caught/grammar/gate/recovery rates | the **E4 table** above |
+| `m7_xfam.csv` | one row per model — family, params, tokenizer, category, pinned `revision`, grammar/gate/recovery rates + latency | the **M7 cross-family table** above |
+| `m7_xfam.json` | the raw `regen_compare` bundle — `manifest` (library versions + grammar hash) + per-model results & pins | full provenance for the M7 run |
 
 `e3_compare` **auto-writes** the E3 CSVs next to its `--out` JSONL after every campaign
 (best-effort — a CSV error never loses the JSONL). Each `repro/*.sh` also emits its
@@ -275,6 +340,8 @@ python3 -m runtime.tools.plot_results --resultsdir docs/experiments/results
 | `e3_overhead_by_scenario_arm.png` | orchestration wall time per scenario × arm |
 | `e4_recover_by_arm.png` | recover correctness by arm — stub 100/100/100 vs real (1.5B Coder) 100/75/**0** (the frontier) |
 | `e4_reject_safety.png` | broken scripts refused by fault class — syntactic 8/8 (grammar), runtime 4/4 (gate L2) |
+| `m7_xfam_rates.png` | M7 cross-family grammar-valid / gate-accept / recovery — the 6 models with grammar-valid output (TinyLlama/SmolLM2/granite at 0% omitted) — recovery **0% across every family** |
+| `m7_xfam_latency.png` | M7 cross-family mean GBNF-constrained generation latency per model, coloured by family |
 
 The committed CSVs are from the **2026-06-24** E3 run (36/36 cells) and the E1 probe
 set; the summary reproduces the E3 table exactly (e.g. `backup_fault`/proposed
@@ -356,3 +423,21 @@ on `cuda:1`). The `tests/unit/test_regen_corpus.py` guard keeps the corpus hones
 repro/e4.sh                 # gate + stub (deterministic, committed)
 repro/e4.sh gate,stub,real  # + the live model arm (needs the GPU; downloads the Coder once)
 ```
+
+### M7 — cross-family regen comparison (multi-LLM)
+
+Runs `regen_compare` over the 9 run models + 2 failure probes, each **pinned to a fixed commit
+SHA** (the `org/model@<sha>` list is the source of truth, inside the script), then writes
+`m7_xfam.csv`, the two figures, and the raw `m7_xfam.json` bundle into
+`docs/experiments/results/`. Clears any stale HF negative cache and pre-downloads pinned
+revisions sequentially first (a transient HF-429 can poison `.no_exist/<sha>/config.json` and
+fake an "Unrecognized model" load failure).
+
+```bash
+repro/m7_xfam.sh            # needs the GPU (cuda:1) + network; first run downloads ~25 GB
+repro/m7_xfam.sh cuda:0     # pin to the other GPU
+```
+
+**Preconditions:** the GPU (FP16 on a 16 GB P100 fits every model; weights are freed between
+models so the sequential sweep can't OOM) and network access to the HF hub. No testbed/KG
+needed — the comparison is OFFLINE (fixture switch state).

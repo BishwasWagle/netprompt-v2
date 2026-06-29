@@ -78,22 +78,44 @@ def _recovers(rules_text: str, entries, mac: str, right_port: int) -> bool:
     return False
 
 
-def run_model(model: str, scenarios) -> dict:
-    client = LocalHFClient(model=model, switch="s1")
+def _free_gpu(client):
+    """Release a model's GPU tensors so a multi-model sweep doesn't accumulate
+    weights across models — a cross-family --models list can otherwise exceed one
+    P100's 16 GB. No-op for CPU/stub; never raises (cleanup must not fail a run)."""
+    try:
+        import gc
+        import torch
+        client._model = client._tok = client._proc = client._gen_cfg = None
+        gc.collect()
+        if torch.cuda.is_available():
+            torch.cuda.empty_cache()
+    except Exception:                                # noqa: BLE001
+        pass
+
+
+def run_model(model: str, scenarios, device=None, revision="main") -> dict:
+    # device=None -> LocalHFClient falls back to config.REGEN_DEVICE (default unchanged).
+    # revision defaults to "main" (each model's OWN latest) — NOT config.REGEN_REVISION,
+    # which pins ONE model's commit and would make every other repo fail to load. The
+    # production Tier-2 path still inherits the pin via LocalHFClient()'s own default.
+    client = LocalHFClient(model=model, switch="s1", device=device, revision=revision)
     gate = ValidationGate()
     rows = []
-    for s in scenarios:
-        prompt = build_prompt(s["diag"], _ENV, {"path": PRIMARY, "knobs": {}},
-                              s["entries"], [], "s1", ("forward_table",))
-        t0 = time.monotonic()
-        out = client.generate(prompt)
-        dt = time.monotonic() - t0
-        gvalid = validate(out, "s1")
-        gpass = gate.check(Candidate(REGEN, ("s1", out)), _ENV,
-                           {"s1": s["entries"]}).ok if gvalid else False
-        rec = _recovers(out, s["entries"], s["mac"], s["right_port"]) if gpass else False
-        rows.append({"scenario": s["name"], "grammar_valid": gvalid, "gate_pass": gpass,
-                     "recovers": rec, "latency_s": round(dt, 2), "output": out.strip()})
+    try:
+        for s in scenarios:
+            prompt = build_prompt(s["diag"], _ENV, {"path": PRIMARY, "knobs": {}},
+                                  s["entries"], [], "s1", ("forward_table",))
+            t0 = time.monotonic()
+            out = client.generate(prompt)
+            dt = time.monotonic() - t0
+            gvalid = validate(out, "s1")
+            gpass = gate.check(Candidate(REGEN, ("s1", out)), _ENV,
+                               {"s1": s["entries"]}).ok if gvalid else False
+            rec = _recovers(out, s["entries"], s["mac"], s["right_port"]) if gpass else False
+            rows.append({"scenario": s["name"], "grammar_valid": gvalid, "gate_pass": gpass,
+                         "recovers": rec, "latency_s": round(dt, 2), "output": out.strip()})
+    finally:
+        _free_gpu(client)                            # release VRAM before the next model
     n = len(rows)
     return {
         "grammar_valid_rate": round(sum(r["grammar_valid"] for r in rows) / n, 2),
@@ -104,20 +126,158 @@ def run_model(model: str, scenarios) -> dict:
     }
 
 
+# ----------------------------------------------------------------------------
+# Cross-family frontier categorization (M7 #8 extension).
+#
+# A cross-family run hits three hard gates that a single-family (Qwen) run never
+# does: (1) the model's architecture must load natively under the pinned
+# transformers (no trust_remote_code is passed); (2) it must carry a chat
+# template (base models don't); (3) its EXACT tokenizer class must be in
+# transformers-cfg's supported set (no superclass walk). We map every model to
+# one category so the comparison table reports *why* a family is in or out,
+# instead of a bare exception string.
+# ----------------------------------------------------------------------------
+
+CATEGORIES = ("runs", "fail_load", "fail_no_chat_template",
+              "fail_unsupported_tokenizer", "fail_oom", "fail_gated")
+
+_SUPPORTED_TOK = None
+
+
+def _supported_tokenizer_classes():
+    """transformers-cfg's exact-match allowlist (cached). Empty set if the lib
+    layout changes, in which case the precheck simply defers to the live load."""
+    global _SUPPORTED_TOK
+    if _SUPPORTED_TOK is None:
+        try:
+            from transformers_cfg.tokenization.SUPPORTED_TOKENIZERS import (
+                SUPPORTED_TOKENIZERS)
+            _SUPPORTED_TOK = set(SUPPORTED_TOKENIZERS)
+        except Exception:                            # noqa: BLE001
+            _SUPPORTED_TOK = set()
+    return _SUPPORTED_TOK
+
+
+def _classify_exc(exc) -> str:
+    """Map a load/generate exception to a frontier category (best-effort, by
+    type + message, since HF/transformers-cfg raise plain Assertion/RuntimeError)."""
+    name = type(exc).__name__
+    msg = str(exc).lower()
+    if "out of memory" in msg or name == "OutOfMemoryError":
+        return "fail_oom"
+    if "tokenizer not supported" in msg:
+        return "fail_unsupported_tokenizer"
+    if "chat template" in msg or "chat_template" in msg:
+        return "fail_no_chat_template"
+    if name in ("GatedRepoError", "RepositoryNotFoundError") or any(
+            k in msg for k in ("gated", "401 client", "403 client",
+                               "awaiting a review", "access to model",
+                               "is not authorized", "must be authenticated")):
+        return "fail_gated"
+    return "fail_load"
+
+
+def _precheck(model_id: str, revision="main") -> dict:
+    """Weights-free triage: load only the tokenizer (a few KB) and decide whether
+    the expensive FP16 model load is even worth attempting. Catches the two most
+    common cross-family failures — unsupported tokenizer and missing chat
+    template — without downloading multi-GB weights or touching the GPU.
+    `category=None` means 'proceed to the full load'. Uses the SAME revision the
+    full run will, so the triage can't diverge from the loaded model."""
+    info = {"tokenizer_class": None, "tokenizer_supported": None,
+            "has_chat_template": None, "category": None, "detail": None}
+    try:
+        from transformers import AutoTokenizer
+        tok = AutoTokenizer.from_pretrained(model_id, revision=revision)
+    except Exception as e:                           # noqa: BLE001
+        info["category"] = _classify_exc(e)
+        info["detail"] = f"tokenizer load: {type(e).__name__}: {str(e)[:160]}"
+        return info
+    cls = type(tok)
+    info["tokenizer_class"] = cls.__name__
+    info["tokenizer_supported"] = cls in _supported_tokenizer_classes()
+    info["has_chat_template"] = bool(getattr(tok, "chat_template", None))
+    if _supported_tokenizer_classes() and not info["tokenizer_supported"]:
+        info["category"] = "fail_unsupported_tokenizer"
+        info["detail"] = (f"{cls.__name__} not in transformers-cfg supported set "
+                          f"{sorted(c.__name__ for c in _supported_tokenizer_classes())}")
+    elif info["has_chat_template"] is False:
+        info["category"] = "fail_no_chat_template"
+        info["detail"] = ("tokenizer has no chat_template (base model?) — "
+                          "apply_chat_template would raise")
+    return info
+
+
+def evaluate_model(model: str, scenarios, device=None, skip_precheck=False,
+                   revision="main") -> dict:
+    """Precheck -> (maybe) full run, always tagged with a `category`. One bad
+    model can never sink the rest; successful runs keep the exact same rate keys
+    as before (grammar_valid_rate, gate_pass_rate, recovery_rate, mean_latency_s,
+    rows) with `category="runs"` added — additive, backward compatible."""
+    pre = {} if skip_precheck else _precheck(model, revision=revision)
+    if pre.get("category"):                          # cheap triage already decided
+        return {"category": pre["category"], "error": pre["detail"],
+                "tokenizer_class": pre.get("tokenizer_class"),
+                "tokenizer_supported": pre.get("tokenizer_supported"),
+                "has_chat_template": pre.get("has_chat_template")}
+    try:
+        res = run_model(model, scenarios, device=device, revision=revision)
+        res["category"] = "runs"
+        if pre.get("tokenizer_class"):
+            res["tokenizer_class"] = pre["tokenizer_class"]
+        return res
+    except Exception as e:                           # noqa: BLE001
+        out = {"category": _classify_exc(e),
+               "error": f"{type(e).__name__}: {str(e)[:200]}"}
+        if pre.get("tokenizer_class"):
+            out["tokenizer_class"] = pre["tokenizer_class"]
+            out["has_chat_template"] = pre.get("has_chat_template")
+        return out
+
+
 def main():
     ap = argparse.ArgumentParser(description=__doc__)
     ap.add_argument("--models", required=True, help="comma-separated HF model ids")
+    ap.add_argument("--device", default=None,
+                    help="override NETPROMPT_REGEN_DEVICE for every model, e.g. cuda:0")
+    ap.add_argument("--probe", action="store_true",
+                    help="frontier triage: 1 scenario/model (cheap categorization sweep)")
+    ap.add_argument("--no-precheck", action="store_true",
+                    help="skip the weights-free tokenizer triage; always attempt full load")
+    ap.add_argument("--revision", default="main",
+                    help="default HF revision, applied to any model given WITHOUT an explicit "
+                         "'@<rev>' pin (default 'main' = each model's own latest). Per-model pins "
+                         "via 'org/model@<sha>' override this. Cross-family runs must NOT inherit "
+                         "a single model's commit across all repos.")
+    ap.add_argument("--out", default=None,
+                    help="also write {manifest, results} JSON to this path")
     args = ap.parse_args()
     scen = _scenarios()
+    if args.probe:
+        scen = scen[:1]
     report = {}
-    for m in [x.strip() for x in args.models.split(",") if x.strip()]:
-        print(f"# running {m} over {len(scen)} scenarios…", flush=True)
-        try:
-            report[m] = run_model(m, scen)          # one bad model can't sink the rest
-        except Exception as e:                       # noqa: BLE001
-            report[m] = {"error": f"{type(e).__name__}: {str(e)[:200]}"}
-            print(f"#   {m}: {report[m]['error']}", flush=True)
+    for spec in [x.strip() for x in args.models.split(",") if x.strip()]:
+        # Per-model pin: "org/model@<rev>" -> (org/model, <rev>); HF ids never contain '@',
+        # so rsplit is unambiguous. No '@' -> fall back to the global --revision default.
+        m, rev = spec.rsplit("@", 1) if "@" in spec else (spec, args.revision)
+        m, rev = m.strip(), rev.strip()
+        print(f"# running {m}@{rev} over {len(scen)} scenario(s)…", flush=True)
+        report[m] = evaluate_model(m, scen, device=args.device,
+                                   skip_precheck=args.no_precheck, revision=rev)
+        report[m]["revision"] = rev                  # record the exact pin used, per model
+        cat = report[m].get("category")
+        if cat and cat != "runs":
+            print(f"#   {m}: {cat} — {report[m].get('error', '')}", flush=True)
     print(json.dumps(report, indent=2))
+    if args.out:
+        from runtime.regen.llm_client import manifest
+        # Per-model pins live in results[m]["revision"]; default_revision is the fallback
+        # for any model given without an explicit '@<rev>'.
+        bundle = {"manifest": manifest(), "device": args.device,
+                  "default_revision": args.revision, "probe": args.probe, "results": report}
+        with open(args.out, "w") as f:
+            json.dump(bundle, f, indent=2)
+        print(f"# wrote {args.out}", flush=True)
 
 
 if __name__ == "__main__":

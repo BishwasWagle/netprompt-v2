@@ -1,0 +1,350 @@
+{
+  "manifest": {
+    "model": "Qwen/Qwen2.5-Coder-1.5B-Instruct",
+    "revision": null,
+    "device": "cuda:1",
+    "max_new_tokens": 64,
+    "decoding": "greedy (do_sample=False, num_beams=1)",
+    "torch": "2.3.1+cu121",
+    "transformers": "4.46.3",
+    "transformers_cfg": "0.2.7",
+    "gbnf_sha256_16": "18ae78b1a26fc412",
+    "prompt_template_sha256_16": "57b5ba751ec5594f"
+  },
+  "device": "cuda:1",
+  "default_revision": "main",
+  "probe": false,
+  "results": {
+    "Qwen/Qwen2.5-Coder-0.5B-Instruct": {
+      "grammar_valid_rate": 1.0,
+      "gate_pass_rate": 1.0,
+      "recovery_rate": 0.0,
+      "mean_latency_s": 5.62,
+      "rows": [
+        {
+          "scenario": "d4_misport_to_5",
+          "grammar_valid": true,
+          "gate_pass": true,
+          "recovers": false,
+          "latency_s": 9.61,
+          "output": "table_modify forward_table forward 1 => 10\ntable_modify forward_table forward 2 => 10\ntable_modify forward_table forward 3 => 10\ntable_modify forward_table forward 4 => 10"
+        },
+        {
+          "scenario": "d7_misport_to_9",
+          "grammar_valid": true,
+          "gate_pass": true,
+          "recovers": false,
+          "latency_s": 3.62,
+          "output": "table_modify forward_table forward 1 => 10\ntable_modify forward_table forward 2 => 10\ntable_modify forward_table forward 3 => 10\ntable_modify forward_table forward 4 => 10"
+        },
+        {
+          "scenario": "d2_misport_to_8",
+          "grammar_valid": true,
+          "gate_pass": true,
+          "recovers": false,
+          "latency_s": 3.62,
+          "output": "table_modify forward_table forward 1 => 10\ntable_modify forward_table forward 8 => 10\ntable_modify forward_table forward 3 => 10\ntable_modify forward_table forward 4 => 10"
+        }
+      ],
+      "category": "runs",
+      "tokenizer_class": "Qwen2TokenizerFast",
+      "revision": "ea3f2471cf1b1f0db85067f1ef93848e38e88c25"
+    },
+    "Qwen/Qwen2.5-Coder-1.5B-Instruct": {
+      "grammar_valid_rate": 1.0,
+      "gate_pass_rate": 1.0,
+      "recovery_rate": 0.0,
+      "mean_latency_s": 6.07,
+      "rows": [
+        {
+          "scenario": "d4_misport_to_5",
+          "grammar_valid": true,
+          "gate_pass": true,
+          "recovers": false,
+          "latency_s": 9.75,
+          "output": "table_modify forward_table forward 00000000000001 => 10\ntable_modify forward_table forward 00000000000002 => 11"
+        },
+        {
+          "scenario": "d7_misport_to_9",
+          "grammar_valid": true,
+          "gate_pass": true,
+          "recovers": false,
+          "latency_s": 4.24,
+          "output": "table_modify forward_table forward 00000000000001 => 10\ntable_modify forward_table forward 00000000000002 => 11"
+        },
+        {
+          "scenario": "d2_misport_to_8",
+          "grammar_valid": true,
+          "gate_pass": true,
+          "recovers": false,
+          "latency_s": 4.23,
+          "output": "table_modify forward_table forward 00000000000001 => 10\ntable_modify forward_table forward 00000000000002 => 11"
+        }
+      ],
+      "category": "runs",
+      "tokenizer_class": "Qwen2TokenizerFast",
+      "revision": "2e1fd397ee46e1388853d2af2c993145b0f1098a"
+    },
+    "Qwen/Qwen2.5-Coder-3B-Instruct": {
+      "grammar_valid_rate": 1.0,
+      "gate_pass_rate": 1.0,
+      "recovery_rate": 0.0,
+      "mean_latency_s": 7.96,
+      "rows": [
+        {
+          "scenario": "d4_misport_to_5",
+          "grammar_valid": true,
+          "gate_pass": true,
+          "recovers": false,
+          "latency_s": 13.23,
+          "output": "table_modify forward_table forward 00000000000001 => 1\ntable_modify forward_table forward 00000000000002 => 2"
+        },
+        {
+          "scenario": "d7_misport_to_9",
+          "grammar_valid": true,
+          "gate_pass": true,
+          "recovers": false,
+          "latency_s": 5.33,
+          "output": "table_modify forward_table forward 00000000000001 => 1\ntable_modify forward_table forward 00000000000002 => 2"
+        },
+        {
+          "scenario": "d2_misport_to_8",
+          "grammar_valid": true,
+          "gate_pass": true,
+          "recovers": false,
+          "latency_s": 5.32,
+          "output": "table_modify forward_table forward 00000000000001 => 1\ntable_modify forward_table forward 00000000000002 => 8"
+        }
+      ],
+      "category": "runs",
+      "tokenizer_class": "Qwen2TokenizerFast",
+      "revision": "488639f1ff808d1d3d0ba301aef8c11461451ec5"
+    },
+    "Qwen/Qwen2.5-1.5B-Instruct": {
+      "grammar_valid_rate": 1.0,
+      "gate_pass_rate": 0.0,
+      "recovery_rate": 0.0,
+      "mean_latency_s": 6.27,
+      "rows": [
+        {
+          "scenario": "d4_misport_to_5",
+          "grammar_valid": true,
+          "gate_pass": false,
+          "recovers": false,
+          "latency_s": 10.32,
+          "output": "table_add forward_table forward 00:00:00:00:00:01 => 1\ntable_add forward_table forward 00:00:00:00:00:02 => 2"
+        },
+        {
+          "scenario": "d7_misport_to_9",
+          "grammar_valid": true,
+          "gate_pass": false,
+          "recovers": false,
+          "latency_s": 4.25,
+          "output": "table_add forward_table forward 00:00:00:00:00:01 => 1\ntable_add forward_table forward 00:00:00:00:00:02 => 2"
+        },
+        {
+          "scenario": "d2_misport_to_8",
+          "grammar_valid": true,
+          "gate_pass": false,
+          "recovers": false,
+          "latency_s": 4.25,
+          "output": "table_add forward_table forward 00:00:00:00:00:01 => 1\ntable_add forward_table forward 00:00:00:00:00:02 => 8"
+        }
+      ],
+      "category": "runs",
+      "tokenizer_class": "Qwen2TokenizerFast",
+      "revision": "989aa7980e4cf806f80c7fef2b1adb7bc71aa306"
+    },
+    "TinyLlama/TinyLlama-1.1B-Chat-v1.0": {
+      "grammar_valid_rate": 0.0,
+      "gate_pass_rate": 0.0,
+      "recovery_rate": 0.0,
+      "mean_latency_s": 4.04,
+      "rows": [
+        {
+          "scenario": "d4_misport_to_5",
+          "grammar_valid": false,
+          "gate_pass": false,
+          "recovers": false,
+          "latency_s": 4.78,
+          "output": "table_modify forward_table forward 0000000000000000000000000000000000000000000000000000"
+        },
+        {
+          "scenario": "d7_misport_to_9",
+          "grammar_valid": false,
+          "gate_pass": false,
+          "recovers": false,
+          "latency_s": 3.66,
+          "output": "table_modify forward_table forward 0000000000000000000000000000000000000000000000000000"
+        },
+        {
+          "scenario": "d2_misport_to_8",
+          "grammar_valid": false,
+          "gate_pass": false,
+          "recovers": false,
+          "latency_s": 3.67,
+          "output": "table_modify forward_table forward 0000000000000000000000000000000000000000000000000000"
+        }
+      ],
+      "category": "runs",
+      "tokenizer_class": "LlamaTokenizerFast",
+      "revision": "fe8a4ea1ffedaf415f4da2f062534de366a451e6"
+    },
+    "deepseek-ai/deepseek-coder-1.3b-instruct": {
+      "grammar_valid_rate": 1.0,
+      "gate_pass_rate": 1.0,
+      "recovery_rate": 0.0,
+      "mean_latency_s": 4.5,
+      "rows": [
+        {
+          "scenario": "d4_misport_to_5",
+          "grammar_valid": true,
+          "gate_pass": true,
+          "recovers": false,
+          "latency_s": 5.86,
+          "output": "table_modify forward_table forward 00000000000001 => 1\ntable_modify forward_table forward 00000000000002 => 2"
+        },
+        {
+          "scenario": "d7_misport_to_9",
+          "grammar_valid": true,
+          "gate_pass": true,
+          "recovers": false,
+          "latency_s": 3.82,
+          "output": "table_modify forward_table forward 00000000000001 => 1\ntable_modify forward_table forward 00000000000002 => 2"
+        },
+        {
+          "scenario": "d2_misport_to_8",
+          "grammar_valid": true,
+          "gate_pass": true,
+          "recovers": false,
+          "latency_s": 3.83,
+          "output": "table_modify forward_table forward 00000000000001 => 1\ntable_modify forward_table forward 00000000000002 => 8"
+        }
+      ],
+      "category": "runs",
+      "tokenizer_class": "LlamaTokenizerFast",
+      "revision": "e063262dac8366fc1f28a4da0ff3c50ea66259ca"
+    },
+    "HuggingFaceTB/SmolLM2-1.7B-Instruct": {
+      "grammar_valid_rate": 0.0,
+      "gate_pass_rate": 0.0,
+      "recovery_rate": 0.0,
+      "mean_latency_s": 4.48,
+      "rows": [
+        {
+          "scenario": "d4_misport_to_5",
+          "grammar_valid": false,
+          "gate_pass": false,
+          "recovers": false,
+          "latency_s": 5.87,
+          "output": "table_modify forward_table set_low_latency_class 00000000000000000000000000000001 =>"
+        },
+        {
+          "scenario": "d7_misport_to_9",
+          "grammar_valid": false,
+          "gate_pass": false,
+          "recovers": false,
+          "latency_s": 3.78,
+          "output": "table_modify forward_table set_low_latency_class 0000000000000000000000000000000000000000000000"
+        },
+        {
+          "scenario": "d2_misport_to_8",
+          "grammar_valid": false,
+          "gate_pass": false,
+          "recovers": false,
+          "latency_s": 3.78,
+          "output": "table_modify forward_table set_low_latency_class 00000000000000000000000000000000 =>"
+        }
+      ],
+      "category": "runs",
+      "tokenizer_class": "GPT2TokenizerFast",
+      "revision": "31b70e2e869a7173562077fd711b654946d38674"
+    },
+    "ibm-granite/granite-3.0-2b-instruct": {
+      "grammar_valid_rate": 0.0,
+      "gate_pass_rate": 0.0,
+      "recovery_rate": 0.0,
+      "mean_latency_s": 7.99,
+      "rows": [
+        {
+          "scenario": "d4_misport_to_5",
+          "grammar_valid": false,
+          "gate_pass": false,
+          "recovers": false,
+          "latency_s": 12.33,
+          "output": "table_add forward_table set_low_latency_class 10:00:00:00:00:01 =>"
+        },
+        {
+          "scenario": "d7_misport_to_9",
+          "grammar_valid": false,
+          "gate_pass": false,
+          "recovers": false,
+          "latency_s": 5.82,
+          "output": "table_add forward_table set_low_latency_class 10:00:00:00:00:01 =>"
+        },
+        {
+          "scenario": "d2_misport_to_8",
+          "grammar_valid": false,
+          "gate_pass": false,
+          "recovers": false,
+          "latency_s": 5.83,
+          "output": "table_add forward_table set_low_latency_class 10:00:00:00:00:01 =>"
+        }
+      ],
+      "category": "runs",
+      "tokenizer_class": "GPT2TokenizerFast",
+      "revision": "5ad66c190631382717bd92d7b052adb1a7b669e7"
+    },
+    "microsoft/Phi-3-mini-4k-instruct": {
+      "grammar_valid_rate": 1.0,
+      "gate_pass_rate": 0.0,
+      "recovery_rate": 0.0,
+      "mean_latency_s": 7.58,
+      "rows": [
+        {
+          "scenario": "d4_misport_to_5",
+          "grammar_valid": true,
+          "gate_pass": false,
+          "recovers": false,
+          "latency_s": 12.05,
+          "output": "table_add forward_table forward 00:00:00:00:00:01 => 10"
+        },
+        {
+          "scenario": "d7_misport_to_9",
+          "grammar_valid": true,
+          "gate_pass": false,
+          "recovers": false,
+          "latency_s": 5.35,
+          "output": "table_add forward_table forward 00:00:00:00:00:01 => 10"
+        },
+        {
+          "scenario": "d2_misport_to_8",
+          "grammar_valid": true,
+          "gate_pass": false,
+          "recovers": false,
+          "latency_s": 5.35,
+          "output": "table_add forward_table forward 00:00:00:00:00:01 => 10"
+        }
+      ],
+      "category": "runs",
+      "tokenizer_class": "LlamaTokenizerFast",
+      "revision": "f39ac1d28e925b323eae81227eaba4464caced4e"
+    },
+    "stabilityai/stable-code-instruct-3b": {
+      "category": "fail_unsupported_tokenizer",
+      "error": "GPTNeoXTokenizerFast not in transformers-cfg supported set ['BartTokenizerFast', 'CodeGenTokenizerFast', 'GPT2TokenizerFast', 'GemmaTokenizerFast', 'LlamaTokenizerFast', 'PreTrainedTokenizerFast', 'Qwen2TokenizerFast', 'T5TokenizerFast']",
+      "tokenizer_class": "GPTNeoXTokenizerFast",
+      "tokenizer_supported": false,
+      "has_chat_template": true,
+      "revision": "20e21f0e817b72499c8585d86a139c0fd011adba"
+    },
+    "bigcode/starcoder2-3b": {
+      "category": "fail_no_chat_template",
+      "error": "tokenizer has no chat_template (base model?) \u2014 apply_chat_template would raise",
+      "tokenizer_class": "GPT2TokenizerFast",
+      "tokenizer_supported": true,
+      "has_chat_template": false,
+      "revision": "733247c55e3f73af49ce8e9c7949bf14af205928"
+    }
+  }
+}

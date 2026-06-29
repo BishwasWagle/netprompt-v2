@@ -316,6 +316,56 @@ def e2b(junit_path: str, outdir: str):
     print(f"  E2b: {n_pass}/{len(rows)} passed")
 
 
+# (family, params_b) for the cross-family regen comparison set — an oracle map like
+# E1_PROBES. Everything else (rates, category, tokenizer, revision) comes from the JSON.
+XFAM_META = {
+    "Qwen/Qwen2.5-Coder-0.5B-Instruct": ("Qwen2", 0.5),
+    "Qwen/Qwen2.5-Coder-1.5B-Instruct": ("Qwen2", 1.5),
+    "Qwen/Qwen2.5-Coder-3B-Instruct": ("Qwen2", 3.0),
+    "Qwen/Qwen2.5-1.5B-Instruct": ("Qwen2", 1.5),
+    "TinyLlama/TinyLlama-1.1B-Chat-v1.0": ("Llama", 1.1),
+    "deepseek-ai/deepseek-coder-1.3b-instruct": ("Llama", 1.3),
+    "HuggingFaceTB/SmolLM2-1.7B-Instruct": ("Llama", 1.7),
+    "ibm-granite/granite-3.0-2b-instruct": ("Granite", 2.5),
+    "microsoft/Phi-3-mini-4k-instruct": ("Phi3", 3.8),
+    "stabilityai/stable-code-instruct-3b": ("StableLm", 2.8),
+    "bigcode/starcoder2-3b": ("Starcoder2", 3.0),
+}
+
+
+def xfam(in_path: str, outdir: str):
+    """Cross-family Tier-2 regen comparison (`regen_compare --out`) JSON
+    ({manifest, results} bundle, or a bare results dict) -> m7_xfam.csv, one row
+    per model in run order — rates for `runs`, blank for the load/decoding frontier."""
+    with open(in_path) as f:
+        bundle = json.load(f)
+    results = bundle.get("results", bundle)        # accept a bare results dict too
+    rows = []
+    for model, r in results.items():
+        fam, params = XFAM_META.get(model, ("?", ""))
+        rows.append({
+            "model": model.split("/")[-1],
+            "model_id": model,
+            "family": fam,
+            "params_b": params,
+            "tokenizer_class": r.get("tokenizer_class", ""),
+            "category": r.get("category", ""),
+            "revision": (r.get("revision") or "")[:12],
+            "grammar_valid_rate": r.get("grammar_valid_rate", ""),
+            "gate_pass_rate": r.get("gate_pass_rate", ""),
+            "recovery_rate": r.get("recovery_rate", ""),
+            "mean_latency_s": r.get("mean_latency_s", ""),
+        })
+    _write_csv(os.path.join(outdir, "m7_xfam.csv"),
+               ["model", "model_id", "family", "params_b", "tokenizer_class", "category",
+                "revision", "grammar_valid_rate", "gate_pass_rate", "recovery_rate",
+                "mean_latency_s"], rows)
+    nrun = sum(1 for r in rows if r["category"] == "runs")
+    fams = sorted({r["family"] for r in rows if r["category"] == "runs"})
+    print(f"  M7 xfam: {nrun}/{len(rows)} ran across {len(fams)} families {fams}; "
+          f"{len(rows) - nrun} categorized at the load/decoding frontier")
+
+
 def main():
     ap = argparse.ArgumentParser(description=__doc__,
                                  formatter_class=argparse.RawDescriptionHelpFormatter)
@@ -340,6 +390,10 @@ def main():
     pe4.add_argument("--in", dest="in_path", default="/tmp/e4_regen.jsonl")
     pe4.add_argument("--outdir", default="docs/experiments/results")
 
+    pxf = sub.add_parser("xfam", help="M7 cross-family regen comparison JSON -> m7_xfam.csv")
+    pxf.add_argument("--in", dest="in_path", default="/tmp/m7_xfam.json")
+    pxf.add_argument("--outdir", default="docs/experiments/results")
+
     args = ap.parse_args()
     os.makedirs(args.outdir, exist_ok=True)
     if args.cmd == "e3":
@@ -352,6 +406,8 @@ def main():
         e2b(args.junit, args.outdir)
     elif args.cmd == "e4":
         e4(args.in_path, args.outdir)
+    elif args.cmd == "xfam":
+        xfam(args.in_path, args.outdir)
 
 
 if __name__ == "__main__":

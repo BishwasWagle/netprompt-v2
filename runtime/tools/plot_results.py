@@ -230,6 +230,65 @@ def plot_e4(resultsdir: str, plots: str) -> list[str]:
     return saved
 
 
+FAMILY_COLOR = {"Qwen2": "#2e8b57", "Llama": "#5b8fb9", "Phi3": "#b9775b",
+                "Granite": "#9b59b6", "StableLm": "#c0392b", "Starcoder2": "#7f8c8d"}
+
+
+def plot_xfam(resultsdir: str, plots: str) -> list[str]:
+    """M7 cross-family comparison (m7_xfam.csv) -> two figures: per-model
+    grammar/gate/recovery rates, and per-model latency coloured by family."""
+    path = os.path.join(resultsdir, "m7_xfam.csv")
+    if not os.path.exists(path):
+        return []
+    rows = _read(path)
+    ran = [r for r in rows if r.get("category") == "runs"]
+    if not ran:
+        return []
+    saved = []
+    label = lambda r: f"{r['model']}\n({r['family']})"            # noqa: E731
+
+    # Fig 1 — grammar-valid / gate-accept / recovery, for models that produced any
+    # grammar-valid output. The fully-unsuccessful ones (grammar-valid 0% — TinyLlama,
+    # SmolLM2, granite: truncation / wrong-action) are omitted here for legibility (all
+    # bars would be empty) and reported in the text; the cross-family takeaway is that
+    # recovery is 0% even for the models that DO clear grammar/gate.
+    scored = [r for r in ran if _f(r["grammar_valid_rate"]) > 0]
+    metrics = [("grammar_valid_rate", "grammar-valid", "#2e8b57"),
+               ("gate_pass_rate", "gate-accept", "#5b8fb9"),
+               ("recovery_rate", "recovers", "#c0392b")]
+    fig, ax = plt.subplots(figsize=(9, 5))
+    n = len(metrics); width = 0.8 / n; x = list(range(len(scored)))
+    for i, (k, lbl, col) in enumerate(metrics):
+        vals = [_f(r[k]) * 100 for r in scored]
+        off = [xi + (i - (n - 1) / 2) * width for xi in x]
+        ax.bar(off, vals, width, label=lbl, color=col)
+    ax.set_xticks(x); ax.set_xticklabels([label(r) for r in scored], rotation=30, ha="right", fontsize=8)
+    ax.set_ylim(0, 109); ax.set_ylabel("rate (%)"); ax.legend(title="metric", ncol=3)
+    ax.set_title("M7 cross-family Tier-2 regen — grammar-valid / gate-accept / recovery\n"
+                 "(models with grammar-valid output; recovery 0% across every family)")
+    p = os.path.join(plots, "m7_xfam_rates.png")
+    fig.tight_layout(); fig.savefig(p, dpi=300); plt.close(fig); saved.append(p)
+
+    # Fig 2 — mean GBNF-constrained generation latency per model, coloured by family.
+    import matplotlib.patches as mpatches
+    fig, ax = plt.subplots(figsize=(10, 5))
+    vals = [_f(r["mean_latency_s"]) for r in ran]
+    colors = [FAMILY_COLOR.get(r["family"], "#333") for r in ran]
+    for b, v in zip(ax.bar(range(len(ran)), vals, color=colors), vals):
+        ax.text(b.get_x() + b.get_width() / 2, v + 0.05, f"{v:.1f}",
+                ha="center", va="bottom", fontsize=8)
+    ax.set_xticks(range(len(ran))); ax.set_xticklabels([label(r) for r in ran],
+                                                       rotation=30, ha="right", fontsize=8)
+    ax.set_ylabel("mean latency (s)")
+    ax.set_title("M7 cross-family Tier-2 regen — mean GBNF-constrained generation latency")
+    fams = sorted({r["family"] for r in ran})
+    ax.legend(handles=[mpatches.Patch(color=FAMILY_COLOR.get(f, "#333"), label=f) for f in fams],
+              title="family")
+    p = os.path.join(plots, "m7_xfam_latency.png")
+    fig.tight_layout(); fig.savefig(p, dpi=300); plt.close(fig); saved.append(p)
+    return saved
+
+
 def main():
     ap = argparse.ArgumentParser(description=__doc__,
                                  formatter_class=argparse.RawDescriptionHelpFormatter)
@@ -247,6 +306,7 @@ def main():
     saved += plot_e2a(args.resultsdir, plots)
     saved += plot_e2b(args.resultsdir, plots)
     saved += plot_e4(args.resultsdir, plots)
+    saved += plot_xfam(args.resultsdir, plots)
 
     for p in saved:
         print(f"  wrote {p}")

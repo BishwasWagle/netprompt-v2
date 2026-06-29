@@ -1,0 +1,496 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>1 · Clean Architecture Breakdown</title>
+<style>
+:root { --fg:#1f2328; --muted:#656d76; --link:#0969da; --border:#d0d7de; --bg:#fff;
+        --code-bg:#f6f8fa; --accent:#0969da; }
+* { box-sizing: border-box; }
+body { margin:0; background:var(--bg); color:var(--fg);
+  font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Helvetica,Arial,sans-serif;
+  font-size:16px; line-height:1.6; }
+.wrap { max-width:920px; margin:0 auto; padding:32px 24px 80px; }
+header.doc { border-bottom:1px solid var(--border); margin-bottom:24px; padding-bottom:16px; }
+header.doc h1 { margin:0 0 4px; font-size:1.9rem; }
+header.doc .sub { color:var(--muted); font-size:.9rem; }
+header.doc .sub code { background:var(--code-bg); padding:1px 5px; border-radius:4px; }
+nav.toc { background:var(--code-bg); border:1px solid var(--border); border-radius:8px;
+  padding:12px 16px; margin:0 0 28px; font-size:.92rem; }
+nav.toc .toc-title { font-weight:600; margin-bottom:6px; }
+nav.toc ul { margin:4px 0; padding-left:20px; }
+nav.toc a { color:var(--link); text-decoration:none; }
+nav.toc a:hover { text-decoration:underline; }
+h1,h2,h3,h4 { line-height:1.25; margin-top:1.6em; margin-bottom:.5em; font-weight:600; }
+h2 { border-bottom:1px solid var(--border); padding-bottom:.3em; }
+h1 { font-size:1.7rem; } h2 { font-size:1.4rem; } h3 { font-size:1.15rem; } h4 { font-size:1rem; }
+a { color:var(--link); text-decoration:none; } a:hover { text-decoration:underline; }
+p, li { overflow-wrap:break-word; }
+code { background:var(--code-bg); padding:.15em .4em; border-radius:5px;
+  font-family:ui-monospace,SFMono-Regular,"SF Mono",Menlo,Consolas,monospace; font-size:.88em; }
+pre { background:var(--code-bg); border:1px solid var(--border); border-radius:8px;
+  padding:14px 16px; overflow-x:auto; line-height:1.45; }
+pre code { background:none; padding:0; font-size:.82rem; white-space:pre; }
+blockquote { margin:1em 0; padding:.4em 1em; color:var(--muted);
+  border-left:4px solid var(--border); background:#f6f8fa55; }
+blockquote p { margin:.4em 0; }
+table { border-collapse:collapse; width:100%; margin:1.2em 0; font-size:.93rem; display:block; overflow-x:auto; }
+th, td { border:1px solid var(--border); padding:7px 12px; text-align:left; vertical-align:top; }
+th { background:var(--code-bg); font-weight:600; }
+tr:nth-child(even) td { background:#f6f8fa55; }
+hr { border:0; border-top:1px solid var(--border); margin:2em 0; }
+.anchor { visibility:hidden; padding-right:6px; text-decoration:none; color:var(--muted); }
+h1:hover .anchor, h2:hover .anchor, h3:hover .anchor, h4:hover .anchor { visibility:visible; }
+footer.doc { margin-top:48px; padding-top:16px; border-top:1px solid var(--border);
+  color:var(--muted); font-size:.82rem; }
+@media (max-width:640px){ .wrap{padding:20px 14px 60px;} body{font-size:15px;} }
+</style>
+</head>
+<body>
+<div class="wrap">
+<header class="doc">
+  <h1>1 · Clean Architecture Breakdown</h1>
+  <div class="sub">RuntimeManager / KRONOS architecture review</div>
+</header>
+<nav class="toc"><div class="toc-title">Contents</div><div class="toc">
+<ul>
+<li><a href="#1-clean-architecture-breakdown">1 · Clean Architecture Breakdown</a><ul>
+<li><a href="#11-whole-system">1.1 Whole System</a><ul>
+<li><a href="#111-the-system-in-one-sentence">1.1.1 The system in one sentence</a></li>
+<li><a href="#112-two-loops-two-models">1.1.2 Two loops, two models</a></li>
+<li><a href="#113-how-the-two-loops-coordinate">1.1.3 How the two loops coordinate</a></li>
+</ul>
+</li>
+<li><a href="#12-slow-planner-the-outer-loop">1.2 Slow Planner — the outer loop</a><ul>
+<li><a href="#121-what-it-does">1.2.1 What it does</a></li>
+<li><a href="#122-the-decision-pipeline">1.2.2 The decision pipeline</a></li>
+<li><a href="#123-the-decision-model">1.2.3 The decision model</a></li>
+<li><a href="#124-the-handoff-artifact-deploymentspec-then-it-stops">1.2.4 The handoff — artifact → DeploymentSpec, then it stops</a></li>
+</ul>
+</li>
+<li><a href="#13-runtime-manager-the-inner-loop">1.3 Runtime Manager — the inner loop</a><ul>
+<li><a href="#131-component-map-runtime">1.3.1 Component map (runtime/)</a></li>
+<li><a href="#132-the-core-data-contracts">1.3.2 The core data contracts</a></li>
+<li><a href="#133-end-to-end-data-flow-of-one-episode">1.3.3 End-to-end data flow of one episode</a></li>
+<li><a href="#134-architectural-strengths-keep-these">1.3.4 Architectural strengths (keep these)</a></li>
+<li><a href="#135-the-north-star-clean-architecture">1.3.5 The "north-star" clean architecture</a></li>
+</ul>
+</li>
+<li><a href="#key-takeaways">Key Takeaways</a></li>
+</ul>
+</li>
+</ul>
+</div>
+</nav>
+<h1 id="1-clean-architecture-breakdown">1 · Clean Architecture Breakdown<a class="anchor" href="#1-clean-architecture-breakdown" title="Permanent link">¶</a></h1>
+<p>This breakdown is organized into three parts:</p>
+<ul>
+<li><strong><a href="#11-whole-system">§1.1 Whole System</a></strong> — the two-loop MAPE-K shape and how
+  the loops coordinate.</li>
+<li><strong><a href="#12-slow-planner--the-outer-loop">§1.2 Slow Planner</a></strong> — the outer loop:
+  the LLM that decides <em>which</em> SFC, then stops.</li>
+<li><strong><a href="#13-runtime-manager--the-inner-loop">§1.3 Runtime Manager</a></strong> — the inner
+  loop and the primary subject of this review: the deterministic control loop
+  that deploys, observes, adapts, and commits.</li>
+</ul>
+<hr />
+<h2 id="11-whole-system">1.1 Whole System<a class="anchor" href="#11-whole-system" title="Permanent link">¶</a></h2>
+<h3 id="111-the-system-in-one-sentence">1.1.1 The system in one sentence<a class="anchor" href="#111-the-system-in-one-sentence" title="Permanent link">¶</a></h3>
+<p>The system is a <strong>Knowledge Graph–driven, two-loop MAPE-K</strong>
+(Monitor–Analyze–Plan–Execute over a Knowledge base) orchestrator for drone-edge
+networks: a <strong>slow LLM planner</strong> (outer loop) does KG-RAG over a Neo4j Knowledge
+Graph to decide <em>which</em> Service Function Chain (SFC) and relay path; a
+<strong>mostly-deterministic RuntimeManager</strong> (inner loop) deploys that decision onto a
+live P4/BMv2 network and holds the SFC inside its SLA envelope through a
+cost-ordered adaptation ladder, escalating back to the planner only when no
+in-envelope fix exists; and the <strong>Knowledge Graph</strong> is the shared hub the planner
+reads (strategic state) and the runtime writes back to (operational verdicts) —
+closing the loop.</p>
+<blockquote>
+<p><strong>Scope.</strong> This review's primary subject is the inner loop (<code>RuntimeManager</code>,
+§1.3); the outer-loop planner is summarized in §1.2 and the Knowledge Graph is
+detailed in <a href="06-knowledge-graph.html">06-knowledge-graph.md</a>.</p>
+</blockquote>
+<h3 id="112-two-loops-two-models">1.1.2 Two loops, two models<a class="anchor" href="#112-two-loops-two-models" title="Permanent link">¶</a></h3>
+<pre><code> mission ─▶ SLOW PLANNER (outer loop) ──artifact──▶ RUNTIME MANAGER (inner loop) ──▶ live P4/BMv2
+             │ decision LLM (Qwen Instruct, cuda:0)      │ deterministic ladder
+             │ KG-RAG → select SFC + path                │ tier-2 regen LLM (Qwen Coder, cuda:1) optional
+             ▼                                            ▼
+       llm_generated_experiment_config.json        Verdict + EscalationTicket → KG
+</code></pre>
+<ul>
+<li><strong>Outer loop</strong> — the <a href="#12-slow-planner--the-outer-loop">Slow Planner</a>: an LLM
+  reads the Knowledge Graph + history, picks <em>which SFC</em> and <em>which path</em>, and
+  writes a JSON artifact. It then <strong>stops</strong> — it triggers no deploy.</li>
+<li><strong>Inner loop</strong> — the <a href="#13-runtime-manager--the-inner-loop">Runtime Manager</a>
+  (<code>runtime/</code>): takes that artifact, deploys it, observes the live network, and
+  drives one <em>episode</em> to a terminal verdict using a deterministic cost-ordered
+  adaptation ladder. An LLM appears here only as an optional Tier-2 "regenerate
+  the P4 rules" component — <strong>the Runtime Manager itself is not an LLM.</strong></li>
+</ul>
+<p>The two LLMs are deliberately separate — different model, different GPU,
+different grounding source (see <a href="05-evolution-from-original.html">05</a> §6 for the
+full model table):</p>
+<table>
+<thead>
+<tr>
+<th></th>
+<th><strong>Decision model</strong> (planner)</th>
+<th><strong>Tier-2 regen model</strong> (runtime)</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Base</td>
+<td><code>Qwen2.5-1.5B-Instruct</code> + LoRA</td>
+<td><code>Qwen2.5-Coder-1.5B-Instruct</code> (base)</td>
+</tr>
+<tr>
+<td>Device</td>
+<td><code>cuda:0</code></td>
+<td><code>cuda:1</code> (no contention)</td>
+</tr>
+<tr>
+<td>Grounded in</td>
+<td>the <strong>KG</strong> (strategic)</td>
+<td>the deployer's live <strong><code>table_state</code></strong> (tactical)</td>
+</tr>
+<tr>
+<td>Role</td>
+<td><em>select which SFC/policy/path</em></td>
+<td><em>regenerate P4 rules</em> when tier 0/1 fail</td>
+</tr>
+</tbody>
+</table>
+<h3 id="113-how-the-two-loops-coordinate">1.1.3 How the two loops coordinate<a class="anchor" href="#113-how-the-two-loops-coordinate" title="Permanent link">¶</a></h3>
+<p>The slow planner and the runtime manager <strong>never call each other directly</strong>.
+They coordinate through two channels:</p>
+<ol>
+<li><strong>A typed file/contract handoff.</strong> The planner writes its artifact; the
+   runtime's <a href="#124-the-handoff--artifact--deploymentspec-then-it-stops"><code>planner_adapter.py</code></a>
+   normalizes it into a <code>DeploymentSpec</code> (planner → runtime), and the runtime
+   emits a <code>Verdict</code> + optional <code>EscalationTicket</code> (runtime → planner) when the
+   episode terminates.</li>
+<li><strong>The Knowledge Graph as a shared hub.</strong> The planner reads strategic state
+   (SFC templates, field bounds, relay availability) and is <em>read-only</em>; the
+   runtime is the <em>sole writer</em> of operational state (switch status, verdicts,
+   snapshots). The loop closes through the KG: the runtime's measured
+   <code>ProgrammableSwitch.status</code> becomes the planner's <code>allowed_relays</code>, and
+   aggregated <code>Verdict</code>/<code>EscalationTicket</code> history becomes the planner's
+   <code>runtime_feedback</code>. Full treatment in
+   <a href="06-knowledge-graph.html">06-knowledge-graph.md</a>.</li>
+</ol>
+<hr />
+<h2 id="12-slow-planner-the-outer-loop">1.2 Slow Planner — the outer loop<a class="anchor" href="#12-slow-planner-the-outer-loop" title="Permanent link">¶</a></h2>
+<blockquote>
+<p>This review's mandate is the inner loop; the planner is summarized here for
+context and covered in depth in <a href="05-evolution-from-original.html">05-evolution-from-original.md</a>
+(§2 planner, §4 selector, §6 models, §7 retrain) and
+<a href="06-knowledge-graph.html">06-knowledge-graph.md</a> (§6.3 how the planner uses the
+KG). The planner's decision kernel (<code>validator</code> / <code>prompt_builder</code> /
+<code>kg_context</code> / <code>policy_compiler</code>) is Bishwas &amp; Kiran's original
+<code>llm_orchestrator/</code>, extended — not rewritten — this session.</p>
+</blockquote>
+<h3 id="121-what-it-does">1.2.1 What it does<a class="anchor" href="#121-what-it-does" title="Permanent link">¶</a></h3>
+<p>The slow planner is the <strong>outer loop</strong>: given a mission, it reads the Knowledge
+Graph (topology + candidate SFC/policy set) plus a KG-RAG results history, and
+decides <em>which</em> SFC and <em>which</em> path to deploy. It emits a single JSON artifact
+(<code>outputs/llm_generated_experiment_config.json</code>) and then <strong>stops</strong> — it triggers
+no deploy and supervises no episode.</p>
+<p>Selection is deliberately the <em>slow</em> loop: it runs per mission / re-plan, not per
+control cycle (~1 s for the LLM decision vs ~3 µs for the old rule-based
+baseline; the LLM buys mission-/context-sensitivity and KG grounding at that
+cost — <a href="05-evolution-from-original.html">05</a> §4).</p>
+<h3 id="122-the-decision-pipeline">1.2.2 The decision pipeline<a class="anchor" href="#122-the-decision-pipeline" title="Permanent link">¶</a></h3>
+<p><code>build_runtime_input_object</code> (<code>llm_orchestrator/orchestrate.py</code>) assembles the
+model input from KG-grounded sources, then <code>run_pipeline</code> prompts the fine-tuned
+model for a decision, validates it, and compiles the artifact:</p>
+<pre><code>KG topology snapshot (kg_context.get_topology_snapshot)   → allowed relays/paths
+KG candidate set    (kg_context.get_candidate_sfc_policy_set, REALIZED_BY_P4_POLICY) → action menu
+KG-RAG history (top-k=3) + runtime_feedback (per-SFC reliability)
+        │
+        ▼  assemble orchestration_constraints
+   run_pipeline → fine-tuned LLM → 6-key JSON decision
+        │   {selected_sfc, selected_policy, selected_path, selected_relay,
+        │    priority_class, deployment_mode}
+        ├─ valid?   ─▶ policy_compiler → llm_generated_experiment_config.json
+        └─ invalid? ─▶ validator.fallback_decision (deterministic rule oracle) ─▶ compile
+</code></pre>
+<p>The load-bearing detail is that the <strong>same</strong> <code>orchestration_constraints</code> feed
+<em>both</em> the constrained-decoding grammar (<code>decision_grammar.build_decision_gbnf</code>)
+and the validator (<code>validator.validate_generated_decision</code>):</p>
+<pre><code>KG candidate set + allowed relays/paths
+        ├─▶ build_decision_gbnf(...)         → GBNF the LLM decodes under
+        └─▶ validate_generated_decision(...) → the contract check
+                                   ⇒ grammar-valid ⇒ validator-valid by construction
+</code></pre>
+<p>So the LLM literally <strong>cannot emit an SFC/policy pair the KG does not realize</strong>,
+and with constrained decoding on (the production default) the deterministic
+fallback is <strong>bypassed</strong> — the LLM's choice ships. That is exactly why decision
+<em>quality</em> rested on the LoRA retrain (<a href="05-evolution-from-original.html">05</a> §3.2,
+§7; <a href="06-knowledge-graph.html">06</a> §6.3, §6.7).</p>
+<h3 id="123-the-decision-model">1.2.3 The decision model<a class="anchor" href="#123-the-decision-model" title="Permanent link">¶</a></h3>
+<p><code>Qwen2.5-1.5B-Instruct</code> + LoRA (<code>final_adapter_retrained</code>), on <code>cuda:0</code>, FP16,
+greedy decoding under a per-request GBNF grammar (default-on). It is distinct in
+every dimension from the runtime's optional Tier-2 regen model
+(<code>Qwen2.5-Coder-1.5B-Instruct</code>, <code>cuda:1</code>, grounded in live <code>table_state</code> rather
+than the KG). <strong>The decision model is not the Runtime Manager</strong>; the regen model
+is a component the deterministic RM <em>may call</em> at tier 2. Full model table and
+the retrain story: <a href="05-evolution-from-original.html">05</a> §6–7.</p>
+<h3 id="124-the-handoff-artifact-deploymentspec-then-it-stops">1.2.4 The handoff — artifact → DeploymentSpec, then it stops<a class="anchor" href="#124-the-handoff-artifact-deploymentspec-then-it-stops" title="Permanent link">¶</a></h3>
+<p>The planner writes <code>llm_generated_experiment_config.json</code> and stops. On the
+runtime side, <a href="runtime/planner_adapter.py"><code>planner_adapter.py</code></a> is the seam that
+normalizes that artifact into a typed <code>DeploymentSpec</code> <strong>without modifying any
+planner code</strong>:</p>
+<ul>
+<li>It preserves the planner's <em>real</em> decisions — <code>selected_sfc</code> + <code>policy_type</code>,
+  carried verbatim — and <strong>reconstructs</strong> the canonical per-switch binding
+  (<code>&lt;prefix&gt;_s{1,2,3}_rules.txt</code> + <code>&lt;prefix&gt;.json</code>) rather than trusting the
+  artifact's literal rule paths (the orchestrator labels rule files by the
+  <em>active relay</em>, which would load s2 with s3's rules — see the module
+  docstring).</li>
+<li>It supplies the two fields the artifact does not carry — <code>target_field</code>
+  (drives envelope derivation + the monitor's host map) and <code>correlation_id</code>
+  (ties deploy → monitor → verdict → escalation).</li>
+<li>The runtime <strong>never re-selects</strong> the SFC or path (design §1.2).</li>
+</ul>
+<p>From the <code>DeploymentSpec</code>, control passes to the inner loop (<a href="#13-runtime-manager--the-inner-loop">§1.3</a>).</p>
+<hr />
+<h2 id="13-runtime-manager-the-inner-loop">1.3 Runtime Manager — the inner loop<a class="anchor" href="#13-runtime-manager-the-inner-loop" title="Permanent link">¶</a></h2>
+<h3 id="131-component-map-runtime">1.3.1 Component map (<code>runtime/</code>)<a class="anchor" href="#131-component-map-runtime" title="Permanent link">¶</a></h3>
+<table>
+<thead>
+<tr>
+<th>Layer</th>
+<th>Module</th>
+<th>Responsibility</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>Contracts</strong></td>
+<td><code>contracts.py</code></td>
+<td>Every dataclass that crosses a boundary: <code>DeploymentSpec</code>, <code>MonitorReport</code>, <code>FlowMetrics</code>, <code>Candidate</code>, <code>Diagnosis</code>, <code>Verdict</code>, <code>EscalationTicket</code>, <code>ConfigSnapshot</code>, <code>BaselineSnapshot</code>, <code>Envelope</code>, <code>AdaptResult</code>. Plus <code>goal()</code> and <code>jsonable()</code>.</td>
+</tr>
+<tr>
+<td><strong>Config</strong></td>
+<td><code>config.py</code></td>
+<td>Testbed topology (ports, MACs, switch port maps), <code>tc</code> templates, hysteresis params, adaptation tunables, and the runtime-owned per-SFC action space.</td>
+</tr>
+<tr>
+<td><strong>Orchestration</strong></td>
+<td><code>runtime_manager.py</code></td>
+<td><code>run_episode()</code> — the episode lifecycle: pre-deploy gate → baseline → evaluate → commit/rollback/escalate, with best-effort KG writes.</td>
+</tr>
+<tr>
+<td><strong>Analyze</strong></td>
+<td><code>evaluator.py</code></td>
+<td>The 6-stage post-deploy attribution + commit ladder.</td>
+</tr>
+<tr>
+<td><strong>Plan/Execute</strong></td>
+<td><code>adapt.py</code></td>
+<td>The unified cost-ordered adaptation engine (tier 0 tune → 1 reroute → 2 regen) with the domination guard, hill-climb, <code>tried</code> set, and episode <code>Budget</code>.</td>
+</tr>
+<tr>
+<td><strong>Validate</strong></td>
+<td><code>gate.py</code></td>
+<td>Sound, cheapest-first pre-deploy authority: L0 syntax · L1 envelope · L2 blackhole-invariant simulation · L3 dry-install (node-only).</td>
+</tr>
+<tr>
+<td><strong>Execute (I/O)</strong></td>
+<td><code>deployer.py</code></td>
+<td>Pure command/parse/state layer over an injectable runner: install rules, TUNE via <code>tc</code>, multi-switch REROUTE, deterministic rollback.</td>
+</tr>
+<tr>
+<td><strong>Execute (I/O)</strong></td>
+<td><code>node_runner.py</code></td>
+<td>The real on-node runner: <code>simple_switch_CLI</code> over thrift + <code>mnexec</code> into Mininet namespaces.</td>
+</tr>
+<tr>
+<td><strong>Monitor</strong></td>
+<td><code>monitors/network_monitor.py</code></td>
+<td>Wires real samplers (ping, sysfs counters, <code>tc</code>, liveness) to the pure pipeline; produces <code>MonitorReport</code>, manages baseline/hysteresis.</td>
+</tr>
+<tr>
+<td><strong>Monitor (pure)</strong></td>
+<td><code>monitors/pipeline.py</code></td>
+<td>Deterministic, off-node-testable core: hysteresis, throughput math, parsers, exogenous-shift detection, status derivation, report assembly.</td>
+</tr>
+<tr>
+<td><strong>Monitor (I/O)</strong></td>
+<td><code>monitors/system_monitor.py</code></td>
+<td>Process/thrift liveness probes.</td>
+</tr>
+<tr>
+<td><strong>KG boundary</strong></td>
+<td><code>kg_client.py</code></td>
+<td>Neo4j reads (envelope/requirements) + best-effort runtime-state writes (verdicts, snapshots, switch status).</td>
+</tr>
+<tr>
+<td><strong>Tier-2 LLM</strong></td>
+<td><code>regen/</code></td>
+<td><code>proposer.py</code> (the engine seam), <code>prompt.py</code>, <code>grammar.py</code> (GBNF), <code>llm_client.py</code> (<code>StubLLMClient</code> + <code>LocalHFClient</code>).</td>
+</tr>
+<tr>
+<td><strong>Planner edge</strong></td>
+<td><code>planner_adapter.py</code></td>
+<td>Normalizes the planner's JSON artifact into a typed <code>DeploymentSpec</code> without modifying any planner code.</td>
+</tr>
+<tr>
+<td><strong>Test doubles</strong></td>
+<td><code>fakes.py</code>, <code>fixtures.py</code></td>
+<td>Off-node <code>FakeDeployer</code>/<code>FakeMonitor</code>/<code>ScriptedRunner</code> and scenario models.</td>
+</tr>
+<tr>
+<td><strong>Tools</strong></td>
+<td><code>tools/</code></td>
+<td><code>soak.py</code>, <code>run_episode.py</code>, <code>run_from_planner.py</code>, <code>launch_network.py</code>, etc.</td>
+</tr>
+</tbody>
+</table>
+<h3 id="132-the-core-data-contracts">1.3.2 The core data contracts<a class="anchor" href="#132-the-core-data-contracts" title="Permanent link">¶</a></h3>
+<p>The whole loop is choreographed through a small set of immutable-ish dataclasses,
+which is a real strength — boundaries are explicit and timestamps are always
+caller-supplied (deterministic under test). The key ones:</p>
+<ul>
+<li><strong><code>DeploymentSpec</code></strong> <code>{sfc, binding, envelope, correlation_id, target_field}</code> —
+  the planner→runtime handoff. The runtime <em>never</em> re-selects the SFC.</li>
+<li><strong><code>Envelope</code></strong> — SLA bounds (<code>max_latency_ms</code>, <code>min_bandwidth_mbps</code>,
+  <code>max_loss_percent</code>) <strong>plus</strong> the runtime-owned legal action space
+  (<code>legal_tiers</code>, <code>legal_paths</code>, <code>knob_ranges</code>).</li>
+<li><strong><code>MonitorReport</code></strong> — the single contract every evaluator rung and the adapt
+  engine read: <code>target</code>/<code>non_target</code> <code>FlowMetrics</code>, <code>target_sla_met</code>,
+  <code>displaced_harm</code>, <code>vs_baseline</code>, <code>exogenous_shift</code>, <code>headroom</code>, <code>switch_status</code>,
+  <code>path_confidence</code>.</li>
+<li><strong><code>Candidate</code></strong> <code>{kind, params}</code> — one adaptation step; frozen + tuple params so
+  it is hashable into the engine's <code>tried</code> set.</li>
+<li><strong><code>Verdict</code></strong> — the terminal outcome recorded to the KG: one of
+  <code>healthy | marginal | rollback | escalated | system_fault | rejected</code>.</li>
+</ul>
+<h3 id="133-end-to-end-data-flow-of-one-episode">1.3.3 End-to-end data flow of one episode<a class="anchor" href="#133-end-to-end-data-flow-of-one-episode" title="Permanent link">¶</a></h3>
+<pre><code>DeploymentSpec
+     │
+     ▼  RuntimeManager.run_episode()                                  [runtime_manager.py:48]
+ ┌───────────────────────────────────────────────────────────────────────────┐
+ │ 1. gate.check_binding(spec) ───not ok──▶ Verdict(&quot;rejected&quot;)  (never deploys)│  [:50]
+ │ 2. current_tables ← deployer.table_state()  (live switch state for gate L2)  │  [:60]
+ │ 3. EvalContext built with a FRESH Budget(N)  ── per-episode budget model     │  [:64]
+ │ 4. report ← monitor.observe_window()  ──▶ MonitorReport                      │  [:73]
+ │ 5. best-effort KG writes: switch_status, baseline                            │  [:77]
+ │ 6. result ← evaluate(spec, report, ctx)                                      │  [:81]
+ └───────────────────────────────────────────────────────────────────────────┘
+     │
+     ▼  evaluate() — the 6-stage ladder                                [evaluator.py:77]
+   ┌─────────────────────────────────────────────────────────────────────────┐
+   │ rung 1  system_sound?        no ─▶ Verdict(&quot;system_fault&quot;)               │
+   │ rung 2  target_sla_met?      yes ─▶ jump to commit path (rung 5)         │
+   │ rung 3  regressed vs baseline (deadbanded) AND not exogenous?            │
+   │             yes ─▶ deployer.rollback(last_good) ─▶ Verdict(&quot;rollback&quot;)   │
+   │ rung 4  adapt(...) ─▶ AdaptResult                                        │
+   │             fail ─▶ EscalationTicket + Verdict(&quot;escalated&quot;)             │
+   │ rung 5  displaced_harm? ─▶ adapt() to relieve (Option B)                 │
+   │             fail ─▶ Verdict(&quot;escalated&quot;, &quot;no harm-free config&quot;)          │
+   │ rung 6  commit_outcome(headroom, tier) ─▶ Verdict(&quot;healthy&quot;|&quot;marginal&quot;)  │
+   └─────────────────────────────────────────────────────────────────────────┘
+     │
+     ▼  adapt() — the cost-ordered hill-climb engine                       [adapt.py:165]
+   ┌─────────────────────────────────────────────────────────────────────────┐
+   │ while budget.remaining() &gt; 0:                                            │
+   │   diag ← diagnose(report)            (worst violation; target outranks)   │
+   │   cand ← propose(diag, tier, env, deployer.state, tried, regen_proposer) │
+   │          tier 0 tune → tier 1 reroute → tier 2 regen (LLM seam)          │
+   │   gate.check(cand, env, live_tables) ──reject──▶ record, try next         │
+   │   deployer.apply(cand); budget.spend(); post ← observe_window()          │
+   │   goal(post)?            ─▶ success                                       │
+   │   dominates ∧ improves?  ─▶ keep (hill-climb)   else deployer.rollback()  │
+   └─────────────────────────────────────────────────────────────────────────┘
+     │
+     ▼  back in run_episode():  on healthy|marginal commit                [runtime_manager.py:86]
+        last_good ← deployer.capture();  monitor.rebaseline()
+        best-effort KG writes: verdict, last_good, escalation, re-baseline
+     │
+     ▼
+   EvalResult{ verdict, ticket? }
+</code></pre>
+<p><strong>Contract types crossing each boundary:</strong> <code>DeploymentSpec</code> → (<code>GateResult</code>) →
+<code>MonitorReport</code> → <code>FlowMetrics</code>/<code>Diagnosis</code>/<code>Candidate</code>/<code>GateResult</code> →
+<code>AdaptResult</code>(+<code>AttemptRecord</code> trace) → <code>Verdict</code>/<code>EscalationTicket</code> →
+<code>EvalResult</code>; <code>ConfigSnapshot</code> is captured/rolled-back as an opaque snapshot and
+<code>BaselineSnapshot</code> is persisted to the KG.</p>
+<h3 id="134-architectural-strengths-keep-these">1.3.4 Architectural strengths (keep these)<a class="anchor" href="#134-architectural-strengths-keep-these" title="Permanent link">¶</a></h3>
+<p>These are deliberate and good; the refactors in this review are careful <strong>not</strong> to
+disturb them:</p>
+<ol>
+<li><strong>Pure core / impure shell.</strong> <code>pipeline.py</code>, the deployer's parsers/builders,
+   and the whole adapt/evaluate logic are pure and unit-tested off-node against
+   fakes; only the thin sampler/runner layer does I/O.</li>
+<li><strong>One engine, one goal.</strong> Both "target failing" and "neighbor harmed" enter the
+   <em>same</em> <code>adapt()</code> with <code>GOAL = target_sla_met AND no displaced_harm</code>. No
+   duplicated control logic between the two.</li>
+<li><strong>Safety by construction.</strong> Domination guard (never accept a regression),
+   strict-progress hill-climb, finite quantized candidate grids + <code>tried</code> set
+   (termination), per-episode budget, fail-safe escalation when Tier-2 returns
+   <code>None</code>.</li>
+<li><strong>Best-effort recording.</strong> KG writes can never abort an episode — recording is
+   not the loop's job. (The mechanism has a cost; see Problem #11.)</li>
+<li><strong>Sound gate.</strong> Conservative-by-default: without table state it <em>refuses</em>
+   regen rather than hoping.</li>
+</ol>
+<h3 id="135-the-north-star-clean-architecture">1.3.5 The "north-star" clean architecture<a class="anchor" href="#135-the-north-star-clean-architecture" title="Permanent link">¶</a></h3>
+<p>The target end-state this review's refactors move toward — same behavior, sharper
+seams:</p>
+<pre><code>        ┌────────────── contracts.py ──────────────┐
+        │ dataclasses + Protocols + closed-vocab     │   ← typed seams, not docstrings
+        │ enums/constants (Outcome, SwitchStatus…)   │
+        └───────────────────────────────────────────┘
+                 ▲              ▲              ▲
+   ┌─────────────┘   ┌──────────┘   └───────────────┐
+   │ DeployerProto   │ MonitorProto   │ GateProto    │   ← every collaborator typed
+   │ + TableStateCapable (optional node methods)        │
+   └──────────────────────────────────────────────────┘
+        ▲                                   ▲
+   topology/mechanism config        control-policy object   ← config split: ports/MACs/tc
+   (ports, MACs, tc templates)      (budget, τ, action space)   vs tunable policy, injected
+</code></pre>
+<p>The control loop itself does not move. What changes is that the <em>contracts</em> it
+already depends on informally become checkable, and the one global <code>config</code>
+module splits into "physical mechanism" (topology) and "control policy"
+(tunables) so two configurations can coexist without monkeypatching globals.
+See <a href="03-refactoring-strategy.md">03-refactoring-strategy.md</a>.</p>
+<hr />
+<h2 id="key-takeaways">Key Takeaways<a class="anchor" href="#key-takeaways" title="Permanent link">¶</a></h2>
+<ul>
+<li>
+<p><strong>It's the deterministic inner loop of a two-loop MAPE-K system.</strong> A slow LLM planner (Qwen Instruct on cuda:0) does KG-RAG to pick <em>which</em> SFC and path, writes <code>llm_generated_experiment_config.json</code>, and then stops — it never deploys. RuntimeManager (<code>runtime/</code>) takes that artifact, deploys it to the live P4/BMv2 network, and drives one episode to a terminal verdict via a cost-ordered ladder. The Runtime Manager itself is <em>not</em> an LLM; an LLM only appears as an optional Tier-2 "regenerate the P4 rules" component (Qwen Coder on cuda:1).</p>
+</li>
+<li>
+<p><strong>The doc is split into three altitudes: Whole System, Slow Planner, Runtime Manager.</strong> §1.1 frames the two-loop shape and how the loops coordinate (a typed <code>DeploymentSpec</code>/<code>Verdict</code> contract plus the KG as shared hub — the two never call each other directly). §1.2 covers the outer loop — the planner reads KG topology + candidate set + KG-RAG history, emits a constrained 6-key decision, and stops, handing off via <code>planner_adapter.py</code>. §1.3 is the inner loop and the subject of this review.</p>
+</li>
+<li>
+<p><strong>The planner's choice is load-bearing because the grammar <em>is</em> the KG.</strong> The same <code>orchestration_constraints</code> feed both the GBNF grammar the LLM decodes under and the validator, so grammar-valid ⇒ validator-valid by construction and the LLM cannot emit an SFC/policy the KG doesn't realize. With constrained decoding on (production default) the deterministic fallback is bypassed and the LLM's choice ships — which is why decision quality rested on the LoRA retrain (<a href="05-evolution-from-original.html">05</a> §7).</p>
+</li>
+<li>
+<p><strong>Everything crosses boundaries as typed contracts.</strong> The whole inner loop is choreographed through a small set of immutable-ish dataclasses in <code>contracts.py</code> (<code>DeploymentSpec</code>, <code>MonitorReport</code>, <code>Candidate</code>, <code>Diagnosis</code>, <code>Verdict</code>, <code>EscalationTicket</code>, <code>Envelope</code>, etc.), with timestamps always caller-supplied so behavior is deterministic under test. A <code>DeploymentSpec</code> is the planner→runtime handoff, and <code>Verdict</code> is the terminal outcome — one of <code>healthy | marginal | rollback | escalated | system_fault | rejected</code>.</p>
+</li>
+<li>
+<p><strong>An episode runs as nested ladders, each with file/line anchors.</strong> <code>run_episode()</code> (<code>runtime_manager.py:48</code>) gates first (rejecting without ever deploying), captures live table state, builds a fresh per-episode <code>Budget(N)</code>, observes a window into a <code>MonitorReport</code>, then calls <code>evaluate()</code> (<code>evaluator.py:77</code>). That 6-stage ladder checks system soundness → SLA met → regression-vs-baseline rollback → <code>adapt()</code> → displaced-harm relief → commit, and <code>adapt()</code> (<code>adapt.py:165</code>) is the cost-ordered hill-climb (tier 0 tune → 1 reroute → 2 regen LLM) that loops while budget remains.</p>
+</li>
+<li>
+<p><strong>One engine serves both failure modes, against a single goal.</strong> Whether the target SFC is failing or a neighbor is harmed, both enter the <em>same</em> <code>adapt()</code> with <code>GOAL = target_sla_met AND no displaced_harm</code> — no duplicated control logic. Diagnosis ranks the worst violation with the target outranking, and the runtime <em>never</em> re-selects the SFC (that was the planner's job).</p>
+</li>
+<li>
+<p><strong>Pure core / impure shell is a deliberate, preserved strength.</strong> <code>pipeline.py</code>, the deployer's parsers/builders, and all of the adapt/evaluate logic are pure and unit-tested off-node against fakes (<code>FakeDeployer</code>, <code>FakeMonitor</code>, <code>ScriptedRunner</code>); only a thin sampler/runner layer (<code>node_runner.py</code>, samplers) touches real I/O via <code>simple_switch_CLI</code> over thrift and <code>mnexec</code>.</p>
+</li>
+<li>
+<p><strong>Safety is built in by construction, not bolted on.</strong> A domination guard never accepts a regression, strict-progress hill-climb plus finite quantized candidate grids and a <code>tried</code> set guarantee termination, a per-episode budget bounds work, and Tier-2 returning <code>None</code> triggers fail-safe escalation. The gate is conservative-by-default — without live table state it <em>refuses</em> regen rather than hoping — and KG writes are best-effort so recording can never abort an episode.</p>
+</li>
+<li>
+<p><strong>The north-star is sharper seams, same behavior.</strong> The refactors target turning the contracts the loop already depends on informally into checkable Protocols (<code>DeployerProto</code>, <code>MonitorProto</code>, <code>GateProto</code>, optional <code>TableStateCapable</code>) plus closed-vocabulary enums, and splitting the one global <code>config</code> module into "physical mechanism" (ports, MACs, tc templates) versus injected "control policy" (budget, τ, action space) so two configurations can coexist without monkeypatching globals. The control loop itself does not move (see <code>03-refactoring-strategy.md</code>).</p>
+</li>
+</ul>
+<footer class="doc">Generated from <code>01-architecture.md</code> on 2026-06-29 — RuntimeManager architecture docs.</footer>
+</div>
+</body>
+</html>

@@ -1,0 +1,353 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>9 · Review Set — Digest &amp; Reading Guide</title>
+<style>
+:root { --fg:#1f2328; --muted:#656d76; --link:#0969da; --border:#d0d7de; --bg:#fff;
+        --code-bg:#f6f8fa; --accent:#0969da; }
+* { box-sizing: border-box; }
+body { margin:0; background:var(--bg); color:var(--fg);
+  font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Helvetica,Arial,sans-serif;
+  font-size:16px; line-height:1.6; }
+.wrap { max-width:920px; margin:0 auto; padding:32px 24px 80px; }
+header.doc { border-bottom:1px solid var(--border); margin-bottom:24px; padding-bottom:16px; }
+header.doc h1 { margin:0 0 4px; font-size:1.9rem; }
+header.doc .sub { color:var(--muted); font-size:.9rem; }
+header.doc .sub code { background:var(--code-bg); padding:1px 5px; border-radius:4px; }
+nav.toc { background:var(--code-bg); border:1px solid var(--border); border-radius:8px;
+  padding:12px 16px; margin:0 0 28px; font-size:.92rem; }
+nav.toc .toc-title { font-weight:600; margin-bottom:6px; }
+nav.toc ul { margin:4px 0; padding-left:20px; }
+nav.toc a { color:var(--link); text-decoration:none; }
+nav.toc a:hover { text-decoration:underline; }
+h1,h2,h3,h4 { line-height:1.25; margin-top:1.6em; margin-bottom:.5em; font-weight:600; }
+h2 { border-bottom:1px solid var(--border); padding-bottom:.3em; }
+h1 { font-size:1.7rem; } h2 { font-size:1.4rem; } h3 { font-size:1.15rem; } h4 { font-size:1rem; }
+a { color:var(--link); text-decoration:none; } a:hover { text-decoration:underline; }
+p, li { overflow-wrap:break-word; }
+code { background:var(--code-bg); padding:.15em .4em; border-radius:5px;
+  font-family:ui-monospace,SFMono-Regular,"SF Mono",Menlo,Consolas,monospace; font-size:.88em; }
+pre { background:var(--code-bg); border:1px solid var(--border); border-radius:8px;
+  padding:14px 16px; overflow-x:auto; line-height:1.45; }
+pre code { background:none; padding:0; font-size:.82rem; white-space:pre; }
+blockquote { margin:1em 0; padding:.4em 1em; color:var(--muted);
+  border-left:4px solid var(--border); background:#f6f8fa55; }
+blockquote p { margin:.4em 0; }
+table { border-collapse:collapse; width:100%; margin:1.2em 0; font-size:.93rem; display:block; overflow-x:auto; }
+th, td { border:1px solid var(--border); padding:7px 12px; text-align:left; vertical-align:top; }
+th { background:var(--code-bg); font-weight:600; }
+tr:nth-child(even) td { background:#f6f8fa55; }
+hr { border:0; border-top:1px solid var(--border); margin:2em 0; }
+.anchor { visibility:hidden; padding-right:6px; text-decoration:none; color:var(--muted); }
+h1:hover .anchor, h2:hover .anchor, h3:hover .anchor, h4:hover .anchor { visibility:visible; }
+footer.doc { margin-top:48px; padding-top:16px; border-top:1px solid var(--border);
+  color:var(--muted); font-size:.82rem; }
+@media (max-width:640px){ .wrap{padding:20px 14px 60px;} body{font-size:15px;} }
+</style>
+</head>
+<body>
+<div class="wrap">
+<header class="doc">
+  <h1>9 · Review Set — Digest &amp; Reading Guide</h1>
+  <div class="sub">RuntimeManager / KRONOS architecture review</div>
+</header>
+<nav class="toc"><div class="toc-title">Contents</div><div class="toc">
+<ul>
+<li><a href="#9-review-set-digest-reading-guide">9 · Review Set — Digest &amp; Reading Guide</a><ul>
+<li><a href="#how-to-read-this-set">How to read this set</a></li>
+<li><a href="#00-readme-index-verdict">00 · README — index &amp; verdict</a></li>
+<li><a href="#01-architecture-breakdown">01 · Architecture breakdown</a></li>
+<li><a href="#02-critical-problem-areas">02 · Critical problem areas</a></li>
+<li><a href="#03-refactoring-strategy">03 · Refactoring strategy</a></li>
+<li><a href="#04-production-grade-code">04 · Production-grade code</a></li>
+<li><a href="#05-evolution-from-the-original">05 · Evolution from the original</a></li>
+<li><a href="#06-the-knowledge-graph">06 · The Knowledge Graph</a></li>
+<li><a href="#07-workflow-usage">07 · Workflow &amp; usage</a></li>
+<li><a href="#08-novelty-assessment-edge-network-use-cases">08 · Novelty assessment &amp; edge-network use cases</a></li>
+<li><a href="#master-facts-table-all-verified">Master facts table (all verified)</a></li>
+<li><a href="#current-implementation-status">Current implementation status</a></li>
+<li><a href="#key-takeaways">Key Takeaways</a></li>
+</ul>
+</li>
+</ul>
+</div>
+</nav>
+<h1 id="9-review-set-digest-reading-guide">9 · Review Set — Digest &amp; Reading Guide<a class="anchor" href="#9-review-set-digest-reading-guide" title="Permanent link">¶</a></h1>
+<p>A one-screen summary of every document in <code>docs/architecture-review/</code>: what each
+one is for, what's inside, the headline takeaways, and (where relevant) its
+implementation status. Read this first to decide which document you need.</p>
+<hr />
+<h2 id="how-to-read-this-set">How to read this set<a class="anchor" href="#how-to-read-this-set" title="Permanent link">¶</a></h2>
+<pre><code>00-README ──▶ 09-summary (you are here)
+   │
+   ├─ Understand the system ........ 01-architecture · 06-knowledge-graph
+   ├─ See what's wrong / debt ...... 02-critical-problems
+   ├─ Plan &amp; apply fixes ........... 03-refactoring-strategy · 04-production-code
+   ├─ Run / operate the system ..... 07-workflow-and-usage
+   ├─ Novelty vs the state of the art  08-novelty
+   └─ Understand how it got here ... 05-evolution-from-original
+</code></pre>
+<ul>
+<li><strong>New to the codebase?</strong> 01 → 06 → 05.</li>
+<li><strong>Reviewing / triaging debt?</strong> 02 → 03 → 04.</li>
+<li><strong>Running or operating it?</strong> 07-workflow-and-usage (lifecycle + commands).</li>
+<li><strong>Asking "is any of this novel"?</strong> 08-novelty (honest, prior-art-grounded).</li>
+<li><strong>Ready to run experiments?</strong> <a href="../experiments/experiment-validity.md"><code>../experiments/experiment-validity.md</code></a> (validity audit + go/no-go), <a href="../experiments/experiment-design.md"><code>../experiments/experiment-design.md</code></a> (the 3 experiments), and <a href="../experiments/results/experiment-results.md"><code>../experiments/results/experiment-results.md</code></a> (recorded E2a/E1 results).</li>
+<li><strong>Writing the paper / status report?</strong> 05 → 06 → 08 (metrics + defensible framing).</li>
+</ul>
+<p><strong>Baseline that anchors everything:</strong> <code>pytest tests/unit</code> → <strong>212 passed in
+~0.3 s</strong>. Every applied change kept it green.</p>
+<hr />
+<h2 id="00-readme-index-verdict">00 · README — index &amp; verdict<a class="anchor" href="#00-readme-index-verdict" title="Permanent link">¶</a></h2>
+<p><strong>Purpose:</strong> entry point; one-paragraph verdict + how the review was produced.
+<strong>Inside:</strong> the document table, the multi-agent + adversarial-verification method,
+and the headline conclusion.
+<strong>Takeaway:</strong> the <code>runtime/</code> control logic is genuinely well-engineered — the debt
+is at the <em>edges</em> (a forked-duplicate archive, docstring-only contracts, a few
+hot-path costs), all fixable without changing behavior.</p>
+<hr />
+<h2 id="01-architecture-breakdown">01 · Architecture breakdown<a class="anchor" href="#01-architecture-breakdown" title="Permanent link">¶</a></h2>
+<p><strong>Purpose:</strong> reverse-engineered architecture + complete data flow.
+<strong>Inside:</strong>
+- The <strong>two-loop MAPE-K</strong> model (slow LLM planner → deterministic <code>RuntimeManager</code>).
+- A component map of every <code>runtime/</code> module and the core data contracts.
+- An <strong>end-to-end episode trace</strong> — <code>DeploymentSpec</code> → gate → <code>observe_window</code> →
+  6-stage evaluator ladder → tiered <code>adapt</code> → commit/rollback/escalate — naming
+  the contract type crossing each boundary.
+- The architectural <em>strengths</em> to preserve, and a "north-star" target shape.
+<strong>Takeaway:</strong> one engine, one goal, pure/testable cores, safety-by-construction
+(domination guard, hysteresis, fail-safe escalation). Don't rewrite the loop.</p>
+<hr />
+<h2 id="02-critical-problem-areas">02 · Critical problem areas<a class="anchor" href="#02-critical-problem-areas" title="Permanent link">¶</a></h2>
+<p><strong>Purpose:</strong> the issues, across the 5 requested dimensions, severity-ranked with
+<code>file:line</code> evidence.
+<strong>Inside (the 4 HIGH items):</strong>
+1. <strong>~1.1 GB of forked-duplicate <code>network/</code> archive</strong> committed to git.
+2. <strong><code>observe_window()</code> subprocess storm</strong> on every adapt attempt.
+3. <strong>Blocking, un-timed LLM inference</strong> in the loop.
+4. <strong>Magic-string vocabularies</strong> (outcomes / switch-status / metrics) duplicated
+   across 6 files (✅ fixed in Phase 1 — the M1 refactor, commit <code>e5e9d8c</code>).
+Plus MEDIUM/LOW items — the margin-formula dup (✅ D2, Phase 1) and docstring-only
+protocols (✅ A1, Phase 1) are resolved; in-memory <code>last_good</code> and per-statement KG
+sessions remain open (Phase 2/3) — and an <strong>appendix of 3 <em>cleared</em> claims</strong>
+(the shared <code>Budget</code>, the <code>policy_type</code> sniff, the Fake/real divergence) that are
+documented, deliberate design — not bugs.
+<strong>Takeaway:</strong> calibrated, not alarmist; severities are post-adversarial-verification.</p>
+<hr />
+<h2 id="03-refactoring-strategy">03 · Refactoring strategy<a class="anchor" href="#03-refactoring-strategy" title="Permanent link">¶</a></h2>
+<p><strong>Purpose:</strong> a sequenced, low-risk-first plan with test gates.
+<strong>Inside:</strong> four phases —
+- <strong>Phase 0 — hygiene</strong> (delete duplicates/shadows; <code>.gitignore</code>) — zero code risk.
+- <strong>Phase 1 — typing &amp; vocabularies</strong> (constants, margin helper, <code>_EPS</code>, Protocols).
+- <strong>Phase 2 — performance</strong> (parallel pings, regen warmup+timeout, KG batching,
+  <code>table_state</code>/liveness guards) — each defaulted to today's exact behavior.
+- <strong>Phase 3 — scalability</strong> (KG-backed <code>last_good</code>, config split) — the only phase
+  that adds a new code path; opt-in.
+<strong>Status:</strong> <strong>Phase 0 ✅ done</strong> (commit <code>f9eab54</code>), <strong>Phase 1 ✅ done</strong>
+(commit <code>e5e9d8c</code>). Phases 2–3 remain proposed.</p>
+<hr />
+<h2 id="04-production-grade-code">04 · Production-grade code<a class="anchor" href="#04-production-grade-code" title="Permanent link">¶</a></h2>
+<p><strong>Purpose:</strong> drop-in, behavior-preserving before/after for the top fixes.
+<strong>Inside:</strong> 8 refactors — <strong>M1</strong> vocabularies, <strong>D2</strong> margin helper, <strong>P1</strong> parallel
+pings, <strong>P3</strong> regen warmup+deadline, <strong>A1</strong> Protocols, <strong>D1/D3/D5</strong> deletions,
+<strong>D4</strong> scrape module — each with an explicit "why behavior is unchanged" argument.
+<strong>Status:</strong> the M1/D2/A1 refactors and the D1/D3/D5 deletions were <strong>applied</strong> in
+Phases 0–1. P1/P3 (performance) remain ready-to-apply proposals.
+<strong>Takeaway:</strong> every change is verified against the 212-test baseline; the doc is
+the reference for the remaining Phase 2 work.</p>
+<hr />
+<h2 id="05-evolution-from-the-original">05 · Evolution from the original<a class="anchor" href="#05-evolution-from-the-original" title="Permanent link">¶</a></h2>
+<p><strong>Purpose:</strong> how the system grew from Bishwas &amp; Kiran's original NetPrompt to today.
+<strong>Inside:</strong> original → current across the <strong>slow planner</strong>, <strong>KG</strong>, <strong>selector</strong>,
+<strong>test environment</strong>, <strong>architecture/workflow</strong>, the <strong>two models</strong>, and the
+<strong>LoRA retraining</strong> — the centerpiece.
+<strong>Verified headline numbers:</strong>
+- Selector: hardcoded Cypher + if/elif ladder → constrained 6-key LLM decision.
+- Tests: <strong>0 assertions</strong> (human-read <code>.txt</code>) → <strong>212 unit / 454 asserts +
+  16 node-integration / 62 asserts</strong>.
+- Retrain: distilled the <code>fallback_decision</code> oracle into a fresh LoRA — <strong>640
+  balanced examples</strong>, r=16/α=32 (<strong>18.46 M params, 1.18%</strong>), 3 epochs fp32,
+  <strong>final loss 0.0066</strong> → broke the always-LowLatency collapse (<strong>4/4 known
+  missions</strong>; 0/4 telemetry-only — the open gap). Promoted 2026-06-19.
+<strong>Takeaway:</strong> open-loop one-shot → closed-loop self-adapting; honest scorecard of
+what shipped vs what's still open.</p>
+<hr />
+<h2 id="06-the-knowledge-graph">06 · The Knowledge Graph<a class="anchor" href="#06-the-knowledge-graph" title="Permanent link">¶</a></h2>
+<p><strong>Purpose:</strong> the KG as the system's coordination hub.
+<strong>Inside:</strong>
+- The KG (<strong>29 nodes / 38 relationships</strong>) split into a <strong>strategic</strong> zone (seeded,
+  read-mostly) and a <strong>runtime</strong> zone (written by the inner loop).
+- How the <strong>slow planner</strong> reads it (topology status → <code>allowed_relays</code>;
+  <code>REALIZED_BY_P4_POLICY</code> → the candidate set that drives <em>both</em> the
+  constrained-decoding grammar and the validator).
+- How the <strong>runtime</strong> reads strategic bounds (<code>build_envelope</code>) and writes runtime
+  state only (status/verdicts/snapshots), idempotent + provenance-tagged.
+- How the <strong>three model surfaces</strong> relate to it — decision LLM is KG-grounded; the
+  regen LLM reads the deployer's live <code>table_state</code>, <strong>not</strong> the KG; the loop is
+  deterministic.
+- Improvements (destructive import → idempotent seed; hardcoded status →
+  monitor-computed) and a <strong>novelty</strong> section: a KG-coordinated, multi-model,
+  <strong>neuro-symbolic</strong> design where the grammar <em>is</em> the KG candidate set.
+<strong>Takeaway:</strong> the KG is the only shared mutable state, with a clean read/write
+ownership contract — that contract is the architecture.</p>
+<hr />
+<h2 id="07-workflow-usage">07 · Workflow &amp; usage<a class="anchor" href="#07-workflow-usage" title="Permanent link">¶</a></h2>
+<p><strong>Purpose:</strong> how to actually run and operate the system.
+<strong>Inside:</strong>
+- The <strong>six-stage lifecycle</strong> (seed KG → launch testbed → plan → episode → verify →
+  feedback), with a stage/component/command table.
+- The full <strong>end-to-end run</strong> with real, ground-truthed commands, and the <strong>three
+  ways to run an episode</strong> (scenario / planner / soak) picked by intent.
+- The <strong>two models</strong> (swap adapters, retrain, regen tools), the <strong>testing
+  workflow</strong> (212 unit / 16 integration), the closed <strong>feedback loop</strong>,
+  <strong>operational gotchas</strong>, and a <strong>command cheat-sheet</strong>.
+<strong>Takeaway:</strong> frames the operational lifecycle and the <em>why</em>; cross-links
+<a href="../guides/usage.md"><code>docs/guides/usage.md</code></a> as the canonical flag-level reference. The inner
+loop runs with no LLM by default (Tier-2 stubbed → escalate).</p>
+<hr />
+<h2 id="08-novelty-assessment-edge-network-use-cases">08 · Novelty assessment &amp; edge-network use cases<a class="anchor" href="#08-novelty-assessment-edge-network-use-cases" title="Permanent link">¶</a></h2>
+<p><strong>Purpose:</strong> answer "is any of this genuinely novel vs the state of the art?" — and
+where the system could realistically apply.
+<strong>Inside:</strong>
+- An adversarial assessment of <strong>10 candidate novelties</strong> (prior-art research + a
+  skeptic pass). Verdict: <strong>none is individually novel</strong> — 3 are established SOTA,
+  7 are known patterns in a specific instantiation, <strong>0</strong> reached moderate/notable.
+- The closest <strong>prior art per claim</strong> (GENRE/PICARD for the KG-derived grammar,
+  Geng et al. for GBNF decoding, Reflexion for feedback, Symbiotic Agents for the
+  two-loop, shielding for the safety wrap, P4SC/P4-SFC for the testbed).
+- The <strong>defensible residual</strong> (a systems/integration + real-testbed contribution,
+  framed soberly) and <strong>recommended paper framing</strong>.
+- <strong>Six edge-network use cases</strong> (MEC slicing, tactical mesh, IIoT, V2X, LEO/NTN,
+  security SFC/SASE) — creative but realistic, each mapped to the real mechanisms.
+<strong>Takeaway:</strong> the doc-06 novelty language is <em>design rationale</em>, not a research
+claim; sell the integration and the safety discipline, not any single technique.</p>
+<hr />
+<h2 id="master-facts-table-all-verified">Master facts table (all verified)<a class="anchor" href="#master-facts-table-all-verified" title="Permanent link">¶</a></h2>
+<table>
+<thead>
+<tr>
+<th>Fact</th>
+<th>Value</th>
+<th>Source</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Unit tests / assertions</td>
+<td>212 / 454</td>
+<td><code>pytest --co</code>, <code>grep assert</code></td>
+</tr>
+<tr>
+<td>Integration tests / assertions (node-gated)</td>
+<td>16 / 62</td>
+<td><code>pytest --co tests/integration</code></td>
+</tr>
+<tr>
+<td>Assertions in original experiment scripts</td>
+<td>0</td>
+<td><code>grep -c assert</code></td>
+</tr>
+<tr>
+<td>Working-tree duplication removed (Phase 0)</td>
+<td>~664 MB</td>
+<td><code>du -sh</code> of deleted trees</td>
+</tr>
+<tr>
+<td>KG size</td>
+<td>29 nodes / 38 relationships</td>
+<td><code>drone_sfc_kg.json</code></td>
+</tr>
+<tr>
+<td>BMv2 fabric</td>
+<td>3 switches (s1/s2/s3, thrift 9090–9092)</td>
+<td><code>launch_network.py</code></td>
+</tr>
+<tr>
+<td>Decision model</td>
+<td>Qwen2.5-1.5B-Instruct + LoRA, cuda:0</td>
+<td><code>gpu-node.env</code></td>
+</tr>
+<tr>
+<td>Regen model</td>
+<td>Qwen2.5-Coder-1.5B-Instruct, cuda:1 (pinned rev)</td>
+<td><code>gpu-node.env</code></td>
+</tr>
+<tr>
+<td>Retrain dataset / loss</td>
+<td>640 examples (160/SFC) / final loss 0.0066</td>
+<td><code>train_decision_lora.py</code>, <code>planner-lora-retrain.md</code></td>
+</tr>
+<tr>
+<td>Retrain result</td>
+<td>4/4 known missions; 0/4 telemetry-only</td>
+<td><code>planner-lora-eval.md</code></td>
+</tr>
+<tr>
+<td>SLA bound recalibration</td>
+<td>20/50 ms → 45/60 ms</td>
+<td><code>generate_kg.py</code></td>
+</tr>
+</tbody>
+</table>
+<hr />
+<h2 id="current-implementation-status">Current implementation status<a class="anchor" href="#current-implementation-status" title="Permanent link">¶</a></h2>
+<table>
+<thead>
+<tr>
+<th>Item</th>
+<th>Status</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Phase 0 — repo hygiene</td>
+<td>✅ committed (<code>f9eab54</code>)</td>
+</tr>
+<tr>
+<td>Phase 1 — typing &amp; vocabularies</td>
+<td>✅ committed (<code>e5e9d8c</code>)</td>
+</tr>
+<tr>
+<td>Phase 2 — performance</td>
+<td>proposed (<a href="04-production-code.md">04</a> P1/P3)</td>
+</tr>
+<tr>
+<td>Phase 3 — scalability</td>
+<td>proposed (<a href="03-refactoring-strategy.md">03</a>)</td>
+</tr>
+<tr>
+<td>Review documents (00–09)</td>
+<td>committed</td>
+</tr>
+</tbody>
+</table>
+<p><em>This digest is generated from the review documents it summarizes; if those
+change, update the relevant section here.</em></p>
+<hr />
+<h2 id="key-takeaways">Key Takeaways<a class="anchor" href="#key-takeaways" title="Permanent link">¶</a></h2>
+<ul>
+<li>
+<p><strong>Read this digest first, then jump to the document you need.</strong> <code>09-summary.md</code> is a one-screen reading guide to the nine docs in <code>docs/architecture-review/</code>. Follow the routing it gives: new to the codebase → 01 → 06 → 05; triaging debt → 02 → 03 → 04; running or operating it → 07-workflow-and-usage; asking whether any of it is novel → 08-novelty; writing the paper or status report → 05 → 06 → 08, where the verified metrics and the honest framing live.</p>
+</li>
+<li>
+<p><strong>The single most important conclusion: don't rewrite the loop.</strong> The <code>runtime/</code> control logic (a two-loop MAPE-K model: slow LLM planner → deterministic <code>RuntimeManager</code>) is genuinely well-engineered, with safety-by-construction (domination guard, hysteresis, fail-safe escalation). The debt was at the <em>edges</em> — a ~1.1 GB forked-duplicate archive (✅ removed in Phase 0), docstring-only contracts and magic-string vocabularies (✅ fixed in Phase 1), and a few still-open hot-path costs (Phase 2) — all fixable without changing behavior.</p>
+</li>
+<li>
+<p><strong>Implementation status: Phases 0 and 1 are committed; Phases 2 and 3 are still proposed.</strong> Phase 0 (repo hygiene, removing ~664 MB of working-tree duplication) landed in commit <code>f9eab54</code>, and Phase 1 (typing &amp; vocabularies — constants, margin helper, <code>_EPS</code>, Protocols) landed in <code>e5e9d8c</code>. Phase 2 (performance: parallel pings, regen warmup+timeout — the P1/P3 fixes in doc 04) and Phase 3 (scalability: KG-backed <code>last_good</code>, config split — doc 03) remain ready-to-apply but unapplied.</p>
+</li>
+<li>
+<p><strong>Every claim is verified and every applied change kept the tests green.</strong> The baseline that anchors everything is <code>pytest tests/unit</code> → 212 passed in ~0.3 s (212 tests / 454 assertions), up from 0 assertions in the original human-read <code>.txt</code> scripts. Severities in doc 02 are post-adversarial-verification — calibrated, not alarmist — and even include an appendix of 3 <em>cleared</em> claims that turned out to be deliberate design rather than bugs.</p>
+</li>
+<li>
+<p><strong>The headline research results live in docs 05 and 06.</strong> The LoRA retrain distilled the <code>fallback_decision</code> oracle into 640 balanced examples (r=16/α=32, 18.46 M params / 1.18%), hit final loss 0.0066, and broke the always-LowLatency collapse — 4/4 known missions but 0/4 telemetry-only (the open gap), promoted 2026-06-19. The KG is 29 nodes / 38 relationships and is the only shared mutable state, governed by a clean read/write ownership contract that the doc calls "the architecture."</p>
+</li>
+<li>
+<p><strong>This file is generated from the docs it summarizes — keep it in sync.</strong> As its closing note states, the digest is derived from the nine review documents it covers (00–08), so if those change the relevant section here must be updated. The master facts table and the current-implementation-status table give you the verified numbers and commit hashes at a glance without re-reading the source docs.</p>
+</li>
+</ul>
+<footer class="doc">Generated from <code>09-summary.md</code> on 2026-06-29 — RuntimeManager architecture docs.</footer>
+</div>
+</body>
+</html>

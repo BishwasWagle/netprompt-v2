@@ -1,0 +1,387 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>8 · Novelty Assessment &amp; Edge-Network Use Cases</title>
+<style>
+:root { --fg:#1f2328; --muted:#656d76; --link:#0969da; --border:#d0d7de; --bg:#fff;
+        --code-bg:#f6f8fa; --accent:#0969da; }
+* { box-sizing: border-box; }
+body { margin:0; background:var(--bg); color:var(--fg);
+  font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Helvetica,Arial,sans-serif;
+  font-size:16px; line-height:1.6; }
+.wrap { max-width:920px; margin:0 auto; padding:32px 24px 80px; }
+header.doc { border-bottom:1px solid var(--border); margin-bottom:24px; padding-bottom:16px; }
+header.doc h1 { margin:0 0 4px; font-size:1.9rem; }
+header.doc .sub { color:var(--muted); font-size:.9rem; }
+header.doc .sub code { background:var(--code-bg); padding:1px 5px; border-radius:4px; }
+nav.toc { background:var(--code-bg); border:1px solid var(--border); border-radius:8px;
+  padding:12px 16px; margin:0 0 28px; font-size:.92rem; }
+nav.toc .toc-title { font-weight:600; margin-bottom:6px; }
+nav.toc ul { margin:4px 0; padding-left:20px; }
+nav.toc a { color:var(--link); text-decoration:none; }
+nav.toc a:hover { text-decoration:underline; }
+h1,h2,h3,h4 { line-height:1.25; margin-top:1.6em; margin-bottom:.5em; font-weight:600; }
+h2 { border-bottom:1px solid var(--border); padding-bottom:.3em; }
+h1 { font-size:1.7rem; } h2 { font-size:1.4rem; } h3 { font-size:1.15rem; } h4 { font-size:1rem; }
+a { color:var(--link); text-decoration:none; } a:hover { text-decoration:underline; }
+p, li { overflow-wrap:break-word; }
+code { background:var(--code-bg); padding:.15em .4em; border-radius:5px;
+  font-family:ui-monospace,SFMono-Regular,"SF Mono",Menlo,Consolas,monospace; font-size:.88em; }
+pre { background:var(--code-bg); border:1px solid var(--border); border-radius:8px;
+  padding:14px 16px; overflow-x:auto; line-height:1.45; }
+pre code { background:none; padding:0; font-size:.82rem; white-space:pre; }
+blockquote { margin:1em 0; padding:.4em 1em; color:var(--muted);
+  border-left:4px solid var(--border); background:#f6f8fa55; }
+blockquote p { margin:.4em 0; }
+table { border-collapse:collapse; width:100%; margin:1.2em 0; font-size:.93rem; display:block; overflow-x:auto; }
+th, td { border:1px solid var(--border); padding:7px 12px; text-align:left; vertical-align:top; }
+th { background:var(--code-bg); font-weight:600; }
+tr:nth-child(even) td { background:#f6f8fa55; }
+hr { border:0; border-top:1px solid var(--border); margin:2em 0; }
+.anchor { visibility:hidden; padding-right:6px; text-decoration:none; color:var(--muted); }
+h1:hover .anchor, h2:hover .anchor, h3:hover .anchor, h4:hover .anchor { visibility:visible; }
+footer.doc { margin-top:48px; padding-top:16px; border-top:1px solid var(--border);
+  color:var(--muted); font-size:.82rem; }
+@media (max-width:640px){ .wrap{padding:20px 14px 60px;} body{font-size:15px;} }
+</style>
+</head>
+<body>
+<div class="wrap">
+<header class="doc">
+  <h1>8 · Novelty Assessment &amp; Edge-Network Use Cases</h1>
+  <div class="sub">RuntimeManager / KRONOS architecture review</div>
+</header>
+<nav class="toc"><div class="toc-title">Contents</div><div class="toc">
+<ul>
+<li><a href="#8-novelty-assessment-edge-network-use-cases">8 · Novelty Assessment &amp; Edge-Network Use Cases</a><ul>
+<li><a href="#91-the-honest-verdict-read-this-first">9.1 The honest verdict (read this first)</a></li>
+<li><a href="#92-per-claim-assessment">9.2 Per-claim assessment</a></li>
+<li><a href="#93-the-one-place-to-be-careful-not-to-overclaim">9.3 The one place to be careful not to overclaim</a></li>
+<li><a href="#94-what-this-corrects-in-doc-06">9.4 What this corrects in doc 06</a></li>
+<li><a href="#95-so-what-honestly-stands-out-the-defensible-residual">9.5 So what, honestly, stands out? (the defensible residual)</a></li>
+<li><a href="#96-recommended-framing-for-a-paper">9.6 Recommended framing for a paper</a></li>
+<li><a href="#97-edge-network-use-cases-creative-but-realistic">9.7 Edge-network use cases (creative, but realistic)</a><ul>
+<li><a href="#uc1-5g6g-mec-network-slice-orchestration-flagship">UC1 · 5G/6G MEC network-slice orchestration (flagship)</a></li>
+<li><a href="#uc2-tactical-disaster-response-edge-mesh-native-domain">UC2 · Tactical / disaster-response edge mesh (native domain)</a></li>
+<li><a href="#uc3-industrial-iot-smart-factory-programmable-floor-tsn-adjacent">UC3 · Industrial IoT / smart-factory programmable floor (TSN-adjacent)</a></li>
+<li><a href="#uc4-v2x-roadside-unit-rsu-edge">UC4 · V2X / roadside-unit (RSU) edge</a></li>
+<li><a href="#uc5-leo-ntn-satellite-haps-non-terrestrial-edge">UC5 · LEO / NTN (satellite + HAPS) non-terrestrial edge</a></li>
+<li><a href="#uc6-multi-tenant-edge-security-sase-the-most-literal-fit">UC6 · Multi-tenant edge security / SASE (the most literal fit)</a></li>
+</ul>
+</li>
+<li><a href="#key-takeaways">Key Takeaways</a></li>
+</ul>
+</li>
+</ul>
+</div>
+</nav>
+<h1 id="8-novelty-assessment-edge-network-use-cases">8 · Novelty Assessment &amp; Edge-Network Use Cases<a class="anchor" href="#8-novelty-assessment-edge-network-use-cases" title="Permanent link">¶</a></h1>
+<p>This document answers a direct question — <em>are the "novelties" (especially the KG
+ones in <a href="06-knowledge-graph.html">06</a>) genuine?</em> — with an honest, prior-art-grounded
+assessment, and then explores where the <strong>system</strong> could realistically apply, with
+a focus on edge networks.</p>
+<hr />
+<h2 id="91-the-honest-verdict-read-this-first">9.1 The honest verdict (read this first)<a class="anchor" href="#91-the-honest-verdict-read-this-first" title="Permanent link">¶</a></h2>
+<p><strong>No individual technique in this system is novel.</strong> An adversarial assessment of
+10 candidate novelties — each researched for prior art, with a skeptic pass to
+<em>kill</em> any survivor — found:</p>
+<table>
+<thead>
+<tr>
+<th>Rating</th>
+<th>Count</th>
+<th>Claims</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>none</strong> (established SOTA)</td>
+<td>3</td>
+<td>KG-RAG decision grounding · grammar-constrained decoding · P4/BMv2 testbed realization</td>
+</tr>
+<tr>
+<td><strong>incremental</strong> (known pattern, specific instantiation)</td>
+<td>7</td>
+<td>KG-as-hub · KG-derived grammar · two-loop MAPE-K · two-LLMs-at-altitudes · closed feedback · safety wrap · oracle→LoRA distillation</td>
+</tr>
+<tr>
+<td><strong>moderate / notable</strong></td>
+<td>0</td>
+<td>—</td>
+</tr>
+</tbody>
+</table>
+<p>Zero claims reached "moderate," so none even needed refuting. This <strong>corrects the
+enthusiastic framing in <a href="06-knowledge-graph.html">06 §6.7</a></strong>: phrases there like
+"genuinely novel," "neuro-symbolic novelty," and "the grammar <em>is</em> the KG" describe
+<em>good engineering</em>, not new science. Treat 06's novelty section as <strong>design
+rationale</strong>; treat this document as the calibrated reality check.</p>
+<p><strong>What this means:</strong> if there is a contribution worth publishing, it is a
+<strong>systems / integration + domain</strong> contribution — "we <em>compose and apply</em> known
+techniques to make a small LLM safely orchestrate SFCs on a real programmable edge
+network" — <strong>not</strong> a method contribution. Frame accordingly (§9.5–9.6).</p>
+<blockquote>
+<p><strong>Method &amp; limits.</strong> This was an LLM-driven adversarial assessment (web search +
+model knowledge), not a systematic literature review. The <em>canonical</em> prior art
+below (GENRE, PICARD, Reflexion, Geng et al., shielding, P4SC/P4-SFC, Hearsay-II)
+is well established and safe to cite. The <em>bleeding-edge 2025–2026 arXiv IDs</em> the
+assessment surfaced (e.g. for GraphRAG-for-wireless, Symbiotic Agents,
+LLM-SFC-orchestration) are <strong>plausible but must be verified before formal
+citation</strong> — do not paste IDs into a paper unchecked.</p>
+</blockquote>
+<hr />
+<h2 id="92-per-claim-assessment">9.2 Per-claim assessment<a class="anchor" href="#92-per-claim-assessment" title="Permanent link">¶</a></h2>
+<p>For each candidate: the closest prior art that already does it, and how to frame it
+honestly.</p>
+<table>
+<thead>
+<tr>
+<th>Claim</th>
+<th>Closest prior art</th>
+<th>Rating</th>
+<th>Honest framing</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>KG as coordination hub / blackboard</strong> (read-strategic / write-runtime split)</td>
+<td>Blackboard architecture (Hearsay-II, 1970s–80s); LLM multi-agent blackboard systems; MAPE-K shared "Knowledge"; control/data-plane authority splits</td>
+<td>incremental</td>
+<td>"We <em>adopt</em> the blackboard pattern as a Neo4j KG unifying RAG source + coordination state + feedback channel, under an explicit read/write ownership discipline." Not a new substrate.</td>
+</tr>
+<tr>
+<td><strong>KG-RAG to ground an SFC decision</strong></td>
+<td>GraphRAG / KG-RAG for wireless &amp; telecom; KG-RAG candidate retrieval for decisions; LLM intent/SFC orchestration</td>
+<td><strong>none</strong></td>
+<td>"We <em>apply</em> KG-RAG to SFC selection." Do not claim the idea.</td>
+</tr>
+<tr>
+<td><strong>Grammar-constrained (GBNF) decoding</strong></td>
+<td>Geng et al., <em>Grammar-Constrained Decoding</em>, EMNLP 2023; llama.cpp GBNF, Outlines, jsonformer, XGrammar</td>
+<td><strong>none</strong></td>
+<td>"We <em>use</em> GBNF to guarantee a complete 6-key decision from a 1.5B model." Pure engineering choice.</td>
+</tr>
+<tr>
+<td><strong>KG-derived grammar</strong> ("the grammar is the data" — model can't emit an unrealizable SFC/policy)</td>
+<td><strong>GENRE</strong> (De Cao et al., 2020 — KB-entity trie constraint); <strong>PICARD</strong> (Scholak et al., 2021 — live DB-schema constraint); standard data-derived grammars</td>
+<td>incremental</td>
+<td>"We <em>apply</em> schema/KB-grounded constrained decoding (cf. GENRE, PICARD) so the planner can only emit a KG-realizable chain." The strongest-looking claim, still prior art.</td>
+</tr>
+<tr>
+<td><strong>Two-loop slow-LLM + deterministic MAPE-K</strong></td>
+<td>"Symbiotic Agents" two-time-scale LLM+control for 5G/6G; LLM-over-MAPE-K autonomic computing; IBN "LLM decides what, deterministic decides how"; cost-ordered adaptation</td>
+<td>incremental</td>
+<td>"We <em>instantiate</em> the slow-LLM/fast-deterministic split for SFC."</td>
+</tr>
+<tr>
+<td><strong>Two LLMs at different altitudes</strong> (Instruct decision + Coder rule-gen)</td>
+<td>Hierarchical LLM agents: high-level planner + low-level code/action controller</td>
+<td>incremental</td>
+<td>"We <em>bind</em> a decision Instruct model and a code Coder model to two altitudes."</td>
+</tr>
+<tr>
+<td><strong>Closed feedback loop</strong> (verdicts → reliability signal → planner context)</td>
+<td>Reflexion (verbal feedback to episodic memory); graph-based agent memory; IBN closed-loop assurance</td>
+<td>incremental</td>
+<td>"We <em>adapt</em> Reflexion-style/graph-memory feedback to SFC reliability."</td>
+</tr>
+<tr>
+<td><strong>Deterministic safety wrap</strong> (gate L0–L3 + domination guard, so LLM weakness degrades capability not safety)</td>
+<td>Safe-RL <strong>shielding</strong> / correct-by-construction runtime enforcement; defense-in-depth guardrails; IBN pre-deployment verification</td>
+<td>incremental</td>
+<td>"We <em>apply</em> shielding/runtime-enforcement so LLM error can't blackhole the network." A strong <em>engineering</em> point, not a new guarantee.</td>
+</tr>
+<tr>
+<td><strong>Oracle → LoRA distillation</strong> (distill the rule fallback to fix mode-collapse)</td>
+<td>Behavior cloning / imitation (DAgger, Ross et al. 2011); neuro-symbolic teacher→student distillation; class-balanced SFT</td>
+<td>incremental</td>
+<td>"We <em>recover</em> a mode-collapsed planner by cloning its own rule oracle." A practical recipe.</td>
+</tr>
+<tr>
+<td><strong>Realization on a real P4/BMv2 testbed</strong></td>
+<td>P4SC, P4-SFC (live MAT install + measured traffic on BMv2/Tofino)</td>
+<td><strong>none</strong></td>
+<td>Frame as honest <em>evaluation/validation</em>, not novelty.</td>
+</tr>
+</tbody>
+</table>
+<hr />
+<h2 id="93-the-one-place-to-be-careful-not-to-overclaim">9.3 The one place to be careful not to overclaim<a class="anchor" href="#93-the-one-place-to-be-careful-not-to-overclaim" title="Permanent link">¶</a></h2>
+<p>The KG-derived grammar is the most seductive "novelty" because it sounds
+neuro-symbolic and bespoke. It is not: <strong>GENRE</strong> already builds a decoding
+constraint <em>directly from a knowledge base's entity set</em> (2020), and <strong>PICARD</strong>
+already constrains decoding to a <em>live database schema</em> (2021). Constraining a
+decoder to "only values the data contains" is the textbook purpose of these
+methods. Our version (GBNF built per-request from the KG's <code>REALIZED_BY_P4_POLICY</code>
+set + live relay availability) is a clean <em>application</em> of that idea to SFC
+orchestration — worth describing, not worth claiming.</p>
+<hr />
+<h2 id="94-what-this-corrects-in-doc-06">9.4 What this corrects in doc 06<a class="anchor" href="#94-what-this-corrects-in-doc-06" title="Permanent link">¶</a></h2>
+<p>Doc 06 §6.7 should be read as <strong>design intent</strong>, not a novelty claim. Specifically:
+- "neuro-symbolic decoding — the grammar <em>is</em> the KG" → established (GENRE/PICARD).
+- "KG-as-blackboard … the only shared mutable state" → established (Hearsay-II;
+  blackboard is <em>defined</em> by shared mutable state).
+- "closed loop through the KG" → established (Reflexion; IBN closed-loop).
+A one-line calibration pointer to this document has been added at the top of
+06 §6.7.</p>
+<hr />
+<h2 id="95-so-what-honestly-stands-out-the-defensible-residual">9.5 So what, honestly, stands out? (the defensible residual)<a class="anchor" href="#95-so-what-honestly-stands-out-the-defensible-residual" title="Permanent link">¶</a></h2>
+<p>After subtracting prior art, what remains is <strong>not a technique but a working,
+safety-shielded composition</strong> — and that is a legitimate <em>systems</em> contribution if
+framed soberly:</p>
+<blockquote>
+<p><em>To our knowledge</em>, this is a complete, end-to-end realization in which a small
+(1.5B) KG-grounded planner LLM and a code LLM are wrapped by a <strong>deterministic,
+formally-checked control loop</strong> such that <strong>LLM error degrades capability, not
+network safety</strong>, demonstrated on a <strong>real P4/BMv2 SFC testbed</strong> with a <strong>closed
+KG feedback loop</strong>. We claim none of the constituent techniques as new.</p>
+</blockquote>
+<p>The two things most worth foregrounding:
+1. <strong>The safety discipline.</strong> A 1.5B model is too weak to trust, yet it is safe in
+   the loop because every proposal — at <em>both</em> altitudes — passes a gate
+   (L0 syntax → L1 envelope → L2 blackhole-invariant → L3 dry-install) and a
+   domination guard, with fail-safe escalation. "Make a weak model deployable in a
+   live network by construction" is a credible engineering story (it <em>applies</em>
+   shielding; it doesn't invent it).
+2. <strong>The whole loop actually runs.</strong> Most LLM-for-networking work is simulation or
+   proposal-level; this installs and rolls back real P4 rules and measures traffic.
+   That is validation value, not novelty value — and it should be sold as such.</p>
+<hr />
+<h2 id="96-recommended-framing-for-a-paper">9.6 Recommended framing for a paper<a class="anchor" href="#96-recommended-framing-for-a-paper" title="Permanent link">¶</a></h2>
+<ul>
+<li><strong>Position it as a systems/integration paper</strong>, not a methods paper. Title and
+  abstract should say "system," "framework," "realization," not "novel method."</li>
+<li><strong>Cite prior art proactively</strong> to pre-empt reviewers: GENRE &amp; PICARD
+  (KB/schema-constrained decoding), Geng et al. EMNLP 2023 (grammar-constrained
+  decoding), Reflexion (feedback), Symbiotic Agents (two-time-scale LLM+control),
+  GraphRAG-for-wireless, safe-RL shielding, P4SC/P4-SFC (testbeds).</li>
+<li><strong>Claims to avoid:</strong> "novel KG-grounded constrained decoding," "new neuro-symbolic
+  architecture," "novel coordination substrate," "first closed-loop LLM network
+  controller."</li>
+<li><strong>Claims that are defensible:</strong> "we integrate X, Y, Z into a safety-shielded SFC
+  orchestration system," "we show a 1.5B model is safe in a live P4 control loop by
+  construction," "we evaluate end-to-end on a real BMv2 testbed," "we recover a
+  mode-collapsed planner by distilling its own rule oracle."</li>
+<li><strong>Lead with the honest limitations</strong> (<a href="05-evolution-from-original.html">05 §7</a>): the
+  planner generalizes on mission <em>names</em>, not telemetry; the feedback loop is wired
+  but unexploited; the KG is a single-instance synchronous dependency.</li>
+</ul>
+<hr />
+<h2 id="97-edge-network-use-cases-creative-but-realistic">9.7 Edge-network use cases (creative, but realistic)<a class="anchor" href="#97-edge-network-use-cases-creative-but-realistic" title="Permanent link">¶</a></h2>
+<p>Where a system like this — <em>intent → KG-grounded SFC selection → in-envelope
+tune/reroute/regen adaptation → gate-checked, closed-loop</em> — could plausibly apply.
+For each: the intent, how the real mechanisms map, <em>why the (modest) engineering
+strengths help there</em>, and an honest realism note. The unifying constraint: the
+<strong>slow planner runs per mission / re-plan (seconds–minutes), not per packet</strong>, so
+these are domains where <em>policy</em> changes on human/mission timescales while a fast
+deterministic loop handles the sub-second reactions.</p>
+<h3 id="uc1-5g6g-mec-network-slice-orchestration-flagship">UC1 · 5G/6G MEC network-slice orchestration <em>(flagship)</em><a class="anchor" href="#uc1-5g6g-mec-network-slice-orchestration-flagship" title="Permanent link">¶</a></h3>
+<ul>
+<li><strong>Intent:</strong> "URLLC slice for AR remote-assist, 10 ms" vs "eMBB for 4K backhaul."</li>
+<li><strong>Mapping:</strong> planner selects the slice SFC/policy from the KG candidate set;
+  <code>Envelope</code> = slice SLA; runtime tunes QoS (tier 0), reroutes across edge
+  transport (tier 1), regenerates the P4 classifier (tier 2), escalates to re-slice
+  when infeasible.</li>
+<li><strong>Why it helps:</strong> KG-grounded grammar ⇒ the planner can only pick a slice the
+  infrastructure actually realizes (no hallucinated slice); the safety wrap ⇒ a
+  mis-decision can't blackhole a <em>multi-tenant</em> slice; closed loop ⇒ learns which
+  templates hold under load.</li>
+<li><strong>Realism:</strong> needs production P4 transport (Tofino), a per-tenant-SLA KG, and slice
+  isolation; the planner's telemetry-generalization gap bites as slice types grow.</li>
+</ul>
+<h3 id="uc2-tactical-disaster-response-edge-mesh-native-domain">UC2 · Tactical / disaster-response edge mesh <em>(native domain)</em><a class="anchor" href="#uc2-tactical-disaster-response-edge-mesh-native-domain" title="Permanent link">¶</a></h3>
+<ul>
+<li><strong>Intent:</strong> "keep the incident-drone's emergency relay up over intermittent
+  (DDIL) links; prioritize it."</li>
+<li><strong>Mapping:</strong> ReliableRelay SFC on the backup path; reroute around a downed relay
+  (tier 1); energy-aware chain on low battery; escalate when no path meets SLA.</li>
+<li><strong>Why it helps:</strong> the gate's blackhole-invariant + reroute-then-rollback is
+  exactly the safety you want when a wrong move strands responders; the KG carries
+  monitor-written live relay liveness.</li>
+<li><strong>Realism:</strong> this <em>is</em> the testbed domain; a real MANET needs mobility-aware
+  topology in the KG and a faster re-plan path.</li>
+</ul>
+<h3 id="uc3-industrial-iot-smart-factory-programmable-floor-tsn-adjacent">UC3 · Industrial IoT / smart-factory programmable floor <em>(TSN-adjacent)</em><a class="anchor" href="#uc3-industrial-iot-smart-factory-programmable-floor-tsn-adjacent" title="Permanent link">¶</a></h3>
+<ul>
+<li><strong>Intent:</strong> "deterministic low-latency for the robot control loop; bandwidth for
+  the vision telemetry."</li>
+<li><strong>Mapping:</strong> low-latency SFC for control flows, bandwidth SFC for telemetry;
+  reroute around a failed floor switch; the gate guarantees control flows never
+  blackhole.</li>
+<li><strong>Why it helps:</strong> on a factory floor the safety wrap is non-negotiable; the closed
+  loop flags chains that miss deadlines.</li>
+<li><strong>Realism:</strong> hard real-time / TSN guarantees exceed what the windowed monitor
+  offers today; needs P4 + time-aware scheduling integration.</li>
+</ul>
+<h3 id="uc4-v2x-roadside-unit-rsu-edge">UC4 · V2X / roadside-unit (RSU) edge<a class="anchor" href="#uc4-v2x-roadside-unit-rsu-edge" title="Permanent link">¶</a></h3>
+<ul>
+<li><strong>Intent:</strong> "safety-message low-latency at the intersection; infotainment
+  best-effort."</li>
+<li><strong>Mapping:</strong> per-flow SFC selection; mobility-driven reroute as vehicles hand over
+  between RSUs (the reroute tier = handover); compute/energy-aware at the RSU.</li>
+<li><strong>Why it helps:</strong> the KG is a natural RSU topology graph; the gate prevents
+  dropping safety messages.</li>
+<li><strong>Realism:</strong> handovers are sub-second — the <em>planner</em> sets policy, only the
+  deterministic fast loop is fast enough to act in-path.</li>
+</ul>
+<h3 id="uc5-leo-ntn-satellite-haps-non-terrestrial-edge">UC5 · LEO / NTN (satellite + HAPS) non-terrestrial edge<a class="anchor" href="#uc5-leo-ntn-satellite-haps-non-terrestrial-edge" title="Permanent link">¶</a></h3>
+<ul>
+<li><strong>Intent:</strong> "maintain the relay as satellites move; conserve power."</li>
+<li><strong>Mapping:</strong> reroute = inter-satellite / handover path switch; energy-aware chain;
+  a highly dynamic KG topology fed by telemetry.</li>
+<li><strong>Why it helps:</strong> the reroute/escalate model suits intermittent NTN links; the KG
+  abstracts the changing topology the planner reasons over.</li>
+<li><strong>Realism:</strong> orbital dynamics want <em>predictive</em>, not reactive, topology — a real
+  rethink of the monitor and a mobility model in the KG.</li>
+</ul>
+<h3 id="uc6-multi-tenant-edge-security-sase-the-most-literal-fit">UC6 · Multi-tenant edge security / SASE <em>(the most literal fit)</em><a class="anchor" href="#uc6-multi-tenant-edge-security-sase-the-most-literal-fit" title="Permanent link">¶</a></h3>
+<ul>
+<li><strong>Intent:</strong> "chain firewall → IDS → DPI for tenant A per their policy."</li>
+<li><strong>Mapping:</strong> the SFC is an <em>actual</em> security function chain; the planner selects it
+  per tenant intent; the gate's blackhole/invariant check maps directly to "no flow
+  bypasses a required function or is silently dropped"; the regen tier adjusts P4
+  classifiers; <code>EscalationTicket</code> → a SOC ticket.</li>
+<li><strong>Why it helps:</strong> "service function chaining" <em>originated</em> in NFV/security, so the
+  domain fit is exact; the gate's invariant checking is precisely the property
+  security operators need.</li>
+<li><strong>Realism:</strong> security correctness demands stronger formal verification than
+  L0–L3; keep the LLM advisory and the gate authoritative.</li>
+</ul>
+<blockquote>
+<p><strong>Cross-cutting realism.</strong> All six share the same caveats: the planner is a
+per-mission decision-maker (not a packet-rate controller); today's 1.5B model is
+reliable only on a <em>known</em> intent taxonomy (telemetry-only generalization is open
+— <a href="05-evolution-from-original.html">05 §7</a>); and the KG is a single synchronous
+dependency that a production deployment would need to make HA
+(see <a href="02-critical-problems.md">02-critical-problems.md</a>: KG per-statement sessions
+under Performance, and the single-everything scalability item S2). The architecture transfers; the model and
+the KG plumbing are the work.</p>
+</blockquote>
+<hr />
+<h2 id="key-takeaways">Key Takeaways<a class="anchor" href="#key-takeaways" title="Permanent link">¶</a></h2>
+<ul>
+<li>
+<p><strong>Direct answer: the novelties are not genuine as standalone contributions.</strong> All 10 candidate novelties map to named prior art — 3 are flatly established SOTA, 7 are known patterns in a specific instantiation, and <strong>none</strong> rose to "moderate" or "notable." Doc 06's enthusiastic novelty language is design rationale, not a research claim.</p>
+</li>
+<li>
+<p><strong>Even the best-looking claim is prior art.</strong> "The grammar <em>is</em> the KG" (KG-grounded constrained decoding) is GENRE (2020, KB-entity trie) and PICARD (2021, live DB schema). KG-RAG grounding, GBNF decoding, MAPE-K, two-time-scale LLM+control, Reflexion-style feedback, safe-RL shielding, and P4/BMv2 SFC testbeds are all established.</p>
+</li>
+<li>
+<p><strong>The defensible contribution is systems-level, framed soberly.</strong> <em>To our knowledge</em>, the working composition stands out: a small KG-grounded planner LLM + a code LLM wrapped by a deterministic, formally-checked control loop so that <strong>LLM error degrades capability, not network safety</strong>, realized end-to-end on a real P4/BMv2 testbed with a closed KG feedback loop. Claim the integration and the safety discipline — not any single technique.</p>
+</li>
+<li>
+<p><strong>Cite prior art proactively; avoid method-novelty language.</strong> Position any paper as a systems/integration + evaluation contribution, cite GENRE/PICARD/Geng/Reflexion/shielding/P4SC up front, and lead with the honest limitations.</p>
+</li>
+<li>
+<p><strong>The edge-network use cases are real but timescale-bound.</strong> MEC slice orchestration, tactical DDIL mesh, industrial-IoT floors, V2X RSUs, LEO/NTN, and multi-tenant security SFC/SASE all map cleanly onto intent → KG-grounded SFC → gated tune/reroute/regen → closed loop — <em>provided</em> policy changes on mission timescales while a fast deterministic loop handles sub-second reactions. Security SFC/SASE is the most literal fit (the gate's blackhole-invariant is exactly what's needed).</p>
+</li>
+<li>
+<p><strong>Integrity note on citations.</strong> The canonical prior art here is solid; the bleeding-edge 2025–2026 arXiv IDs surfaced during assessment must be verified before formal citation — do not paste IDs unchecked.</p>
+</li>
+</ul>
+<footer class="doc">Generated from <code>08-novelty.md</code> on 2026-06-29 — RuntimeManager architecture docs.</footer>
+</div>
+</body>
+</html>

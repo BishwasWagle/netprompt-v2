@@ -1,0 +1,606 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>7 · Workflow &amp; Usage</title>
+<style>
+:root { --fg:#1f2328; --muted:#656d76; --link:#0969da; --border:#d0d7de; --bg:#fff;
+        --code-bg:#f6f8fa; --accent:#0969da; }
+* { box-sizing: border-box; }
+body { margin:0; background:var(--bg); color:var(--fg);
+  font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Helvetica,Arial,sans-serif;
+  font-size:16px; line-height:1.6; }
+.wrap { max-width:920px; margin:0 auto; padding:32px 24px 80px; }
+header.doc { border-bottom:1px solid var(--border); margin-bottom:24px; padding-bottom:16px; }
+header.doc h1 { margin:0 0 4px; font-size:1.9rem; }
+header.doc .sub { color:var(--muted); font-size:.9rem; }
+header.doc .sub code { background:var(--code-bg); padding:1px 5px; border-radius:4px; }
+nav.toc { background:var(--code-bg); border:1px solid var(--border); border-radius:8px;
+  padding:12px 16px; margin:0 0 28px; font-size:.92rem; }
+nav.toc .toc-title { font-weight:600; margin-bottom:6px; }
+nav.toc ul { margin:4px 0; padding-left:20px; }
+nav.toc a { color:var(--link); text-decoration:none; }
+nav.toc a:hover { text-decoration:underline; }
+h1,h2,h3,h4 { line-height:1.25; margin-top:1.6em; margin-bottom:.5em; font-weight:600; }
+h2 { border-bottom:1px solid var(--border); padding-bottom:.3em; }
+h1 { font-size:1.7rem; } h2 { font-size:1.4rem; } h3 { font-size:1.15rem; } h4 { font-size:1rem; }
+a { color:var(--link); text-decoration:none; } a:hover { text-decoration:underline; }
+p, li { overflow-wrap:break-word; }
+code { background:var(--code-bg); padding:.15em .4em; border-radius:5px;
+  font-family:ui-monospace,SFMono-Regular,"SF Mono",Menlo,Consolas,monospace; font-size:.88em; }
+pre { background:var(--code-bg); border:1px solid var(--border); border-radius:8px;
+  padding:14px 16px; overflow-x:auto; line-height:1.45; }
+pre code { background:none; padding:0; font-size:.82rem; white-space:pre; }
+blockquote { margin:1em 0; padding:.4em 1em; color:var(--muted);
+  border-left:4px solid var(--border); background:#f6f8fa55; }
+blockquote p { margin:.4em 0; }
+table { border-collapse:collapse; width:100%; margin:1.2em 0; font-size:.93rem; display:block; overflow-x:auto; }
+th, td { border:1px solid var(--border); padding:7px 12px; text-align:left; vertical-align:top; }
+th { background:var(--code-bg); font-weight:600; }
+tr:nth-child(even) td { background:#f6f8fa55; }
+hr { border:0; border-top:1px solid var(--border); margin:2em 0; }
+.anchor { visibility:hidden; padding-right:6px; text-decoration:none; color:var(--muted); }
+h1:hover .anchor, h2:hover .anchor, h3:hover .anchor, h4:hover .anchor { visibility:visible; }
+footer.doc { margin-top:48px; padding-top:16px; border-top:1px solid var(--border);
+  color:var(--muted); font-size:.82rem; }
+@media (max-width:640px){ .wrap{padding:20px 14px 60px;} body{font-size:15px;} }
+</style>
+</head>
+<body>
+<div class="wrap">
+<header class="doc">
+  <h1>7 · Workflow &amp; Usage</h1>
+  <div class="sub">RuntimeManager / KRONOS architecture review</div>
+</header>
+<nav class="toc"><div class="toc-title">Contents</div><div class="toc">
+<ul>
+<li><a href="#7-workflow-usage">7 · Workflow &amp; Usage</a><ul>
+<li><a href="#-">---</a></li>
+</ul>
+</li>
+<li><a href="#part-a-workflow-how-the-system-works">Part A · Workflow — how the system works</a><ul>
+<li><a href="#a1-the-holistic-process-plain-english-walkthrough">A.1 The holistic process (plain-English walkthrough)</a></li>
+<li><a href="#a2-the-components-and-who-they-talk-to">A.2 The components and who they talk to</a></li>
+<li><a href="#a3-component-interaction-map">A.3 Component interaction map</a></li>
+<li><a href="#a4-the-interactions-in-detail-handoff-by-handoff">A.4 The interactions in detail (handoff by handoff)</a></li>
+<li><a href="#a5-the-lifecycle-in-six-stages">A.5 The lifecycle in six stages</a></li>
+<li><a href="#-_1">---</a></li>
+</ul>
+</li>
+<li><a href="#part-b-usage-how-to-run-it">Part B · Usage — how to run it</a><ul>
+<li><a href="#b1-prerequisites-every-session">B.1 Prerequisites (every session)</a></li>
+<li><a href="#b2-end-to-end-run">B.2 End-to-end run</a></li>
+<li><a href="#b3-three-ways-to-run-an-episode-pick-by-intent">B.3 Three ways to run an episode — pick by intent</a></li>
+<li><a href="#b4-the-two-models">B.4 The two models</a></li>
+<li><a href="#b5-testing-verification">B.5 Testing &amp; verification</a></li>
+<li><a href="#b6-the-closed-feedback-loop">B.6 The closed feedback loop</a></li>
+<li><a href="#b7-operational-gotchas-the-ones-that-bite">B.7 Operational gotchas (the ones that bite)</a></li>
+<li><a href="#b8-command-cheat-sheet">B.8 Command cheat-sheet</a></li>
+<li><a href="#key-takeaways">Key Takeaways</a></li>
+</ul>
+</li>
+</ul>
+</div>
+</nav>
+<h1 id="7-workflow-usage">7 · Workflow &amp; Usage<a class="anchor" href="#7-workflow-usage" title="Permanent link">¶</a></h1>
+<p>Two parts: <strong>Part A — Workflow</strong> explains how the components fit together and
+interact (the holistic process and the handoff-by-handoff detail); <strong>Part B —
+Usage</strong> is the concrete commands to run it. For <em>what</em> each piece is, see
+<a href="01-architecture.html">01-architecture.md</a> and <a href="06-knowledge-graph.html">06-knowledge-graph.md</a>;
+for exhaustive flags see <a href="../guides/usage.md"><code>docs/guides/usage.md</code></a> (Part B mirrors it).</p>
+<h2 id="-">---<a class="anchor" href="#-" title="Permanent link">¶</a></h2>
+<h1 id="part-a-workflow-how-the-system-works">Part A · Workflow — how the system works<a class="anchor" href="#part-a-workflow-how-the-system-works" title="Permanent link">¶</a></h1>
+<h2 id="a1-the-holistic-process-plain-english-walkthrough">A.1 The holistic process (plain-English walkthrough)<a class="anchor" href="#a1-the-holistic-process-plain-english-walkthrough" title="Permanent link">¶</a></h2>
+<p>One mission, from intent to verdict, told as a story — no commands, just who does
+what and why:</p>
+<ol>
+<li><strong>A mission arrives</strong> (e.g. <em>emergency_alert_relay</em>, with telemetry: bandwidth,
+   delay, loss, battery). It needs a Service Function Chain (SFC) deployed on the
+   drone network within an SLA.</li>
+<li><strong>The slow planner reads the world from the KG.</strong> It pulls the live switch
+   topology (which relays are active/standby) and the menu of legal SFC↔policy
+   pairs, plus a per-SFC reliability signal from past runs.</li>
+<li><strong>The planner decides <em>which</em> SFC.</strong> A small LLM, <em>constrained</em> so it can only
+   emit a legal, complete decision, picks the SFC, policy, path, and relay, and
+   writes a deployment artifact. It then <strong>stops</strong> — it never touches the network.</li>
+<li><strong>The runtime takes over.</strong> A thin adapter normalizes the artifact into a typed
+   <code>DeploymentSpec</code> (reconstructing the exact per-switch rule files). The runtime
+   <em>never</em> re-decides the SFC — that was the planner's job.</li>
+<li><strong>The gate vets the binding before anything is installed.</strong> A refused binding
+   becomes a <code>rejected</code> verdict and the network is never touched.</li>
+<li><strong>The runtime deploys and observes.</strong> It installs the rules on the live
+   P4/BMv2 switches, then watches a <em>window</em> of the network — pinging flows,
+   reading switch counters and queue state — and condenses it into one
+   <code>MonitorReport</code>.</li>
+<li><strong>The evaluator attributes and decides.</strong> A 6-stage ladder asks, in order: is
+   the fabric healthy? is the SLA met? if not, did <em>our</em> change cause it (roll back)
+   or is the environment at fault (adapt)? It hands off to the adapt engine when a
+   fix is worth trying.</li>
+<li><strong>The adapt engine hill-climbs within the SFC's envelope.</strong> Cheapest first: tune
+   a queue knob (tier 0), reroute to the backup relay (tier 1), or — last resort —
+   ask a <em>second</em> LLM to regenerate P4 rules (tier 2). Every candidate is gated,
+   applied, re-measured, and kept only if it strictly improves without regressing.</li>
+<li><strong>The episode ends in a verdict</strong> — <code>healthy</code>, <code>marginal</code>, <code>rollback</code>,
+   <code>escalated</code>, <code>system_fault</code>, or <code>rejected</code> — written to the KG along with
+   snapshots and the live switch status.</li>
+<li><strong>The loop closes.</strong> Those verdicts are aggregated into a per-SFC reliability
+    signal that flows back into the planner's next decision through the KG. The
+    fast loop's measured reality conditions the slow loop's future choices.</li>
+</ol>
+<h2 id="a2-the-components-and-who-they-talk-to">A.2 The components and who they talk to<a class="anchor" href="#a2-the-components-and-who-they-talk-to" title="Permanent link">¶</a></h2>
+<table>
+<thead>
+<tr>
+<th>Component</th>
+<th>Role</th>
+<th>Talks to</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>llm_orchestrator</code> (planner)</td>
+<td>decide which SFC → artifact</td>
+<td><strong>reads</strong> KG; <strong>calls</strong> decision LLM; <strong>reads</strong> analytics</td>
+</tr>
+<tr>
+<td>decision LLM (Qwen-1.5B+LoRA, cuda:0)</td>
+<td>pick the 6-key decision</td>
+<td>driven by <code>llm_runner</code> under a KG-derived grammar</td>
+</tr>
+<tr>
+<td><code>planner_adapter</code></td>
+<td>artifact → <code>DeploymentSpec</code></td>
+<td>reads the artifact + (optionally) <code>kg_client.build_envelope</code></td>
+</tr>
+<tr>
+<td><code>RuntimeManager</code></td>
+<td>orchestrate one episode</td>
+<td><code>gate</code>, <code>monitor</code>, <code>evaluator</code>→<code>adapt</code>, <code>deployer</code>, <code>kg_client</code></td>
+</tr>
+<tr>
+<td><code>gate</code> (ValidationGate)</td>
+<td>sound pre-deploy + per-candidate checks</td>
+<td>called by <code>RuntimeManager</code> and <code>adapt</code></td>
+</tr>
+<tr>
+<td><code>monitor</code> (NetworkMonitor)</td>
+<td>live network → <code>MonitorReport</code></td>
+<td>samplers → <code>node_runner</code> → BMv2/Mininet; writes status via <code>kg_client</code></td>
+</tr>
+<tr>
+<td><code>evaluator</code></td>
+<td>6-stage attribution + commit ladder</td>
+<td>calls <code>adapt</code>, <code>deployer.rollback</code></td>
+</tr>
+<tr>
+<td><code>adapt</code> engine</td>
+<td>tiered hill-climb to the goal</td>
+<td><code>gate</code>, <code>deployer</code>, <code>monitor</code>, optional <code>regen</code></td>
+</tr>
+<tr>
+<td><code>regen</code> (RegenProposer)</td>
+<td>tier-2 P4-rule regeneration</td>
+<td>reads <code>deployer.table_state</code>; calls regen LLM (cuda:1)</td>
+</tr>
+<tr>
+<td><code>deployer</code></td>
+<td>install/rollback rules + QoS</td>
+<td><code>node_runner</code> → switches/hosts</td>
+</tr>
+<tr>
+<td><code>node_runner</code></td>
+<td>execute CLI/host commands</td>
+<td><code>simple_switch_CLI</code> (thrift), <code>mnexec</code> (namespaces)</td>
+</tr>
+<tr>
+<td><code>kg_client</code></td>
+<td>runtime's Neo4j boundary</td>
+<td>reads bounds, writes verdicts/status</td>
+</tr>
+<tr>
+<td><code>analytics</code></td>
+<td>verdicts → per-SFC reliability</td>
+<td>reads KG; feeds the planner</td>
+</tr>
+<tr>
+<td>Neo4j <strong>KG</strong></td>
+<td>the shared coordination hub</td>
+<td>planner reads; runtime writes (see <a href="06-knowledge-graph.html">06</a>)</td>
+</tr>
+</tbody>
+</table>
+<h2 id="a3-component-interaction-map">A.3 Component interaction map<a class="anchor" href="#a3-component-interaction-map" title="Permanent link">¶</a></h2>
+<pre><code>  mission ─▶ ┌───────────────────────── SLOW PLANNER (llm_orchestrator) ─────────────────────────┐
+             │ kg_context ──reads──▶ NEO4J KG ◀──reads── history_retriever (KG-RAG over results) │
+             │     │  topology+candidates        analytics.feedback_for_planner ◀── Verdict hist  │
+             │     ▼                                              │                                │
+             │ prompt_builder (orchestration_constraints) ◀───────┘  runtime_feedback              │
+             │     │                 │                                                              │
+             │     ▼                 ▼                                                              │
+             │ decision_grammar   llm_runner (Qwen-1.5B+LoRA, cuda:0, GBNF-constrained) ──▶ validator│
+             │   (GBNF from KG)                                                  └─ fallback oracle  │
+             │     └──────────────────────▶ policy_compiler ─▶ artifact_checker ─▶ ARTIFACT (json)  │
+             └───────────────────────────────────────────────────────────┬───────────────────────-─┘
+                                                                          ▼
+                                            planner_adapter.spec_from_artifact ─▶ DeploymentSpec
+                                                                          │
+  ┌───────────────────────────── RUNTIME MANAGER.run_episode ────────────▼──────────────────────────┐
+  │  gate.check_binding ──reject──▶ Verdict(&quot;rejected&quot;)  (no deploy)                                  │
+  │  deployer.table_state() ─(live tables)─┐                                                          │
+  │  monitor.observe_window() ─▶ MonitorReport ──▶ evaluator.evaluate (6-stage ladder)                │
+  │        │                                              │  rung4/5                                  │
+  │        │ samplers→node_runner→BMv2                    ▼                                           │
+  │        │  ping/counters/qdisc/liveness        adapt(): diagnose ─▶ propose(tier0/1/2) ─▶ gate.check│
+  │        │                                              │                    │ tier2: regen (cuda:1)│
+  │        │                                       deployer.apply ─▶ node_runner ─▶ switches/hosts    │
+  │        │                                       monitor.observe_window (re-measure) ─▶ keep/rollback│
+  │        ▼                                              ▼                                           │
+  │  kg_client.write_switch_status / write_verdict / write_baseline / write_escalation / write_last_good│
+  └──────────────────────────────────────────────┬──────────────────────────────────────────────────┘
+                                                  ▼ (best-effort, idempotent MERGE)
+                                              NEO4J KG ──────▶ (back to analytics → planner)  [closed loop]
+</code></pre>
+<h2 id="a4-the-interactions-in-detail-handoff-by-handoff">A.4 The interactions in detail (handoff by handoff)<a class="anchor" href="#a4-the-interactions-in-detail-handoff-by-handoff" title="Permanent link">¶</a></h2>
+<p><strong>1 · Planner ↔ KG (read-only).</strong> <code>Neo4jContextClient.get_topology_snapshot()</code>
+returns switches normalized into access/primary/backup relays and partitions them
+into <code>active/standby/unavailable</code> by their live <code>status</code>;
+<code>get_candidate_sfc_policy_set()</code> returns the legal <code>(sfc, policy, p4_program,
+path)</code> tuples from <code>(:SFCTemplate)-[:REALIZED_BY_P4_POLICY]-&gt;(:P4PolicyMapping)</code>.
+The planner never writes the KG.</p>
+<p><strong>2 · Inside the planner (one pipeline).</strong> <code>kg_context</code> (world) + <code>history_retriever</code>
+(KG-RAG: top-k similar past runs from the results CSV) + <code>analytics.feedback_for_planner</code>
+(per-SFC reliability) feed <code>prompt_builder.build_llm_input_object</code>, which also emits
+<code>orchestration_constraints</code> — the single source of truth shared by the next two
+steps. <code>decision_grammar.build_decision_gbnf</code> turns those constraints into a GBNF;
+<code>llm_runner</code> decodes the LLM <em>under</em> that grammar (so output is a complete, legal
+6-key decision); <code>validator.validate_generated_decision</code> is then a by-construction
+pass (or, if constrained decoding is off and output is invalid, the deterministic
+<code>fallback_decision</code> oracle takes over). <code>policy_compiler</code> maps the decision to a P4
+program + per-switch rule paths; <code>artifact_checker</code> confirms the files exist; the
+artifact is written.</p>
+<p><strong>3 · Artifact → <code>DeploymentSpec</code>.</strong> <code>planner_adapter.spec_from_artifact</code> takes the
+planner's <em>decisions</em> (SFC name + <code>policy_type</code>, verbatim) and <strong>reconstructs</strong> the
+canonical per-switch binding (<code>s1←access_rules</code>, <code>s2←relay_rules</code>, <code>s3←backup_rules</code>)
+from the SFC's canonical filenames — it does <em>not</em> trust the artifact's literal rule
+paths. It normalizes the field id to <code>F&lt;n&gt;</code> and resolves the <code>Envelope</code>
+(<code>kg.build_envelope</code> = strictest SFC ∧ field bounds + the runtime-owned action
+space). Output: a typed <code>DeploymentSpec</code>.</p>
+<p><strong>4 · <code>RuntimeManager.run_episode</code> — the conductor.</strong> In order: (a)
+<code>gate.check_binding(spec)</code> — a refusal short-circuits to <code>Verdict("rejected")</code> with
+no deploy; (b) refresh <code>current_tables</code> from <code>deployer.table_state()</code> (the live
+switch view the gate's L2 needs); (c) build an <code>EvalContext</code> carrying a <strong>fresh
+<code>Budget(N)</code></strong> — the per-episode budget; (d) <code>monitor.observe_window()</code> →
+<code>MonitorReport</code>; (e) <code>evaluate(spec, report, ctx)</code>; (f) on a <code>healthy</code>/<code>marginal</code>
+commit, promote <code>deployer.capture()</code> to <code>last_good</code> and call <code>monitor.rebaseline()</code>.
+KG writes happen along the way, best-effort.</p>
+<p><strong>5 · Monitor ↔ samplers ↔ <code>node_runner</code> ↔ BMv2.</strong> <code>observe_window</code> runs <code>M</code>
+probes; each probe reads switch-port counters (sysfs), pings each flow from its
+drone namespace (<code>node_runner.run_host</code> → <code>mnexec ping</code>), and samples queue
+discipline (<code>tc</code>). <code>SystemMonitor.liveness()</code> checks each switch's process (<code>pgrep</code>)
+and thrift socket. The pure functions in <code>pipeline.py</code> (hysteresis, throughput
+aggregation, exogenous-shift detection, status derivation) assemble the
+<code>MonitorReport</code>. Switch <em>status</em> here is computed from observation — it is later
+written to the KG, where the planner reads it back (the closed loop).</p>
+<p><strong>6 · evaluator ↔ adapt ↔ deployer ↔ gate.</strong> The 6-stage ladder calls <code>adapt()</code> at
+rung 4 (target failing) or rung 5 (neighbor harmed). One adapt step:
+<code>diagnose(report)</code> → <code>Diagnosis</code>; <code>propose(diag, tier, env, deployer.state, tried,
+regen_proposer)</code> → <code>Candidate</code>; <code>gate.check(cand, env, live_tables)</code> →
+<code>GateResult</code>; <code>deployer.capture()</code> (pre-image); <code>deployer.apply(cand)</code> (which drives
+<code>node_runner</code>); <code>budget.spend()</code>; <code>monitor.observe_window()</code> re-measures; then
+<code>goal</code>/<code>dominates</code>/<code>improves</code> decide keep-or-<code>deployer.rollback(pre)</code>. The gate is
+the authority on every candidate; the budget bounds applied attempts.</p>
+<p><strong>7 · adapt ↔ regen ↔ regen LLM (tier 2).</strong> When tiers 0/1 are exhausted,
+<code>propose</code> calls the <code>regen_proposer</code> (<code>RegenProposer.__call__</code>): it reads the live
+<code>table_state</code> (not the KG), builds a prompt showing what's installed <em>now</em>, and
+calls the code LLM (<code>LocalHFClient</code>, Qwen-Coder on <code>cuda:1</code>, GBNF-constrained) to
+regenerate P4 rules. The result is <em>still</em> gated before anything is applied; a
+K-cap (<code>REGEN_MAX_REJECTS</code>) and the fail-safe (<code>None</code> → escalate) bound it. By
+default this seam is stubbed (<code>regen_proposer=None</code>).</p>
+<p><strong>8 · deployer ↔ <code>node_runner</code> ↔ switches/hosts.</strong> The deployer is pure
+command/parse/state: it builds <code>table_add/modify/delete</code> and <code>tc</code> commands,
+<code>node_runner</code> executes them (<code>simple_switch_CLI</code> over thrift; <code>mnexec</code> into host
+namespaces), and the deployer parses the CLI output back into <code>TableEntry</code> state.
+Rollback restores entry <em>semantics</em> (key/action/args), re-parsing fresh handles.</p>
+<p><strong>9 · <code>kg_client</code> ↔ Neo4j (write side).</strong> <code>RuntimeManager</code> calls <code>write_switch_status</code>,
+<code>write_verdict</code>, <code>write_escalation</code>, <code>write_baseline</code>, <code>write_last_good</code> — all
+best-effort (a Neo4j blip can never abort an episode), idempotent <code>MERGE</code>, tagged
+<code>updated_by='runtime-manager'</code>, with complex payloads JSON-encoded via <code>jsonable</code>.</p>
+<p><strong>10 · analytics ↔ KG ↔ planner (closing the loop).</strong> <code>analytics</code> reads the
+<code>Verdict</code>/<code>EscalationTicket</code> history, aggregates a per-SFC reliability signal, and
+<code>feedback_for_planner</code> folds it into the planner's next <code>input_object.runtime_feedback</code>
+(disable with <code>NETPROMPT_PLANNER_FEEDBACK=0</code>).</p>
+<h2 id="a5-the-lifecycle-in-six-stages">A.5 The lifecycle in six stages<a class="anchor" href="#a5-the-lifecycle-in-six-stages" title="Permanent link">¶</a></h2>
+<pre><code>                                    ┌──────────── prerequisites ────────────┐
+                                    │ source gpu-node.env · venv · Neo4j up  │
+                                    └────────────────────────────────────────┘
+                                                     │
+ (1) SEED KG ──▶ (2) LAUNCH TESTBED ──▶ (3) PLAN (slow loop) ──▶ (4) EPISODE (fast loop) ──▶ (5) VERIFY
+  generate_kg       launch_network         orchestrate              run_from_planner            KG records
+  + seed_kg         (resident BMv2)        → plan.json artifact     deploy→observe→adapt→commit  + teardown
+      ▲                                                             /rollback/escalate           │
+      └───────────────── (6) analytics: per-SFC reliability ◀── Verdict/EscalationTicket ─────────┘
+</code></pre>
+<table>
+<thead>
+<tr>
+<th>#</th>
+<th>Stage</th>
+<th>Component</th>
+<th>What happens</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>0</td>
+<td>Prereqs</td>
+<td><code>gpu-node.env</code>, venv, Neo4j</td>
+<td>env (KG creds, devices, adapter), FP16/no-4bit on P100</td>
+</tr>
+<tr>
+<td>1</td>
+<td>Seed KG</td>
+<td><code>generate_kg.py</code> → <code>seed_kg</code></td>
+<td>build the strategic graph JSON, MERGE it in non-destructively</td>
+</tr>
+<tr>
+<td>2</td>
+<td>Launch testbed</td>
+<td><code>launch_network.py</code></td>
+<td>bring up the <strong>resident</strong> 3-switch BMv2/P4 fabric (s1/s2/s3)</td>
+</tr>
+<tr>
+<td>3</td>
+<td>Plan</td>
+<td><code>llm_orchestrator.orchestrate</code></td>
+<td>decision LLM picks SFC/policy/path → writes <code>plan.json</code></td>
+</tr>
+<tr>
+<td>4</td>
+<td>Episode</td>
+<td><code>run_from_planner</code> (or <code>run_episode</code>)</td>
+<td>normalize → gate → deploy → observe → adapt → commit/rollback/escalate</td>
+</tr>
+<tr>
+<td>5</td>
+<td>Verify</td>
+<td>KG / pytest</td>
+<td>inspect <code>Verdict</code>/snapshots; tear the testbed down</td>
+</tr>
+<tr>
+<td>6</td>
+<td>Feedback</td>
+<td><code>llm_orchestrator.analytics</code></td>
+<td>aggregate verdicts → per-SFC reliability → next plan's context</td>
+</tr>
+</tbody>
+</table>
+<p>(1)–(2) are one-time setup per environment; (3)–(5) are the per-mission run; (6)
+closes the loop.</p>
+<h2 id="-_1">---<a class="anchor" href="#-_1" title="Permanent link">¶</a></h2>
+<h1 id="part-b-usage-how-to-run-it">Part B · Usage — how to run it<a class="anchor" href="#part-b-usage-how-to-run-it" title="Permanent link">¶</a></h1>
+<h2 id="b1-prerequisites-every-session">B.1 Prerequisites (every session)<a class="anchor" href="#b1-prerequisites-every-session" title="Permanent link">¶</a></h2>
+<pre><code class="language-bash">cd ~/Run-time-Manager
+source deploy/gpu-node/gpu-node.env     # NETPROMPT_ROOT/TREE_ROOT, KG creds, devices, promoted adapter
+# venv: ~/netprompt-venv  ·  Neo4j: bolt://localhost:7687 (neo4j / netprompt123) must be running
+</code></pre>
+<blockquote>
+<p><strong>P100 note:</strong> FP16, no bitsandbytes. <code>gpu-node.env</code> sets <code>NETPROMPT_LLM_USE_4BIT=0</code>
++ <code>NETPROMPT_LLM_DEVICE_MAP=cuda:0</code>; sourcing the env is enough (the orchestrator
+defers to it when <code>--4bit</code>/<code>--device-map</code> are omitted).</p>
+</blockquote>
+<h2 id="b2-end-to-end-run">B.2 End-to-end run<a class="anchor" href="#b2-end-to-end-run" title="Permanent link">¶</a></h2>
+<p><strong>(1) Seed the KG</strong> — strategic graph (planner topology + runtime bounds), idempotent.
+<code>generate_kg.py</code> (re)builds the JSON; <code>seed_kg</code> MERGEs it without wiping runtime records:</p>
+<pre><code class="language-bash">cd ~/Run-time-Manager/controller &amp;&amp; ~/netprompt-venv/bin/python generate_kg.py   # -&gt; drone_sfc_kg.json
+cd ~/Run-time-Manager &amp;&amp; ~/netprompt-venv/bin/python -m runtime.tools.seed_kg     # MERGE, keeps runtime records
+</code></pre>
+<p><strong>(2) Launch the resident testbed</strong> — <em>match the P4 program to the SFC you'll deploy</em>.
+The deployer installs table <em>rules</em>, not the P4 <em>program</em> (fixed at switch launch), so a
+mismatch fails the install handle-count check:</p>
+<pre><code class="language-bash">sudo -E python3 runtime/tools/launch_network.py \
+  --p4-json &quot;$NETPROMPT_ROOT/compiled_p4/reliable_relay.json&quot; \
+  --rules-dir &quot;$NETPROMPT_ROOT/p4_multihop_rules&quot; \
+  --sfc reliable_relay --scenario baseline      # resident; hold it in the background
+# readiness: echo 'table_dump forward_table' | simple_switch_CLI --thrift-port 9090   # rows on 9090/9091/9092
+</code></pre>
+<p><strong>(3) Plan</strong> — the slow planner reads the KG, decides, and writes a deployable artifact.
+The situation is the <code>--mission/--bandwidth/--delay/--loss/--battery</code> flags:</p>
+<pre><code class="language-bash">cd &quot;$NETPROMPT_ROOT&quot;
+~/netprompt-venv/bin/python -m llm_orchestrator.orchestrate \
+  --mission emergency_alert_relay --bandwidth 20 --delay 25 --loss 2 --battery 80 \
+  --neo4j-uri bolt://localhost:7687 --neo4j-password netprompt123 \
+  --device-map cuda:0 --no-4bit --output /tmp/plan.json
+# inspect: selected_sfc + decision.llm_parse_status (parsed_json = the LLM's decision was used)
+</code></pre>
+<p><strong>(4) Run an episode</strong> driven by that artifact. Start with the dry run (gate check, no
+network), then the live deploy:</p>
+<pre><code class="language-bash">cd ~/Run-time-Manager
+# dry (no testbed): normalize -&gt; gate check only, no deploy
+~/netprompt-venv/bin/python -m runtime.tools.run_from_planner \
+  --artifact /tmp/plan.json --target-field F2 --no-kg
+# live: deploy + one episode + write verdict/snapshots to the KG (needs testbed + traffic)
+sudo -E ~/netprompt-venv/bin/python -m runtime.tools.run_from_planner \
+  --artifact /tmp/plan.json --target-field F2 --deploy
+</code></pre>
+<p>Representative traffic for a live episode (detached so it survives the run) — an <code>iperf</code>
+server on the edge and UDP flows from the drones, so the monitor sees real throughput:</p>
+<pre><code class="language-bash">EDGE=$(pgrep -f 'mininet:edge')
+sudo setsid mnexec -a &quot;$EDGE&quot; iperf -s -u &lt;/dev/null &gt;/dev/null 2&gt;&amp;1 &amp;
+for d in d4 d5 d6 d7 d8 d9 d10; do P=$(pgrep -f &quot;mininet:$d\b&quot;)
+  sudo setsid mnexec -a &quot;$P&quot; iperf -u -c 10.0.0.100 -b 5M -t 600 &lt;/dev/null &gt;/dev/null 2&gt;&amp;1 &amp; done
+</code></pre>
+<p><strong>(5) Verify + tear down.</strong> The run writes KG records keyed by <code>correlation_id</code>
+(<code>Verdict</code>, <code>EscalationTicket</code>, <code>BaselineSnapshot</code>, <code>ProgrammableSwitch.status</code>); teardown
+uses bracketed patterns so <code>pkill</code> won't match itself:</p>
+<pre><code class="language-bash">sudo pkill -9 -f &quot;[l]aunch_network&quot;; sudo pkill -9 &quot;[s]imple_switch&quot;; sudo pkill -f &quot;[i]perf&quot;; sudo mn -c
+</code></pre>
+<h2 id="b3-three-ways-to-run-an-episode-pick-by-intent">B.3 Three ways to run an episode — pick by intent<a class="anchor" href="#b3-three-ways-to-run-an-episode-pick-by-intent" title="Permanent link">¶</a></h2>
+<table>
+<thead>
+<tr>
+<th>Mode</th>
+<th>Command</th>
+<th>When to use</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>Scenario-driven</strong></td>
+<td><code>runtime.tools.run_episode --scenario path_quality_fault --monitor {model\|real}</code></td>
+<td>exercise the loop against a fixture; <code>model</code> = instant scenario monitor (no testbed), <code>real</code> = live monitor over the fabric. Scenarios: <code>healthy</code>, <code>causal_regression</code>, <code>path_quality_fault</code>, <code>contention_harm_with_knob</code>, <code>contention_harm_no_knob</code>, <code>ddil</code></td>
+</tr>
+<tr>
+<td><strong>Planner-driven</strong></td>
+<td><code>runtime.tools.run_from_planner --artifact plan.json --target-field F2 --deploy</code></td>
+<td>true end-to-end from a real planner artifact (§B.2)</td>
+</tr>
+<tr>
+<td><strong>Soak</strong></td>
+<td><code>runtime.tools.soak --minutes 60 --kill-every 20 --kill s3 [--with-regen]</code></td>
+<td>repeated episodes + injected switch kills + watchdog recovery; <code>--with-regen</code> wires the real Tier-2 model</td>
+</tr>
+</tbody>
+</table>
+<blockquote>
+<p><strong>No LLM required for the inner loop.</strong> By default Tier-2 is stubbed
+(<code>regen_proposer=None</code>), so the RM escalates instead of loading a model — the
+deterministic tiers (tune/reroute) exercise the whole loop. The regen model is
+wired only by <code>soak --with-regen</code> and the M7 live tests.</p>
+</blockquote>
+<h2 id="b4-the-two-models">B.4 The two models<a class="anchor" href="#b4-the-two-models" title="Permanent link">¶</a></h2>
+<p><strong>Decision model</strong> (planner, <code>Qwen2.5-1.5B-Instruct</code> + LoRA, <code>cuda:0</code>). Constrained
+decoding (default ON) forces a complete, valid 6-key decision; the adapter is a one-flag swap:</p>
+<pre><code class="language-bash">export NETPROMPT_LLM_CONSTRAINED=1          # =0 disables -&gt; invalid output falls to the rule oracle
+# promote / roll back the adapter (default set in gpu-node.env):
+NETPROMPT_LLM_ADAPTER=&quot;.../final_adapter_retrained&quot;   # promoted (mission-appropriate on known taxonomy)
+NETPROMPT_LLM_ADAPTER=&quot;.../final_adapter&quot;             # rollback (mode-collapsed under constrained-on)
+# per-run override: orchestrate.py --adapter-path .../final_adapter
+# retrain (oracle distillation, ~55 min fp32 on a P100):
+~/netprompt-venv/bin/python train_decision_lora.py --neo4j-password netprompt123 \
+  --out netprompt_qwen_kg_rag_orchestrator/final_adapter_retrained --per-class 160 --epochs 3 --device cuda:0
+</code></pre>
+<p><strong>Tier-2 regen model</strong> (<code>Qwen2.5-Coder-1.5B-Instruct</code>, <code>cuda:1</code>) — not a CLI; it's the
+<code>RegenProposer</code> plugged into the adapt engine, pinned for reproducibility in <code>gpu-node.env</code>
+(<code>NETPROMPT_REGEN_REVISION=2e1fd397…</code>). Tools around it:</p>
+<pre><code class="language-bash">~/netprompt-venv/bin/python -m runtime.tools.regen_manifest    # reproducibility manifest (model+rev, decoding, hashes)
+~/netprompt-venv/bin/python -m runtime.tools.regen_compare --models &lt;0.5B,1.5B,3B&gt;   # the paper's comparison table
+</code></pre>
+<p>See <a href="05-evolution-from-original.html">05 §7</a> for the retrain story and
+<a href="06-knowledge-graph.html">06 §6.5</a> for which model reads the KG vs live switch state.</p>
+<h2 id="b5-testing-verification">B.5 Testing &amp; verification<a class="anchor" href="#b5-testing-verification" title="Permanent link">¶</a></h2>
+<pre><code class="language-bash"># offline, fast — the green baseline every change must preserve:
+~/netprompt-venv/bin/python -m pytest tests/unit -q                       # 212 passed (~0.3s)
+# node-gated integration (needs the resident testbed + traffic):
+sudo -E env NETPROMPT_TREE_ROOT=&quot;$NETPROMPT_ROOT&quot; NETPROMPT_KG_URI=bolt://localhost:7687 \
+  NETPROMPT_KG_PASS=netprompt123 ~/netprompt-venv/bin/python \
+  -m pytest tests/integration/test_m6_acceptance_node.py -v
+</code></pre>
+<ul>
+<li><strong>Unit tier (212 tests / 454 asserts):</strong> off-testbed against <code>FakeDeployer</code>/<code>FakeMonitor</code>/
+  <code>ScriptedRunner</code> + 6 scenario fixtures — no <code>sudo</code>, no Mininet.</li>
+<li><strong>Integration tier (16 tests / 62 asserts):</strong> all <code>skipif(not _testbed_up())</code>; drives the
+  real BMv2 fabric and asserts on live switch state / traffic.</li>
+</ul>
+<h2 id="b6-the-closed-feedback-loop">B.6 The closed feedback loop<a class="anchor" href="#b6-the-closed-feedback-loop" title="Permanent link">¶</a></h2>
+<pre><code class="language-bash">cd &quot;$NETPROMPT_ROOT&quot;
+~/netprompt-venv/bin/python -m llm_orchestrator.analytics \
+  --neo4j-uri bolt://localhost:7687 --neo4j-password netprompt123   # report; --json / --write-kg
+</code></pre>
+<p>Aggregates the runtime's <code>Verdict</code>/<code>EscalationTicket</code> history into a per-SFC reliability
+signal, folded into every planner decision as <code>input_object.runtime_feedback</code> (disable with
+<code>NETPROMPT_PLANNER_FEEDBACK=0</code>). The path is wired and robust; the current 1.5B model doesn't
+yet <em>exploit</em> it (advisory) — see <a href="05-evolution-from-original.html">05 §7.6</a>.</p>
+<h2 id="b7-operational-gotchas-the-ones-that-bite">B.7 Operational gotchas (the ones that bite)<a class="anchor" href="#b7-operational-gotchas-the-ones-that-bite" title="Permanent link">¶</a></h2>
+<ol>
+<li><strong>Match the P4 program to the SFC</strong> at launch, or deploy fails with
+   <code>N table_add lines but N-1 handles</code> (the program is fixed at switch launch; only rules
+   are installed live).</li>
+<li><strong>FP16 / no-4bit on the P100</strong> — <code>gpu-node.env</code> handles it; don't force bitsandbytes.</li>
+<li><strong>Live episodes need traffic</strong> — start the detached <code>iperf</code> flows (§B.2) or the monitor
+   reads an idle/unreachable network.</li>
+<li><strong>Seed with <code>seed_kg</code>, not the legacy <code>import_kg.py</code></strong> — the latter does <code>DETACH DELETE</code>
+   and wipes runtime records; the former is idempotent <code>MERGE</code>.</li>
+<li><strong>Teardown uses bracketed patterns</strong> so <code>pkill</code> doesn't match itself; finish with <code>sudo mn -c</code>.</li>
+</ol>
+<h2 id="b8-command-cheat-sheet">B.8 Command cheat-sheet<a class="anchor" href="#b8-command-cheat-sheet" title="Permanent link">¶</a></h2>
+<table>
+<thead>
+<tr>
+<th>Goal</th>
+<th>Command</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Seed KG</td>
+<td><code>python -m runtime.tools.seed_kg</code></td>
+</tr>
+<tr>
+<td>Launch testbed</td>
+<td><code>sudo -E python3 runtime/tools/launch_network.py --p4-json … --rules-dir … --sfc … --scenario …</code></td>
+</tr>
+<tr>
+<td>Plan</td>
+<td><code>python -m llm_orchestrator.orchestrate --mission … --output plan.json</code></td>
+</tr>
+<tr>
+<td>Episode (planner)</td>
+<td><code>sudo -E python -m runtime.tools.run_from_planner --artifact plan.json --target-field F2 --deploy</code></td>
+</tr>
+<tr>
+<td>Episode (scenario)</td>
+<td><code>sudo -E python -m runtime.tools.run_episode --scenario … --monitor real</code></td>
+</tr>
+<tr>
+<td>Soak</td>
+<td><code>sudo -E python -m runtime.tools.soak --minutes 60 --kill-every 20 --kill s3 [--with-regen]</code></td>
+</tr>
+<tr>
+<td>Unit tests</td>
+<td><code>python -m pytest tests/unit -q</code></td>
+</tr>
+<tr>
+<td>Analytics</td>
+<td><code>python -m llm_orchestrator.analytics --neo4j-password netprompt123</code></td>
+</tr>
+<tr>
+<td>Retrain LoRA</td>
+<td><code>python train_decision_lora.py --neo4j-password netprompt123 --out … --per-class 160 --epochs 3</code></td>
+</tr>
+<tr>
+<td>Regen manifest / compare</td>
+<td><code>python -m runtime.tools.regen_manifest</code> · <code>… regen_compare --models …</code></td>
+</tr>
+<tr>
+<td>Teardown</td>
+<td><code>sudo pkill -9 -f "[l]aunch_network"; sudo pkill -9 "[s]imple_switch"; sudo mn -c</code></td>
+</tr>
+</tbody>
+</table>
+<hr />
+<h2 id="key-takeaways">Key Takeaways<a class="anchor" href="#key-takeaways" title="Permanent link">¶</a></h2>
+<ul>
+<li>
+<p><strong>Two parts: workflow (how it fits together) vs usage (how to run it).</strong> Part A is the conceptual model — the holistic 10-step process, a component-interaction map, and a handoff-by-handoff breakdown of who calls whom and what data crosses each boundary. Part B is the concrete, ground-truthed commands.</p>
+</li>
+<li>
+<p><strong>The components coordinate through narrow, typed handoffs — not a tangle.</strong> The planner reads the KG and emits an artifact; <code>planner_adapter</code> turns it into a <code>DeploymentSpec</code>; <code>RuntimeManager</code> conducts <code>gate → monitor → evaluator → adapt → deployer</code>, each a single clear interface. The only shared mutable state is the KG, and even there the read/write ownership is split (see <a href="06-knowledge-graph.html">06</a>).</p>
+</li>
+<li>
+<p><strong>The fast loop is a strict call hierarchy with re-measurement at its core.</strong> <code>evaluator</code> calls <code>adapt</code>, which loops <code>diagnose → propose → gate → deployer.apply → monitor.observe_window → keep-or-rollback</code>. Every applied candidate is re-measured before it's kept, and the gate authorizes every change — that's what makes a weak Tier-2 LLM safe to include.</p>
+</li>
+<li>
+<p><strong>The loop genuinely closes through the KG.</strong> Monitor-computed switch status and <code>Verdict</code>/<code>EscalationTicket</code> history are written to the KG and read back by the planner (relay availability + per-SFC reliability), so the slow loop is conditioned on the fast loop's measured reality.</p>
+</li>
+<li>
+<p><strong>The everyday entry points: <code>seed_kg</code> → <code>launch_network</code> → <code>orchestrate</code> → <code>run_from_planner --deploy</code>, gated by <code>pytest tests/unit -q</code> (212 green).</strong> Three ways to run an episode (scenario / planner / soak) cover off-testbed exercise, true end-to-end, and stress; the inner loop needs no LLM by default.</p>
+</li>
+<li>
+<p><strong><code>docs/guides/usage.md</code> remains the canonical flag reference.</strong> This document frames the workflow and the why; <code>usage.md</code> carries the exhaustive flags and per-LLM detail.</p>
+</li>
+</ul>
+<footer class="doc">Generated from <code>07-workflow-and-usage.md</code> on 2026-06-29 — RuntimeManager architecture docs.</footer>
+</div>
+</body>
+</html>

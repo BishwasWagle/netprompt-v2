@@ -1,0 +1,586 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>5 · Evolution from the Original NetPrompt — What Changed and Why</title>
+<style>
+:root { --fg:#1f2328; --muted:#656d76; --link:#0969da; --border:#d0d7de; --bg:#fff;
+        --code-bg:#f6f8fa; --accent:#0969da; }
+* { box-sizing: border-box; }
+body { margin:0; background:var(--bg); color:var(--fg);
+  font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Helvetica,Arial,sans-serif;
+  font-size:16px; line-height:1.6; }
+.wrap { max-width:920px; margin:0 auto; padding:32px 24px 80px; }
+header.doc { border-bottom:1px solid var(--border); margin-bottom:24px; padding-bottom:16px; }
+header.doc h1 { margin:0 0 4px; font-size:1.9rem; }
+header.doc .sub { color:var(--muted); font-size:.9rem; }
+header.doc .sub code { background:var(--code-bg); padding:1px 5px; border-radius:4px; }
+nav.toc { background:var(--code-bg); border:1px solid var(--border); border-radius:8px;
+  padding:12px 16px; margin:0 0 28px; font-size:.92rem; }
+nav.toc .toc-title { font-weight:600; margin-bottom:6px; }
+nav.toc ul { margin:4px 0; padding-left:20px; }
+nav.toc a { color:var(--link); text-decoration:none; }
+nav.toc a:hover { text-decoration:underline; }
+h1,h2,h3,h4 { line-height:1.25; margin-top:1.6em; margin-bottom:.5em; font-weight:600; }
+h2 { border-bottom:1px solid var(--border); padding-bottom:.3em; }
+h1 { font-size:1.7rem; } h2 { font-size:1.4rem; } h3 { font-size:1.15rem; } h4 { font-size:1rem; }
+a { color:var(--link); text-decoration:none; } a:hover { text-decoration:underline; }
+p, li { overflow-wrap:break-word; }
+code { background:var(--code-bg); padding:.15em .4em; border-radius:5px;
+  font-family:ui-monospace,SFMono-Regular,"SF Mono",Menlo,Consolas,monospace; font-size:.88em; }
+pre { background:var(--code-bg); border:1px solid var(--border); border-radius:8px;
+  padding:14px 16px; overflow-x:auto; line-height:1.45; }
+pre code { background:none; padding:0; font-size:.82rem; white-space:pre; }
+blockquote { margin:1em 0; padding:.4em 1em; color:var(--muted);
+  border-left:4px solid var(--border); background:#f6f8fa55; }
+blockquote p { margin:.4em 0; }
+table { border-collapse:collapse; width:100%; margin:1.2em 0; font-size:.93rem; display:block; overflow-x:auto; }
+th, td { border:1px solid var(--border); padding:7px 12px; text-align:left; vertical-align:top; }
+th { background:var(--code-bg); font-weight:600; }
+tr:nth-child(even) td { background:#f6f8fa55; }
+hr { border:0; border-top:1px solid var(--border); margin:2em 0; }
+.anchor { visibility:hidden; padding-right:6px; text-decoration:none; color:var(--muted); }
+h1:hover .anchor, h2:hover .anchor, h3:hover .anchor, h4:hover .anchor { visibility:visible; }
+footer.doc { margin-top:48px; padding-top:16px; border-top:1px solid var(--border);
+  color:var(--muted); font-size:.82rem; }
+@media (max-width:640px){ .wrap{padding:20px 14px 60px;} body{font-size:15px;} }
+</style>
+</head>
+<body>
+<div class="wrap">
+<header class="doc">
+  <h1>5 · Evolution from the Original NetPrompt — What Changed and Why</h1>
+  <div class="sub">RuntimeManager / KRONOS architecture review</div>
+</header>
+<nav class="toc"><div class="toc-title">Contents</div><div class="toc">
+<ul>
+<li><a href="#5-evolution-from-the-original-netprompt-what-changed-and-why">5 · Evolution from the Original NetPrompt — What Changed and Why</a><ul>
+<li><a href="#0-the-shift-in-one-picture">0 · The shift in one picture</a></li>
+<li><a href="#1-architecture-workflow">1 · Architecture &amp; workflow</a></li>
+<li><a href="#2-the-slow-planner">2 · The slow planner</a></li>
+<li><a href="#3-the-knowledge-graph">3 · The Knowledge Graph</a></li>
+<li><a href="#4-the-selector">4 · The selector</a></li>
+<li><a href="#5-the-test-environment">5 · The test environment</a></li>
+<li><a href="#6-the-two-models">6 · The two models</a></li>
+<li><a href="#7-the-lora-retraining-the-centerpiece">7 · The LoRA retraining (the centerpiece)</a><ul>
+<li><a href="#71-why">7.1 Why</a></li>
+<li><a href="#72-the-oracle-where-labels-come-from">7.2 The oracle — where labels come from</a></li>
+<li><a href="#73-what-exactly-was-done-verified-against-train_decision_lorapy-configs">7.3 What exactly was done (verified against train_decision_lora.py + configs)</a></li>
+<li><a href="#74-how-it-improved-the-result">7.4 How it improved — the result</a></li>
+<li><a href="#75-why-it-was-promoted-the-subtle-correct-reason">7.5 Why it was promoted (the subtle, correct reason)</a></li>
+<li><a href="#76-the-closed-learning-loop">7.6 The closed learning loop</a></li>
+</ul>
+</li>
+<li><a href="#8-honest-scorecard">8 · Honest scorecard</a></li>
+<li><a href="#key-takeaways">Key Takeaways</a></li>
+</ul>
+</li>
+</ul>
+</div>
+</nav>
+<h1 id="5-evolution-from-the-original-netprompt-what-changed-and-why">5 · Evolution from the Original NetPrompt — What Changed and Why<a class="anchor" href="#5-evolution-from-the-original-netprompt-what-changed-and-why" title="Permanent link">¶</a></h1>
+<p>This document traces the system from <strong>Bishwas &amp; Kiran's original NetPrompt
+Milestone-II</strong> implementation to the current system, across the five pieces the
+original was built from — the <strong>slow planner</strong>, the <strong>Knowledge Graph</strong>, the
+<strong>selector</strong>, the <strong>test environment</strong> — plus the <strong>architecture/workflow</strong> shift,
+the <strong>two models</strong>, and the <strong>LoRA retraining</strong> done to fix decision quality.</p>
+<p>Every claim below is grounded in a file in this repo. Metrics were
+adversarially verified against the source (24/24 confirmed); where the original
+and current differ, both are cited.</p>
+<blockquote>
+<p><strong>Provenance.</strong> The original <code>llm_orchestrator</code> package, the Neo4j KG-RAG
+context, the fine-tuned <code>Qwen2.5-1.5B + LoRA</code> decision model, the validator +
+deterministic fallback, the policy compiler, and the
+<code>llm_generated_experiment_config.json</code> artifact are <strong>Bishwas &amp; Kiran's</strong>
+work (<code>docs/planner/planner-design.md:11-15</code>). This session's contributions are the
+four planner extensions (§3), the whole <code>runtime/</code> MAPE-K inner loop, the
+KG read/write split, the test suite, and the retrain (§7).</p>
+</blockquote>
+<hr />
+<h2 id="0-the-shift-in-one-picture">0 · The shift in one picture<a class="anchor" href="#0-the-shift-in-one-picture" title="Permanent link">¶</a></h2>
+<pre><code>ORIGINAL (Milestone-II): open-loop, one-shot
+  mission ─▶ pick SFC ─▶ deploy once on a torn-down-per-run net ─▶ parse results ─▶ push to KG ─▶ EXIT
+            (later: LLM writes llm_generated_experiment_config.json … and STOPS — triggers no deploy)
+
+CURRENT: two-loop, closed
+  mission ─▶ SLOW PLANNER (LLM, KG-RAG, constrained) ─▶ DeploymentSpec ─▶ RUNTIME MANAGER (MAPE-K) ─▶ live P4/BMv2
+     ▲                                                                          │
+     └──────────── analytics: per-SFC reliability ◀── Verdict / EscalationTicket (KG) ◀┘
+</code></pre>
+<table>
+<thead>
+<tr>
+<th>Dimension</th>
+<th>Original (Bishwas &amp; Kiran)</th>
+<th>Current</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Control</td>
+<td>Open-loop, one-shot decide→deploy→parse→exit</td>
+<td>Two-loop MAPE-K with rollback/escalation</td>
+</tr>
+<tr>
+<td>Planner output</td>
+<td>Config artifact, then <strong>stops</strong></td>
+<td>Artifact → normalized <code>DeploymentSpec</code> → live episode</td>
+</tr>
+<tr>
+<td>Selector</td>
+<td>Hand-coded Cypher + if/elif ladder</td>
+<td>Fine-tuned LLM, 6-key constrained decision</td>
+</tr>
+<tr>
+<td>Adaptation</td>
+<td>None (parse &amp; record)</td>
+<td>Tier 0 tune → 1 reroute → 2 LLM-regen, domination-guarded</td>
+</tr>
+<tr>
+<td>KG</td>
+<td>Mixed strategic+operational; status hardcoded</td>
+<td>Read-strategic / write-runtime; status monitor-computed</td>
+</tr>
+<tr>
+<td>Tests</td>
+<td>0 assertions; human-read <code>.txt</code> files</td>
+<td>212 unit (454 asserts) + 16 node integration (62 asserts)</td>
+</tr>
+<tr>
+<td>Feedback</td>
+<td>Outcomes pushed to KG, never reused</td>
+<td>Closed analytics loop folds verdicts into planner context</td>
+</tr>
+</tbody>
+</table>
+<hr />
+<h2 id="1-architecture-workflow">1 · Architecture &amp; workflow<a class="anchor" href="#1-architecture-workflow" title="Permanent link">¶</a></h2>
+<p><strong>Original</strong> — a single-pass, open-loop pipeline: pick an SFC for a scenario,
+deploy it once on a BMv2 network that is torn down per run, parse results, push
+them to Neo4j, exit. No running control loop, no rollback, no attribution, no
+in-envelope adaptation. The later LLM orchestrator terminated by <strong>writing a
+config artifact and stopping</strong> — it never triggered or supervised a deployment
+(<code>runtime-manager-design.md</code>; <code>planner_adapter.py:1-12</code> documents the seam).</p>
+<p><strong>Current</strong> — a two-loop control architecture around a KG+Library hub:
+- a <strong>slow LLM planner</strong> outer loop (decide <em>which</em> SFC) feeding
+- a <strong>deterministic MAPE-K <code>RuntimeManager</code></strong> inner loop
+  (deploy → monitor → attribute → adapt → commit/rollback/escalate) over a
+  <strong>persistent</strong> BMv2 fabric, with a tiered in-envelope adaptation engine
+  (tier 0 tune → 1 reroute → 2 LLM regen) guarded by domination + a shared
+  per-episode budget.</p>
+<p>The two loops are bridged by a <strong>typed contract</strong> — <code>DeploymentSpec</code> in,
+<code>EscalationTicket</code> + <code>Verdict</code> out (<code>docs/design/runtime-planner-contracts.md:34-76</code>) —
+and a <strong>closed analytics loop</strong> folds runtime verdicts back into the planner's
+decision context (<code>orchestrate.py:55-56</code>, <code>analytics.py</code>).</p>
+<p><em>Verified live behavior:</em> an end-to-end planner-artifact episode (D11) produced a
+real <code>Verdict(outcome=escalated, tier_reached=2)</code> + <code>EscalationTicket</code>; a
+multi-handoff soak (D14) ran 6 rounds → 6/6 verdicts written
+(<code>docs/design/runtime-planner-contracts.md:204-236</code>).</p>
+<hr />
+<h2 id="2-the-slow-planner">2 · The slow planner<a class="anchor" href="#2-the-slow-planner" title="Permanent link">¶</a></h2>
+<p><strong>Original pipeline</strong> (<code>llm_orchestrator/</code>, unchanged in shape):
+<code>build_runtime_input_object</code> reads the Neo4j topology snapshot + candidate
+SFC/policy set + a results-CSV history (KG-RAG, top-k=3 by a hand-weighted
+similarity), assembles an input object with <code>orchestration_constraints</code>, then
+<code>run_pipeline</code> prompts the fine-tuned model for a <strong>6-key JSON decision</strong>
+(<code>selected_sfc/policy/path/relay</code>, <code>priority_class</code>, <code>deployment_mode</code>),
+validates it, <strong>falls back to a deterministic rule oracle</strong> if invalid, and
+compiles the artifact (<code>orchestrate.py</code>, <code>validator.py</code>, <code>policy_compiler.py</code>).</p>
+<p><strong>Original limitation:</strong> the 1.5B model emitted only <strong>4 of the 6 keys</strong> then
+rambled past the JSON, so the validator rejected it and the deterministic
+fallback took over — the LLM was <em>routinely bypassed</em>
+(<code>decision_grammar.py:3-7</code>, <code>planner-design.md:186</code>).</p>
+<p>The four extensions (this work, <code>planner-design.md:168-209</code>):</p>
+<table>
+<thead>
+<tr>
+<th>#</th>
+<th>Extension</th>
+<th>Outcome</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>3.1</td>
+<td><strong>KG topology seed</strong> — add <code>ProgrammableSwitch</code> roles + <code>P4PolicyMapping</code> so the planner resolves <code>allowed_relays</code>/candidates locally</td>
+<td>Made it runnable on the consolidated node</td>
+</tr>
+<tr>
+<td>3.2</td>
+<td><strong>Grammar-constrained decoding</strong> — per-request GBNF derived from the <em>same</em> <code>orchestration_constraints</code> the validator checks</td>
+<td><strong>KEPT</strong> — forces a complete, valid 6-key decision; "grammar-valid ⇒ validator-valid by construction"</td>
+</tr>
+<tr>
+<td>3.3</td>
+<td><strong>Prompt / few-shot</strong> — a mission→SFC rubric + exemplars</td>
+<td><strong>NEGATIVE, reverted</strong> — a 1.5B model isn't promptable out of mode-collapse</td>
+</tr>
+<tr>
+<td>3.4</td>
+<td><strong>LoRA retrain</strong> — distill the oracle into fresh weights</td>
+<td><strong>PARTIAL WIN</strong> — see §7</td>
+</tr>
+</tbody>
+</table>
+<p>§3.2 is subtle and important: constrained decoding makes the LLM output <em>always
+valid</em>, so the fallback now fires <strong>only when constrained decoding is off</strong>. The
+decision therefore rests on the <em>adapter</em> — which is exactly why the retrain (§7)
+mattered. New file <code>decision_grammar.py</code> + 4 unit tests
+(<code>tests/unit/test_decision_grammar.py</code>).</p>
+<hr />
+<h2 id="3-the-knowledge-graph">3 · The Knowledge Graph<a class="anchor" href="#3-the-knowledge-graph" title="Permanent link">¶</a></h2>
+<p><strong>Original</strong> — one static Neo4j graph for the testbed, generated offline into
+<code>drone_sfc_kg.json</code> (<code>controller/generate_kg.py</code>, <strong>29 nodes / 38 relationships</strong>:
+10 <code>Drone</code>, 5 <code>AgriculturalField</code>, 4 <code>SFCTemplate</code>, 4 <code>P4PolicyMapping</code>, 3
+<code>ProgrammableSwitch</code>, 3 cluster nodes) and bulk-imported with a <strong>destructive</strong>
+load (<code>controller/import_kg.py:22</code> — <code>MATCH (n) DETACH DELETE n</code>). It modeled the
+strategic world <strong>and</strong> carried live operational state (switch status, path
+decisions) in the <em>same</em> graph; a hand-driven script
+(<code>experiments/update_topology_state.py</code>) wrote switch status from a <strong>hardcoded
+<code>SCENARIO_STATE</code> table</strong> keyed by scenario name.</p>
+<p><strong>Current</strong> — same strategic graph, now under a strict <strong>read/write contract</strong>
+(<code>runtime/kg_client.py:1-12</code>):
+- <strong>Reads</strong> only strategic state: <code>SFCTemplate</code> + <code>AgriculturalField</code> bounds.
+- <strong>Writes</strong> only runtime state the MAPE-K loop computes: monitor-measured switch
+  status (new node types <code>Verdict</code>, <code>EscalationTicket</code>, <code>BaselineSnapshot</code>,
+  <code>LastKnownGood</code> — <code>kg_client.py:131-174</code>).
+- <strong>Status is no longer asserted</strong> from a scenario dict — it is <em>computed</em> by the
+  monitor from live observation (the hardcoded→circular <code>SCENARIO_STATE</code> is gone).
+- The seed is now <strong>idempotent</strong> <code>MERGE</code> that <em>preserves</em> runtime records
+  (<code>runtime/tools/seed_kg.py</code>), not a <code>DETACH DELETE</code> wipe.
+- <code>build_envelope</code> fuses <strong>strictest of SFCTemplate AND field requirements</strong> with
+  a runtime-owned action space (<code>kg_client.py:58-87</code>) — a read-time fusion the
+  original never did.
+- <strong>SLA bounds recalibrated to the measured fabric</strong>: field/SFC latency
+  <code>20 ms / 50 ms → 45 ms / 60 ms</code> (the originals were below the ~40 ms primary /
+  ~52 ms backup floor, so every episode escalated; <code>generate_kg.py:48-53</code>).</p>
+<hr />
+<h2 id="4-the-selector">4 · The selector<a class="anchor" href="#4-the-selector" title="Permanent link">¶</a></h2>
+<p><strong>Original</strong> — a hand-coded, deterministic chooser (no LLM), in two forms:
+- <code>controller/select_template.py</code> — a single Cypher query with a <strong>hardcoded</strong>
+  <code>latency_requirement = 20</code> returning the lowest-latency <code>SFCTemplate</code>,
+  <code>LIMIT 1</code> (SFC id only).
+- <code>controller/run_selected_sfc.py:56-66</code> — a hardcoded <strong>if/elif ladder</strong> over a
+  field's latency/bandwidth/priority mapping to one of four templates.
+- Plus published <strong>baselines</strong> for comparison: <code>baseline_static</code> (always emits
+  <code>LowLatencyVideoSFC</code>) and <code>baseline_rule_based</code>.</p>
+<p><strong>Current</strong> — a fine-tuned <strong>LLM planner</strong> (<code>Qwen2.5-1.5B-Instruct + LoRA</code>) emits
+one <strong>atomic 6-key decision</strong> from full mission + telemetry + KG topology +
+KG-RAG history + runtime feedback. The old rule ladder survives only as
+(a) the deterministic <code>validator.fallback_decision</code> oracle, and (b) the <strong>label
+source distilled into the retrained LoRA</strong> (§7). The original static/rule
+selectors are kept as <strong>formal baselines</strong> contrasted against the proposed
+KG-driven NetPrompt.</p>
+<blockquote>
+<p><strong>Honest tradeoff:</strong> the LLM's selection is <em>far</em> slower —
+~<strong>1.0 s</strong> (proposed, <code>comparative_results/</code>) vs ~<strong>3 µs</strong> for the rule-based
+baseline. The LLM buys mission-/context-sensitivity and KG grounding at a
+~10⁵× latency cost; acceptable because selection is the <em>slow</em> loop (per
+mission/re-plan, not per control cycle).</p>
+</blockquote>
+<hr />
+<h2 id="5-the-test-environment">5 · The test environment<a class="anchor" href="#5-the-test-environment" title="Permanent link">¶</a></h2>
+<p><strong>Original</strong> — standalone Mininet experiment scripts driven by bash auto-runners:
+build a network, install rules, run iperf/ping, <strong>dump raw output to <code>.txt</code></strong>, tear
+the network down. <strong>No automated pass/fail</strong> — an operator read the result files.
+<code>grep -c assert</code> over all 11 experiment files returns <strong>0</strong>. Rule installs were
+fire-and-forget (no output check). The original used a <strong>single OVS switch</strong>
+(<code>sfc_experiment.py</code>) or single P4 switch.</p>
+<p><strong>Current</strong> — two tiers:
+- <strong>Off-testbed pytest unit suite: 212 tests / 454 assertions</strong> across 18 files,
+  built on deterministic test doubles (<code>FakeDeployer</code>/<code>FakeMonitor</code>/
+  <code>ScriptedRunner</code>) + <strong>6 scenario fixtures</strong> (<code>runtime/fixtures.py</code>), so engine
+  and evaluator logic is tested without <code>sudo</code> Mininet.
+- <strong>Node-gated integration suite: 16 tests / 62 assertions</strong> across 6 files (all
+  <code>skipif(not _testbed_up())</code>) that drive a <strong>resident 3-switch BMv2 fabric</strong>
+  (<code>launch_network.py</code>, s1=9090/s2=9091/s3=9092) and assert on real switch state
+  + live traffic.
+- Rule installation is now <strong>verified</strong> — the loader fails loudly if any
+  <code>table_add</code> was rejected (vs the original's unchecked <code>subprocess</code>).</p>
+<table>
+<thead>
+<tr>
+<th>Metric</th>
+<th>Original</th>
+<th>Current</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Unit tests / assertions</td>
+<td>0 / 0</td>
+<td>212 / 454</td>
+</tr>
+<tr>
+<td>Integration tests / assertions</td>
+<td>0 / 0</td>
+<td>16 / 62 (node-gated)</td>
+</tr>
+<tr>
+<td>Network model</td>
+<td>ephemeral single-switch</td>
+<td>resident 3-switch BMv2/P4</td>
+</tr>
+<tr>
+<td>Pass/fail</td>
+<td>human reads <code>.txt</code></td>
+<td>executable assertions</td>
+</tr>
+</tbody>
+</table>
+<hr />
+<h2 id="6-the-two-models">6 · The two models<a class="anchor" href="#6-the-two-models" title="Permanent link">¶</a></h2>
+<table>
+<thead>
+<tr>
+<th></th>
+<th><strong>Decision model</strong> (planner)</th>
+<th><strong>Tier-2 regen model</strong> (runtime)</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Base</td>
+<td><code>Qwen2.5-1.5B-Instruct</code></td>
+<td><code>Qwen2.5-Coder-1.5B-Instruct</code></td>
+</tr>
+<tr>
+<td>Adapter</td>
+<td>LoRA (<code>final_adapter</code> → <code>final_adapter_retrained</code>)</td>
+<td>none (base, pinned revision)</td>
+</tr>
+<tr>
+<td>Device</td>
+<td><code>cuda:0</code>, FP16, 4-bit <strong>off</strong> on P100</td>
+<td><code>cuda:1</code> (no contention with the planner)</td>
+</tr>
+<tr>
+<td>Decoding</td>
+<td>greedy + GBNF grammar-constrained (default-on)</td>
+<td>greedy + GBNF, default-<strong>stubbed</strong> (<code>StubLLMClient</code>)</td>
+</tr>
+<tr>
+<td>Role</td>
+<td><em>select which SFC/policy/path</em></td>
+<td><em>regenerate P4 rules</em> when tier 0/1 fail</td>
+</tr>
+<tr>
+<td>Pinned for repro</td>
+<td>adapter path via <code>NETPROMPT_LLM_ADAPTER</code></td>
+<td><code>NETPROMPT_REGEN_REVISION=2e1fd397…</code></td>
+</tr>
+</tbody>
+</table>
+<p>The decision model is <strong>not</strong> the Runtime Manager; the regen model is a component
+the deterministic RM <em>may call</em> at tier 2 (<code>docs/components/README.md:40</code>,
+<code>gpu-node.env:17,32-35</code>).</p>
+<hr />
+<h2 id="7-the-lora-retraining-the-centerpiece">7 · The LoRA retraining (the centerpiece)<a class="anchor" href="#7-the-lora-retraining-the-centerpiece" title="Permanent link">¶</a></h2>
+<h3 id="71-why">7.1 Why<a class="anchor" href="#71-why" title="Permanent link">¶</a></h3>
+<p>The original planner LoRA (<code>final_adapter</code>) <strong>mode-collapsed to
+<code>LowLatencyVideoSFC</code> for every mission</strong> (<code>planner-lora-eval.md:44-57</code>). The two
+cheaper fixes were exhausted: constrained decoding (§3.2) fixed <em>format</em> but not
+<em>choice</em>; prompt/few-shot (§3.3) didn't move the choice (the base model behaves
+identically). Decision <em>quality</em> needed <strong>new weights</strong>.</p>
+<h3 id="72-the-oracle-where-labels-come-from">7.2 The oracle — where labels come from<a class="anchor" href="#72-the-oracle-where-labels-come-from" title="Permanent link">¶</a></h3>
+<p>The deterministic <code>validator.fallback_decision</code> already encodes the correct
+mission/telemetry → SFC policy. The retrain <strong>distills it</strong> into the LoRA, so
+every training target is already validator-valid and grammar-valid by
+construction (<code>train_decision_lora.py:31,88</code>):</p>
+<table>
+<thead>
+<tr>
+<th>Condition (first match wins)</th>
+<th>SFC · path · mode</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>emergency mission / loss ≥ 3 / unavailable relay</td>
+<td>ReliableRelaySFC · backup · multihop</td>
+</tr>
+<tr>
+<td>soil mission / battery &lt; 40</td>
+<td>EnergyAwareSFC · primary · single_switch</td>
+</tr>
+<tr>
+<td>pest mission / delay ≤ 10</td>
+<td>LowLatencyVideoSFC · primary · multihop</td>
+</tr>
+<tr>
+<td>bandwidth ≥ 30</td>
+<td>BandwidthOptimizedSFC · primary · single_switch</td>
+</tr>
+<tr>
+<td>else</td>
+<td>ReliableRelaySFC · backup · multihop</td>
+</tr>
+</tbody>
+</table>
+<h3 id="73-what-exactly-was-done-verified-against-train_decision_lorapy-configs">7.3 What exactly was done (verified against <code>train_decision_lora.py</code> + configs)<a class="anchor" href="#73-what-exactly-was-done-verified-against-train_decision_lorapy-configs" title="Permanent link">¶</a></h3>
+<ul>
+<li><strong>Dataset — generate-then-bin, balanced:</strong> for a target SFC, sample telemetry
+  that lands on its oracle branch (<code>_telemetry_for</code>), use a <strong>named mission 50% /
+  generic 50%</strong> (forces telemetry use, not just name memorization), label with
+  <code>fallback_decision</code>, bin by returned SFC, keep an equal count per SFC. Final:
+  <strong>640 examples, 160/SFC</strong>, <code>--seed 0</code> (<code>train_decision_lora.py:77-99</code>).</li>
+<li><strong>Loss on the decision only:</strong> prompt tokens masked to <code>-100</code>; EOS appended so
+  the model learns to <em>stop</em> at the closing brace (the original rambled because
+  it never learned to stop) (<code>train_decision_lora.py:102-107</code>).</li>
+<li><strong>Model + fresh LoRA (drop-in compatible):</strong> base <code>Qwen2.5-1.5B-Instruct</code>;
+  <code>r=16, lora_alpha=32, lora_dropout=0.05, bias=none, CAUSAL_LM</code>, 7 target modules
+  (<code>q,k,v,o,gate,up,down_proj</code>) → <strong>18,464,768 trainable (1.18% of 1.56B)</strong>. Both
+  <code>final_adapter</code> and <code>final_adapter_retrained</code> share these hyperparameters
+  (verified in both <code>adapter_config.json</code>), so the new adapter is a one-flag swap.</li>
+<li><strong>Training:</strong> manual loop, <strong>batch 1 + grad-accum 8</strong>, AdamW <strong>lr 2e-4</strong>,
+  grad-clip 1.0, <strong>3 epochs</strong>, <code>max_len 2600</code>, <strong>fp32</strong> (P100 is sm_60: no bf16,
+  fp16 Adam underflows; weights are dtype-agnostic so inference still runs FP16).
+  ~1.8 s/example → <strong>~52 min</strong> on one Tesla P100-16GB
+  (<code>train_decision_lora.py:141-178</code>, <code>planner-lora-retrain.md:88-104,215</code>).</li>
+<li><strong>Final mean loss <code>0.0066</code></strong> (loss fell <code>0.33 → 0.17 → 0.12</code> within the first
+  240 examples).</li>
+</ul>
+<h3 id="74-how-it-improved-the-result">7.4 How it improved — the result<a class="anchor" href="#74-how-it-improved-the-result" title="Permanent link">¶</a></h3>
+<p>Evaluated with constrained decoding (the production setting), so every output is a
+valid 6-key decision; the test is purely <em>which</em> SFC
+(<code>planner-lora-eval.md:42-58</code>):</p>
+<table>
+<thead>
+<tr>
+<th>Probe set</th>
+<th>Original</th>
+<th>Retrained</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>(A)</strong> known mission names</td>
+<td>1 mode (always LowLatency)</td>
+<td><strong>4/4 correct</strong></td>
+</tr>
+<tr>
+<td><strong>(B)</strong> novel mission names</td>
+<td>always LowLatency</td>
+<td>0/4 (→ BandwidthOptimized)</td>
+</tr>
+<tr>
+<td><strong>(C)</strong> generic names, telemetry-only</td>
+<td>always LowLatency</td>
+<td>0/4 (→ BandwidthOptimized)</td>
+</tr>
+</tbody>
+</table>
+<ul>
+<li><strong>What worked:</strong> the retrain <strong>broke the always-LowLatency collapse</strong> — across
+  the four known mission types the model now picks correctly
+  (emergency→Reliable, bulk→Bandwidth, pest→LowLatency, soil→Energy). A
+  categorical improvement over "1 of 4 SFC types ever reachable."</li>
+<li><strong>What didn't:</strong> it learned <strong>mission-name → SFC</strong> more than <strong>telemetry
+  reasoning</strong> — for novel/generic missions where the answer depends on numbers it
+  defaults to BandwidthOptimized. Likely cause: telemetry digits sit deep in a
+  ~2400-token prompt a 1.5B model under-attends to, and name is the easier signal.</li>
+</ul>
+<h3 id="75-why-it-was-promoted-the-subtle-correct-reason">7.5 Why it was promoted (the subtle, correct reason)<a class="anchor" href="#75-why-it-was-promoted-the-subtle-correct-reason" title="Permanent link">¶</a></h3>
+<p>Under the <strong>production default (constrained decoding ON)</strong> the grammar makes the
+LLM output <em>always valid</em>, so the fallback is <strong>bypassed</strong> and the LLM's choice
+ships. That means the <em>original</em> adapter ships its mode-collapsed LowLatency for
+every non-LowLatency mission, while the <strong>retrained adapter is the only one
+correct under constrained-on</strong>. <strong>Promoted 2026-06-19</strong>:
+<code>gpu-node.env</code> sets <code>NETPROMPT_LLM_ADAPTER → final_adapter_retrained</code>; rollback is
+a one-line env change (original preserved + tracked)
+(<code>planner-lora-eval.md:73-108</code>).</p>
+<h3 id="76-the-closed-learning-loop">7.6 The closed learning loop<a class="anchor" href="#76-the-closed-learning-loop" title="Permanent link">¶</a></h3>
+<p><code>build_runtime_input_object</code> now folds a per-SFC reliability signal — aggregated
+from the runtime's <code>Verdict</code>/<code>EscalationTicket</code> history — back into every decision
+as <code>input_object.runtime_feedback</code> (<code>orchestrate.py:55-56</code>, <code>analytics.py</code>).
+<em>Honest caveat:</em> the feedback <strong>path</strong> is wired and robust, but the current 1.5B
+model doesn't yet <em>exploit</em> the signal (it wasn't trained on the field), and
+escalation-rate conflates "wrong SFC" with "unachievable SLA on this fabric" — so
+today it is advisory. Truly acting on it needs a feedback-aware retrain or a
+stronger model.</p>
+<hr />
+<h2 id="8-honest-scorecard">8 · Honest scorecard<a class="anchor" href="#8-honest-scorecard" title="Permanent link">¶</a></h2>
+<table>
+<thead>
+<tr>
+<th>Improvement</th>
+<th>Status</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Open-loop → two-loop MAPE-K with rollback/escalation</td>
+<td>✅ shipped, live-verified (D11/D14)</td>
+</tr>
+<tr>
+<td>Hand-coded selector → constrained LLM planner</td>
+<td>✅ shipped</td>
+</tr>
+<tr>
+<td>Mode-collapsed planner → mission-sensitive on known taxonomy</td>
+<td>✅ 4/4 known (retrain)</td>
+</tr>
+<tr>
+<td>Telemetry-only / novel-mission generalization</td>
+<td>⚠️ open (0/4 — needs telemetry-weighted retrain or larger model)</td>
+</tr>
+<tr>
+<td>KG: hardcoded status → monitor-computed; read/write split</td>
+<td>✅ shipped</td>
+</tr>
+<tr>
+<td>Tests: 0 assertions → 212 unit + 16 integration</td>
+<td>✅ shipped</td>
+</tr>
+<tr>
+<td>Closed analytics feedback loop</td>
+<td>◑ path wired; model doesn't yet exploit it</td>
+</tr>
+<tr>
+<td>LLM selection latency (~1 s vs ~3 µs rule-based)</td>
+<td>⚠️ inherent cost of the slow loop</td>
+</tr>
+</tbody>
+</table>
+<p><strong>Net:</strong> the system went from a one-shot, open-loop, human-graded pipeline with a
+mode-collapsed selector to a closed-loop, self-adapting, test-covered control
+system with a planner that is correct on the known mission taxonomy. The two
+honest remaining gaps are telemetry generalization in the 1.5B decision model and
+a feedback-aware retrain to <em>act</em> on the (already-wired) analytics loop.</p>
+<hr />
+<h2 id="key-takeaways">Key Takeaways<a class="anchor" href="#key-takeaways" title="Permanent link">¶</a></h2>
+<ul>
+<li>
+<p><strong>The core shift is open-loop one-shot to closed-loop MAPE-K.</strong> The original (Bishwas &amp; Kiran's Milestone-II) decided one SFC, deployed once on a per-run torn-down BMv2 net, parsed results, pushed to the KG, and exited — and its later LLM orchestrator literally just wrote <code>llm_generated_experiment_config.json</code> and stopped without deploying. The current system is a two-loop architecture: a slow LLM planner feeds a deterministic MAPE-K <code>RuntimeManager</code> (deploy → monitor → attribute → adapt → commit/rollback/escalate) over a persistent fabric, bridged by a typed <code>DeploymentSpec</code>-in / <code>Verdict</code>+<code>EscalationTicket</code>-out contract.</p>
+</li>
+<li>
+<p><strong>The selector went from a hand-coded if/elif ladder to a constrained LLM.</strong> The original chooser was pure Cypher with a hardcoded <code>latency_requirement = 20</code> plus an if/elif ladder over four templates (<code>run_selected_sfc.py:56-66</code>). The current planner is a fine-tuned <code>Qwen2.5-1.5B + LoRA</code> emitting one atomic 6-key decision; the old ladder survives only as the deterministic <code>validator.fallback_decision</code> oracle and as the label source distilled into the retrained LoRA. This buys mission/context-sensitivity at a roughly 10⁵× latency cost (~1.0 s vs ~3 µs), acceptable only because selection is the slow loop.</p>
+</li>
+<li>
+<p><strong>Grammar-constrained decoding is what made the LLM's choice load-bearing.</strong> Extension §3.2 derives a per-request GBNF from the same <code>orchestration_constraints</code> the validator checks, so "grammar-valid ⇒ validator-valid by construction." Crucially, with constrained decoding on (the production default) the deterministic fallback is bypassed entirely — so the LLM's choice actually ships, which is exactly why the retrain mattered.</p>
+</li>
+<li>
+<p><strong>Test rigor jumped from zero to 212 + 16 tests.</strong> The original had standalone Mininet scripts dumping raw output to <code>.txt</code> for a human to read — <code>grep -c assert</code> over all 11 experiment files returns 0. The current suite is 212 unit tests / 454 assertions (on fake deployers/monitors, no sudo) plus 16 node-gated integration tests / 62 assertions driving a resident 3-switch BMv2 fabric (s1=9090/s2=9091/s3=9092), and rule installs now fail loudly if any <code>table_add</code> is rejected.</p>
+</li>
+<li>
+<p><strong>The LoRA retrain broke mode-collapse but only halfway.</strong> The original adapter collapsed to <code>LowLatencyVideoSFC</code> for every mission, so it was retrained by distilling the oracle into fresh weights: 640 examples (160/SFC, 50% named / 50% generic missions), loss masked to the decision only, 3 epochs in ~52 min on a Tesla P100, reaching a final mean loss of 0.0066. The result was a partial win — 4/4 correct on known mission names (emergency→Reliable, bulk→Bandwidth, pest→LowLatency, soil→Energy), but 0/4 on novel and telemetry-only probes, where it defaults to BandwidthOptimized.</p>
+</li>
+<li>
+<p><strong>The retrain was promoted precisely because the fallback no longer fires.</strong> Since constrained-on bypasses the deterministic oracle, the original adapter would ship its collapsed LowLatency for every non-LowLatency mission, making the retrained adapter the only one correct in production. It was promoted 2026-06-19 via <code>gpu-node.env</code> (<code>NETPROMPT_LLM_ADAPTER → final_adapter_retrained</code>), with rollback being a one-line env change since the original is preserved.</p>
+</li>
+<li>
+<p><strong>The honest open gaps are telemetry generalization and an unexploited feedback loop.</strong> The 1.5B model learned mission-name→SFC more than telemetry reasoning (digits sit deep in a ~2400-token prompt it under-attends), so number-dependent missions still need a telemetry-weighted retrain or a larger model. The closed analytics loop folds per-SFC reliability from <code>Verdict</code>/<code>EscalationTicket</code> history back into <code>runtime_feedback</code>, but the path is only wired (◑) — the model wasn't trained on the field and escalation-rate conflates "wrong SFC" with "unachievable SLA," so today it is merely advisory.</p>
+</li>
+</ul>
+<hr />
+<p><em>Sources: <code>docs/planner/planner-design.md</code>, <code>docs/planner/planner-lora-retrain.md</code>,
+<code>docs/planner/planner-lora-eval.md</code>, <code>docs/design/runtime-planner-contracts.md</code>,
+<code>docs/design/future-work.md</code>, <code>controller/{generate_kg,import_kg,select_template,run_selected_sfc}.py</code>,
+<code>network/milestone-II-latest/netprompt-milestone-II/{llm_orchestrator,train_decision_lora.py}</code>,
+<code>runtime/{kg_client,planner_adapter,fixtures,fakes}.py</code>, <code>deploy/gpu-node/gpu-node.env</code>.
+All metrics adversarially verified (24/24 confirmed) against these files.</em></p>
+<footer class="doc">Generated from <code>05-evolution-from-original.md</code> on 2026-06-29 — RuntimeManager architecture docs.</footer>
+</div>
+</body>
+</html>

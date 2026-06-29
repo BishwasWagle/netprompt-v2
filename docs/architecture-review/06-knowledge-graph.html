@@ -1,0 +1,422 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>6 · The Knowledge Graph — the System&#x27;s Coordination Hub</title>
+<style>
+:root { --fg:#1f2328; --muted:#656d76; --link:#0969da; --border:#d0d7de; --bg:#fff;
+        --code-bg:#f6f8fa; --accent:#0969da; }
+* { box-sizing: border-box; }
+body { margin:0; background:var(--bg); color:var(--fg);
+  font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Helvetica,Arial,sans-serif;
+  font-size:16px; line-height:1.6; }
+.wrap { max-width:920px; margin:0 auto; padding:32px 24px 80px; }
+header.doc { border-bottom:1px solid var(--border); margin-bottom:24px; padding-bottom:16px; }
+header.doc h1 { margin:0 0 4px; font-size:1.9rem; }
+header.doc .sub { color:var(--muted); font-size:.9rem; }
+header.doc .sub code { background:var(--code-bg); padding:1px 5px; border-radius:4px; }
+nav.toc { background:var(--code-bg); border:1px solid var(--border); border-radius:8px;
+  padding:12px 16px; margin:0 0 28px; font-size:.92rem; }
+nav.toc .toc-title { font-weight:600; margin-bottom:6px; }
+nav.toc ul { margin:4px 0; padding-left:20px; }
+nav.toc a { color:var(--link); text-decoration:none; }
+nav.toc a:hover { text-decoration:underline; }
+h1,h2,h3,h4 { line-height:1.25; margin-top:1.6em; margin-bottom:.5em; font-weight:600; }
+h2 { border-bottom:1px solid var(--border); padding-bottom:.3em; }
+h1 { font-size:1.7rem; } h2 { font-size:1.4rem; } h3 { font-size:1.15rem; } h4 { font-size:1rem; }
+a { color:var(--link); text-decoration:none; } a:hover { text-decoration:underline; }
+p, li { overflow-wrap:break-word; }
+code { background:var(--code-bg); padding:.15em .4em; border-radius:5px;
+  font-family:ui-monospace,SFMono-Regular,"SF Mono",Menlo,Consolas,monospace; font-size:.88em; }
+pre { background:var(--code-bg); border:1px solid var(--border); border-radius:8px;
+  padding:14px 16px; overflow-x:auto; line-height:1.45; }
+pre code { background:none; padding:0; font-size:.82rem; white-space:pre; }
+blockquote { margin:1em 0; padding:.4em 1em; color:var(--muted);
+  border-left:4px solid var(--border); background:#f6f8fa55; }
+blockquote p { margin:.4em 0; }
+table { border-collapse:collapse; width:100%; margin:1.2em 0; font-size:.93rem; display:block; overflow-x:auto; }
+th, td { border:1px solid var(--border); padding:7px 12px; text-align:left; vertical-align:top; }
+th { background:var(--code-bg); font-weight:600; }
+tr:nth-child(even) td { background:#f6f8fa55; }
+hr { border:0; border-top:1px solid var(--border); margin:2em 0; }
+.anchor { visibility:hidden; padding-right:6px; text-decoration:none; color:var(--muted); }
+h1:hover .anchor, h2:hover .anchor, h3:hover .anchor, h4:hover .anchor { visibility:visible; }
+footer.doc { margin-top:48px; padding-top:16px; border-top:1px solid var(--border);
+  color:var(--muted); font-size:.82rem; }
+@media (max-width:640px){ .wrap{padding:20px 14px 60px;} body{font-size:15px;} }
+</style>
+</head>
+<body>
+<div class="wrap">
+<header class="doc">
+  <h1>6 · The Knowledge Graph — the System&#x27;s Coordination Hub</h1>
+  <div class="sub">RuntimeManager / KRONOS architecture review</div>
+</header>
+<nav class="toc"><div class="toc-title">Contents</div><div class="toc">
+<ul>
+<li><a href="#6-the-knowledge-graph-the-systems-coordination-hub">6 · The Knowledge Graph — the System's Coordination Hub</a><ul>
+<li><a href="#61-the-kg-at-a-glance">6.1 The KG at a glance</a></li>
+<li><a href="#62-the-kg-as-the-hub-who-reads-who-writes">6.2 The KG as the hub — who reads, who writes</a></li>
+<li><a href="#63-how-the-slow-planner-uses-the-kg">6.3 How the SLOW PLANNER uses the KG</a></li>
+<li><a href="#64-how-the-runtime-manager-uses-the-kg">6.4 How the RUNTIME MANAGER uses the KG</a></li>
+<li><a href="#65-how-the-three-model-surfaces-relate-to-the-kg">6.5 How the three model surfaces relate to the KG</a></li>
+<li><a href="#66-improvements-over-the-original-kg">6.6 Improvements over the original KG</a></li>
+<li><a href="#67-novelty-a-kg-coordinated-multi-model-neuro-symbolic-control-system">6.7 Novelty — a KG-coordinated, multi-model, neuro-symbolic control system</a></li>
+<li><a href="#key-takeaways">Key Takeaways</a></li>
+</ul>
+</li>
+</ul>
+</div>
+</nav>
+<h1 id="6-the-knowledge-graph-the-systems-coordination-hub">6 · The Knowledge Graph — the System's Coordination Hub<a class="anchor" href="#6-the-knowledge-graph-the-systems-coordination-hub" title="Permanent link">¶</a></h1>
+<p>The Neo4j Knowledge Graph is the <strong>shared substrate</strong> that ties the two loops and
+their models together: the slow LLM planner and the deterministic Runtime Manager
+never call each other directly — they coordinate <strong>through the KG</strong>. This document
+covers what the KG holds, how each side reads and writes it, how the models use
+it, the improvements over Bishwas &amp; Kiran's original KG, and the novelty of the
+multi-model design that the KG makes possible.</p>
+<p>Companion: <a href="05-evolution-from-original.html">05-evolution-from-original.md</a> (§3 KG)
+· <code>docs/components/kg-client.md</code> · <code>docs/planner/planner-design.md</code> §5.</p>
+<blockquote>
+<p>Every claim is grounded in a repo file. KG size and type counts were verified
+against <code>controller/drone_sfc_kg.json</code> / <code>generate_kg.py</code>.</p>
+</blockquote>
+<hr />
+<h2 id="61-the-kg-at-a-glance">6.1 The KG at a glance<a class="anchor" href="#61-the-kg-at-a-glance" title="Permanent link">¶</a></h2>
+<p>A single Neo4j graph generated offline by <code>controller/generate_kg.py</code> into
+<code>controller/drone_sfc_kg.json</code> — <strong>29 nodes, 38 relationships</strong>:</p>
+<table>
+<thead>
+<tr>
+<th>Node type</th>
+<th>Count</th>
+<th>Owner</th>
+<th>Read by</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>Drone</code></td>
+<td>10</td>
+<td>strategic (seed)</td>
+<td>planner</td>
+</tr>
+<tr>
+<td><code>AgriculturalField</code></td>
+<td>5</td>
+<td>strategic (seed)</td>
+<td>planner + runtime (<code>build_envelope</code>)</td>
+</tr>
+<tr>
+<td><code>SFCTemplate</code></td>
+<td>4</td>
+<td>strategic (seed)</td>
+<td>planner + runtime</td>
+</tr>
+<tr>
+<td><code>P4PolicyMapping</code></td>
+<td>4</td>
+<td>strategic (seed)</td>
+<td>planner (candidate set)</td>
+</tr>
+<tr>
+<td><code>ProgrammableSwitch</code></td>
+<td>3</td>
+<td><strong>shared</strong> — seed sets <code>role</code>, runtime writes <code>status</code></td>
+<td>planner (<code>allowed_relays</code>)</td>
+</tr>
+<tr>
+<td><code>CentralController</code> / <code>ProgrammableNetworkNode</code> / <code>EdgeComputeNode</code></td>
+<td>1 each</td>
+<td>strategic (seed)</td>
+<td>planner topology</td>
+</tr>
+<tr>
+<td><code>Verdict</code> / <code>EscalationTicket</code> / <code>BaselineSnapshot</code> / <code>LastKnownGood</code></td>
+<td>runtime-authored</td>
+<td><strong>runtime only</strong></td>
+<td>analytics → planner</td>
+</tr>
+</tbody>
+</table>
+<p>Key relations: <code>REALIZED_BY_P4_POLICY</code> (4, SFC→policy — the candidate set),
+<code>PRIMARY_PATH</code>/<code>BACKUP_PATH</code>/<code>CONNECTED_TO_EDGE</code> (forwarding topology),
+<code>CONNECTED_TO</code> (19), <code>ASSIGNED_TO</code> (10).</p>
+<p>The graph splits cleanly into two ownership zones, and that split is the whole
+design:</p>
+<pre><code>        ┌──────────────── STRATEGIC (seeded, read-mostly) ─────────────────┐
+        │ SFCTemplate · AgriculturalField · P4PolicyMapping · Drone · infra │
+        │ ProgrammableSwitch.role                                          │
+        └──────────────────────────────────────────────────────────────────┘
+        ┌──────────────── RUNTIME (written by the inner loop) ─────────────┐
+        │ ProgrammableSwitch.status · Verdict · EscalationTicket           │
+        │ BaselineSnapshot · LastKnownGood   (all tagged updated_by=…)      │
+        └──────────────────────────────────────────────────────────────────┘
+</code></pre>
+<hr />
+<h2 id="62-the-kg-as-the-hub-who-reads-who-writes">6.2 The KG as the hub — who reads, who writes<a class="anchor" href="#62-the-kg-as-the-hub-who-reads-who-writes" title="Permanent link">¶</a></h2>
+<pre><code>                          ┌──────────────────────────┐
+        reads strategic   │                          │   reads strategic bounds
+     + ProgrammableSwitch │        NEO4J  KG          │   (SFCTemplate +
+       .status (relays)   │   strategic │ runtime     │    AgriculturalField)
+        ┌─────────────────│   zone      │ zone        │─────────────────┐
+        │                 └──────────────────────────┘                 │
+        ▼                          ▲          ▲                          ▼
+ ┌───────────────┐                 │          │                 ┌────────────────┐
+ │ SLOW PLANNER  │   candidate set │          │  writes:        │ RUNTIME MANAGER│
+ │ (read-only)   │   SFC↔policy    │          │  switch status, │ (sole writer of│
+ │ decision LLM  │─────────────────┘          │  verdicts,      │  runtime state)│
+ │ cuda:0        │                            │  snapshots ─────│  monitor+loop  │
+ └───────┬───────┘                            │                 └────────┬───────┘
+         │  runtime_feedback (per-SFC reliability)                       │
+         └───────────── analytics reads Verdict/EscalationTicket ◀───────┘
+</code></pre>
+<ul>
+<li><strong>The planner is read-only on the KG.</strong> It never writes operational state (the
+  original's hand-driven status writer is gone — §6.5).</li>
+<li><strong>The runtime is the sole writer of operational state.</strong> Every write is tagged
+  <code>updated_by='runtime-manager'</code> and is an idempotent <code>MERGE</code>
+  (<code>kg_client.py:120-174</code>).</li>
+<li><strong>The loop closes through the KG</strong>, two ways:
+  1. the runtime monitor writes live <code>ProgrammableSwitch.status</code>, which the
+     planner reads as <code>allowed_relays</code> on its next decision;
+  2. the runtime writes <code>Verdict</code>/<code>EscalationTicket</code>, which the analytics layer
+     aggregates into a per-SFC reliability signal folded back into the planner's
+     prompt (<code>runtime_feedback</code>).</li>
+</ul>
+<hr />
+<h2 id="63-how-the-slow-planner-uses-the-kg">6.3 How the SLOW PLANNER uses the KG<a class="anchor" href="#63-how-the-slow-planner-uses-the-kg" title="Permanent link">¶</a></h2>
+<p>The planner's KG read layer is <code>llm_orchestrator/kg_context.py</code>
+(<code>Neo4jContextClient</code>). Two reads drive everything:</p>
+<p><strong>1. <code>get_topology_snapshot()</code></strong> (<code>kg_context.py:31</code>) — reads <code>ProgrammableSwitch</code>
+(<code>id, role, status, thrift_port, device_id</code>), forwarding links, and historical
+<code>PathDecision</code> nodes, then <strong>normalizes</strong>:
+- <code>role</code> → <code>access_switch</code> / <code>primary_relay</code> / <code>backup_relay</code>;
+- <code>status</code> → <code>active_relays</code> / <code>standby_relays</code> / <code>unavailable_relays</code>
+  (<code>kg_context.py:114-131</code>).</p>
+<p>That status partition is <strong>how the planner knows which relays it may pick</strong> — and
+that status is exactly what the runtime monitor writes. So the planner's relay
+availability is the fast loop's live observation, surfaced through the KG.</p>
+<p><strong>2. <code>get_candidate_sfc_policy_set()</code></strong> (<code>kg_context.py:186</code>) — reads
+<code>(:SFCTemplate)-[:REALIZED_BY_P4_POLICY]-&gt;(:P4PolicyMapping)</code> → the candidate
+<code>(sfc_id, policy_type, p4_program, path_preference)</code> set. This is the <strong>KG-driven
+action menu</strong>, replacing the old in-code list (falls back to
+<code>fallback_candidate_actions()</code> only if the KG has none).</p>
+<p>These two reads become <code>orchestration_constraints</code> in the prompt, and — this is
+the important part — that <strong>same</strong> constraint set is the source of truth for
+<em>both</em> the constrained-decoding grammar and the validator:</p>
+<pre><code>KG candidate set + allowed relays/paths
+        │
+        ├─▶ decision_grammar.build_decision_gbnf(...)  → GBNF the LLM decodes under
+        └─▶ validator.validate_generated_decision(...) → the contract check
+                                       ⇒ grammar-valid ⇒ validator-valid by construction
+</code></pre>
+<p>So the planner LLM literally <strong>cannot emit an SFC/policy pair the KG does not
+realize</strong> — the symbolic KG bounds the neural decoder (more in §6.7).</p>
+<hr />
+<h2 id="64-how-the-runtime-manager-uses-the-kg">6.4 How the RUNTIME MANAGER uses the KG<a class="anchor" href="#64-how-the-runtime-manager-uses-the-kg" title="Permanent link">¶</a></h2>
+<p>The runtime's entire Neo4j surface is <code>runtime/kg_client.py</code> — a strict
+<strong>read-strategic / write-runtime</strong> boundary (<code>kg_client.py:1-12</code>):</p>
+<p><strong>Reads (strategic bounds only):</strong>
+- <code>build_envelope(sfc, target_field)</code> — the <strong>strictest</strong> of the SFCTemplate's and
+  the field's own bounds (<code>min</code> latency, <code>max</code> bandwidth), fused with the
+  <em>runtime-owned</em> action space from <code>config.SFC_ACTION_SPACE</code>
+  (legal tiers/paths/knob ranges). The planner authors none of the
+  tiers/paths/knobs (<code>kg_client.py:58-87</code>).
+- <code>read_field_requirements()</code> — one bounds-only <code>Envelope</code> per field for the
+  monitor's per-flow checks (a field missing a bound is skipped, not built with
+  <code>None</code>).</p>
+<p><strong>Writes (runtime state only, best-effort, idempotent):</strong>
+- <code>write_switch_status()</code> — the <strong>monitor-computed</strong> status (replaces the old
+  hardcoded <code>SCENARIO_STATE</code>);
+- <code>write_verdict()</code>, <code>write_escalation()</code>, <code>write_baseline()</code>,
+  <code>write_last_good()</code> — persisted as JSON-string properties via
+  <code>contracts.jsonable</code> (Neo4j can't hold nested maps), <code>MERGE</code>d on
+  <code>(correlation_id, timestamp)</code> so a best-effort retry never duplicates.</p>
+<p>Field ids are translated at the boundary (<code>F&lt;n&gt;</code> ↔ <code>Field_&lt;n&gt;</code>,
+<code>kg_client.py:32-39</code>) so neither side has to know the other's naming.</p>
+<hr />
+<h2 id="65-how-the-three-model-surfaces-relate-to-the-kg">6.5 How the three model surfaces relate to the KG<a class="anchor" href="#65-how-the-three-model-surfaces-relate-to-the-kg" title="Permanent link">¶</a></h2>
+<p>The system has <strong>three decision-making surfaces</strong>, and they consume the KG very
+differently — worth being precise about (it is a feature, not an accident):</p>
+<table>
+<thead>
+<tr>
+<th>Surface</th>
+<th>Model</th>
+<th>KG usage</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>Decision</strong> (planner)</td>
+<td><code>Qwen2.5-1.5B-Instruct</code> + LoRA, <code>cuda:0</code></td>
+<td><strong>Heavy</strong> — KG topology + candidate set become the prompt context <em>and</em> the constrained-decoding grammar + validator constraints.</td>
+</tr>
+<tr>
+<td><strong>Regen</strong> (runtime tier-2)</td>
+<td><code>Qwen2.5-Coder-1.5B-Instruct</code>, <code>cuda:1</code></td>
+<td><strong>None</strong> — it reads the deployer's <strong>live installed <code>table_state</code></strong>, not the KG, because rule regeneration needs the <em>actual</em> switch entries, not strategic state (<code>runtime/regen/proposer.py</code> <code>table_state_fn</code>).</td>
+</tr>
+<tr>
+<td><strong>Deterministic loop</strong></td>
+<td>(no model)</td>
+<td>Reads strategic bounds for the <code>Envelope</code>; writes all runtime state.</td>
+</tr>
+</tbody>
+</table>
+<p>So the KG grounds the <em>strategic</em> model (which SFC), while the <em>tactical</em> model
+(which P4 rules) is grounded in live switch state from the deployer — each model
+reads from the source appropriate to its altitude. The analytics signal
+(<code>Verdict</code>/<code>EscalationTicket</code> aggregated per SFC) flows back only to the
+<strong>decision</strong> model's context (<code>orchestrate.py:55-56</code>).</p>
+<hr />
+<h2 id="66-improvements-over-the-original-kg">6.6 Improvements over the original KG<a class="anchor" href="#66-improvements-over-the-original-kg" title="Permanent link">¶</a></h2>
+<table>
+<thead>
+<tr>
+<th>Aspect</th>
+<th>Original (Bishwas &amp; Kiran)</th>
+<th>Current</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Load</td>
+<td><code>import_kg.py</code>: <code>MATCH (n) DETACH DELETE n</code> — <strong>wipes the whole graph</strong> (runtime records included), hardcoded creds</td>
+<td><code>seed_kg.py</code>: idempotent <code>MERGE</code>, creds from <code>config</code> (env); <strong>preserves</strong> runtime records; <code>--reset-strategic</code> deletes only strategic labels and <strong>never</strong> touches <code>ProgrammableSwitch</code></td>
+</tr>
+<tr>
+<td>Switch status</td>
+<td><strong>Hardcoded</strong> <code>SCENARIO_STATE</code> dict keyed by scenario name (<code>update_topology_state.py</code>) — circular: the answer was written in</td>
+<td><strong>Monitor-computed</strong> from live observation, written by the runtime</td>
+</tr>
+<tr>
+<td>Read/write model</td>
+<td>Strategic + operational mixed in one graph, no contract; a hand-driven script wrote status + <code>PathDecision</code></td>
+<td>Strict <strong>read-strategic / write-runtime</strong> contract; planner read-only, runtime sole operational writer</td>
+</tr>
+<tr>
+<td>Operational node types</td>
+<td><code>PathDecision</code> only</td>
+<td><code>Verdict</code>, <code>EscalationTicket</code>, <code>BaselineSnapshot</code>, <code>LastKnownGood</code> (provenance-tagged, idempotent)</td>
+</tr>
+<tr>
+<td>Envelope</td>
+<td>LLM read raw template bounds</td>
+<td><code>build_envelope</code> <strong>fuses strictest</strong> SFCTemplate ∧ field bounds + runtime action space at read time</td>
+</tr>
+<tr>
+<td>SLA bounds</td>
+<td>20 ms / 50 ms (physically unachievable on the fabric → every episode escalated)</td>
+<td>recalibrated to <strong>45 ms / 60 ms</strong> against measured ~40 ms primary / ~52 ms backup</td>
+</tr>
+<tr>
+<td>Candidate set</td>
+<td>in-code list</td>
+<td>KG-driven <code>REALIZED_BY_P4_POLICY</code> set (in-code only as fallback)</td>
+</tr>
+</tbody>
+</table>
+<p>The deepest change is conceptual: the original treated the KG as a <strong>scratchpad</strong>
+(wipe-and-reload, write the scenario's answer in, read it back). The current
+system treats it as a <strong>system of record with a write contract</strong> — strategic
+truth is seeded and durable, operational truth is computed by the loop that
+observes it, and the two never clobber each other.</p>
+<hr />
+<h2 id="67-novelty-a-kg-coordinated-multi-model-neuro-symbolic-control-system">6.7 Novelty — a KG-coordinated, multi-model, neuro-symbolic control system<a class="anchor" href="#67-novelty-a-kg-coordinated-multi-model-neuro-symbolic-control-system" title="Permanent link">¶</a></h2>
+<blockquote>
+<p><strong>Calibration.</strong> This section is <strong>design rationale</strong>, not a research-novelty
+claim. An adversarial, prior-art-grounded assessment (<a href="08-novelty.html">08-novelty.md</a>)
+finds that <em>none</em> of the items below is individually novel — each maps to
+established work (e.g. the KG-derived grammar is GENRE/PICARD; the KG-as-hub is the
+blackboard pattern). Read it as <em>how the system is put together and why</em>, and see
+<a href="08-novelty.html">08</a> for what is (and isn't) defensible to claim.</p>
+</blockquote>
+<p>What stands out here is not any one model but the <strong>setup</strong>: two specialized LLMs
+and a deterministic control loop, each at a different altitude, coordinated entirely
+through a shared symbolic KG.</p>
+<ol>
+<li>
+<p><strong>KG-as-blackboard for a two-loop, multi-model system.</strong> The slow planner and
+   the fast runtime never call each other; they communicate through the KG hub
+   (strategic reads, runtime writes) plus a typed file/contract handoff
+   (<code>DeploymentSpec</code>/<code>EscalationTicket</code>). The KG is the only shared mutable state,
+   with a clean ownership split that makes the coupling auditable.</p>
+</li>
+<li>
+<p><strong>Neuro-symbolic decoding — the grammar <em>is</em> the KG.</strong> The decision LLM decodes
+   under a GBNF grammar <strong>built per request from the KG's candidate
+   <code>REALIZED_BY_P4_POLICY</code> set and live relay availability</strong>. The symbolic graph
+   doesn't just inform the prompt; it <em>constrains the token sampler</em>, so an
+   invalid SFC/policy/path/relay is unrepresentable. This is what lets a weak 1.5B
+   model be safe to put in the loop: format and legality are guaranteed by
+   construction, leaving only <em>which</em> legal option to judge.</p>
+</li>
+<li>
+<p><strong>Two models, two grounding sources, two GPUs.</strong> The <strong>strategic</strong> model
+   (decision, <code>cuda:0</code>) is grounded in the KG; the <strong>tactical</strong> model (regen,
+   <code>cuda:1</code>) is grounded in the deployer's live <code>table_state</code>. They are pinned to
+   separate GPUs so neither contends, and each reads from the source matched to
+   its job — strategic state for "which SFC," live switch entries for "which P4
+   rules." A clean separation of <em>knowledge altitude</em>.</p>
+</li>
+<li>
+<p><strong>A closed loop through the KG.</strong> The fast loop's measured reality —
+   <code>ProgrammableSwitch.status</code> and <code>Verdict</code>/<code>EscalationTicket</code> history — flows
+   back into the slow model's next decision via the KG and the analytics signal.
+   The strategic model is therefore conditioned on the tactical loop's outcomes,
+   not just static topology.</p>
+</li>
+<li>
+<p><strong>Symbolic backstop under a neural decision.</strong> The deterministic
+   <code>validator.fallback_decision</code> oracle is the same rule policy that was distilled
+   into the retrained LoRA (§7 of the evolution doc) — so the KG-grounded LLM and
+   the symbolic oracle agree by construction, and the oracle remains a backstop
+   when constrained decoding is off.</p>
+</li>
+</ol>
+<blockquote>
+<p><strong>Honest caveats (the design's current limits).</strong> (a) The analytics feedback
+<em>path</em> is wired, but the 1.5B model doesn't yet <em>exploit</em> the signal — it's
+advisory until a feedback-aware retrain. (b) The KG is a single Neo4j instance
+on the synchronous write path (no batching/retry today — see
+<a href="02-critical-problems.md">02-critical-problems.md</a> P3/S1). (c) The decision
+model generalizes on mission <em>names</em>, not telemetry, so KG grounding guarantees
+<em>legal</em> choices, not always the <em>best</em> one. The novelty is the architecture; the
+model quality is the known frontier.</p>
+</blockquote>
+<hr />
+<h2 id="key-takeaways">Key Takeaways<a class="anchor" href="#key-takeaways" title="Permanent link">¶</a></h2>
+<ul>
+<li>
+<p><strong>The KG is the only shared mutable state, with a strict two-zone ownership contract.</strong> The slow LLM planner and the deterministic Runtime Manager never call each other directly — they coordinate entirely through a single Neo4j graph (29 nodes, 38 relationships, generated offline by <code>controller/generate_kg.py</code> into <code>controller/drone_sfc_kg.json</code>). The planner is read-only on the KG, while the runtime is the sole writer of operational state; every runtime write is tagged <code>updated_by='runtime-manager'</code> and uses an idempotent <code>MERGE</code> (<code>kg_client.py:120-174</code>). Strategic nodes (SFCTemplate, AgriculturalField, Drone, infra) are seeded and durable; runtime nodes (Verdict, EscalationTicket, BaselineSnapshot, LastKnownGood, plus <code>ProgrammableSwitch.status</code>) are computed by the loop, and the two never clobber each other.</p>
+</li>
+<li>
+<p><strong>The grammar IS the KG candidate set — symbolic constraints bound the neural decoder.</strong> The planner reads <code>(:SFCTemplate)-[:REALIZED_BY_P4_POLICY]-&gt;(:P4PolicyMapping)</code> (<code>kg_context.py:186</code>) plus live relay availability, and that <em>same</em> constraint set feeds both <code>decision_grammar.build_decision_gbnf(...)</code> and <code>validator.validate_generated_decision(...)</code>. Because the GBNF grammar is built per request from the KG, the LLM literally cannot emit an SFC/policy/path/relay the graph does not realize — grammar-valid implies validator-valid by construction. This is what makes a weak 1.5B model safe to put in the loop: format and legality are guaranteed, leaving only <em>which</em> legal option to judge.</p>
+</li>
+<li>
+<p><strong>Three decision surfaces consume the KG very differently, by design.</strong> The <strong>decision</strong> model (Qwen2.5-1.5B-Instruct + LoRA, <code>cuda:0</code>) uses the KG heavily — topology and candidate set become both prompt context and decoding constraints. The <strong>regen</strong> tier-2 model (Qwen2.5-Coder-1.5B-Instruct, <code>cuda:1</code>) uses the KG <strong>not at all</strong> — it reads the deployer's live installed <code>table_state</code> because rule regeneration needs actual switch entries, not strategic state (<code>runtime/regen/proposer.py</code>). The <strong>deterministic loop</strong> uses no model, reading strategic bounds for the <code>Envelope</code> and writing all runtime state. Each model reads from the source matched to its altitude: strategic for "which SFC," live switch entries for "which P4 rules."</p>
+</li>
+<li>
+<p><strong>The loop closes through the KG in two concrete directions.</strong> The runtime monitor writes live <code>ProgrammableSwitch.status</code>, which the planner reads back as <code>allowed_relays</code> on its next decision (the planner's relay availability is literally the fast loop's live observation). Separately, the runtime writes <code>Verdict</code>/<code>EscalationTicket</code>, which the analytics layer aggregates into a per-SFC reliability signal folded back into the planner's prompt as <code>runtime_feedback</code> (<code>orchestrate.py:55-56</code>). The strategic model is therefore conditioned on the tactical loop's outcomes, not just static topology.</p>
+</li>
+<li>
+<p><strong>The current KG replaced a scratchpad with a system of record.</strong> The original (Bishwas &amp; Kiran) wiped the whole graph on load (<code>MATCH (n) DETACH DELETE n</code>) and hardcoded switch status in a <code>SCENARIO_STATE</code> dict keyed by scenario name — circular, since the answer was written in. The current <code>seed_kg.py</code> uses idempotent <code>MERGE</code>, preserves runtime records, and <code>--reset-strategic</code> never touches <code>ProgrammableSwitch</code>; status is now monitor-computed from live observation. <code>build_envelope</code> fuses the strictest of SFCTemplate and field bounds at read time, and SLA bounds were recalibrated from physically unachievable 20/50 ms to 45/60 ms against measured ~40 ms primary / ~52 ms backup latency.</p>
+</li>
+<li>
+<p><strong>The novelty is the architecture, with model quality as the known frontier.</strong> Two specialized LLMs and a deterministic loop, each at a different knowledge altitude, are coordinated entirely through one shared symbolic KG acting as a blackboard, backed by a typed file/contract handoff (<code>DeploymentSpec</code>/<code>EscalationTicket</code>) and a symbolic backstop (<code>validator.fallback_decision</code>, the same policy distilled into the LoRA). The doc is honest about limits: the analytics feedback path is wired but the 1.5B model doesn't yet exploit the signal (advisory until a feedback-aware retrain), the KG is a single Neo4j instance on the synchronous write path with no batching/retry, and the model generalizes on mission names not telemetry — so KG grounding guarantees <em>legal</em> choices, not always the <em>best</em> one.</p>
+</li>
+</ul>
+<hr />
+<p><em>Sources: <code>controller/{generate_kg,import_kg,select_template}.py</code>,
+<code>controller/drone_sfc_kg.json</code>, <code>runtime/kg_client.py</code>,
+<code>runtime/tools/seed_kg.py</code>, <code>runtime/regen/proposer.py</code>,
+<code>network/milestone-II-latest/netprompt-milestone-II/llm_orchestrator/kg_context.py</code>,
+<code>docs/components/kg-client.md</code>, <code>docs/planner/planner-design.md</code>. KG size/type counts
+verified against <code>drone_sfc_kg.json</code>.</em></p>
+<footer class="doc">Generated from <code>06-knowledge-graph.md</code> on 2026-06-29 — RuntimeManager architecture docs.</footer>
+</div>
+</body>
+</html>

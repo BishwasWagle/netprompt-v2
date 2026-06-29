@@ -1,0 +1,289 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Component Summary</title>
+<style>
+:root { --fg:#1f2328; --muted:#656d76; --link:#0969da; --border:#d0d7de; --bg:#fff;
+        --code-bg:#f6f8fa; --accent:#0969da; }
+* { box-sizing: border-box; }
+body { margin:0; background:var(--bg); color:var(--fg);
+  font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Helvetica,Arial,sans-serif;
+  font-size:16px; line-height:1.6; }
+.wrap { max-width:920px; margin:0 auto; padding:32px 24px 80px; }
+header.doc { border-bottom:1px solid var(--border); margin-bottom:24px; padding-bottom:16px; }
+header.doc h1 { margin:0 0 4px; font-size:1.9rem; }
+header.doc .sub { color:var(--muted); font-size:.9rem; }
+header.doc .sub code { background:var(--code-bg); padding:1px 5px; border-radius:4px; }
+nav.toc { background:var(--code-bg); border:1px solid var(--border); border-radius:8px;
+  padding:12px 16px; margin:0 0 28px; font-size:.92rem; }
+nav.toc .toc-title { font-weight:600; margin-bottom:6px; }
+nav.toc ul { margin:4px 0; padding-left:20px; }
+nav.toc a { color:var(--link); text-decoration:none; }
+nav.toc a:hover { text-decoration:underline; }
+h1,h2,h3,h4 { line-height:1.25; margin-top:1.6em; margin-bottom:.5em; font-weight:600; }
+h2 { border-bottom:1px solid var(--border); padding-bottom:.3em; }
+h1 { font-size:1.7rem; } h2 { font-size:1.4rem; } h3 { font-size:1.15rem; } h4 { font-size:1rem; }
+a { color:var(--link); text-decoration:none; } a:hover { text-decoration:underline; }
+p, li { overflow-wrap:break-word; }
+code { background:var(--code-bg); padding:.15em .4em; border-radius:5px;
+  font-family:ui-monospace,SFMono-Regular,"SF Mono",Menlo,Consolas,monospace; font-size:.88em; }
+pre { background:var(--code-bg); border:1px solid var(--border); border-radius:8px;
+  padding:14px 16px; overflow-x:auto; line-height:1.45; }
+pre code { background:none; padding:0; font-size:.82rem; white-space:pre; }
+blockquote { margin:1em 0; padding:.4em 1em; color:var(--muted);
+  border-left:4px solid var(--border); background:#f6f8fa55; }
+blockquote p { margin:.4em 0; }
+table { border-collapse:collapse; width:100%; margin:1.2em 0; font-size:.93rem; display:block; overflow-x:auto; }
+th, td { border:1px solid var(--border); padding:7px 12px; text-align:left; vertical-align:top; }
+th { background:var(--code-bg); font-weight:600; }
+tr:nth-child(even) td { background:#f6f8fa55; }
+hr { border:0; border-top:1px solid var(--border); margin:2em 0; }
+.anchor { visibility:hidden; padding-right:6px; text-decoration:none; color:var(--muted); }
+h1:hover .anchor, h2:hover .anchor, h3:hover .anchor, h4:hover .anchor { visibility:visible; }
+footer.doc { margin-top:48px; padding-top:16px; border-top:1px solid var(--border);
+  color:var(--muted); font-size:.82rem; }
+@media (max-width:640px){ .wrap{padding:20px 14px 60px;} body{font-size:15px;} }
+</style>
+</head>
+<body>
+<div class="wrap">
+<header class="doc">
+  <h1>Component Summary</h1>
+  <div class="sub">RuntimeManager / KRONOS — component reference</div>
+</header>
+<nav class="toc"><div class="toc-title">Contents</div><div class="toc">
+<ul>
+<li><a href="#component-summary">Component Summary</a><ul>
+<li><a href="#two-loops-two-models">Two loops, two models</a></li>
+<li><a href="#runtime-manager-inner-loop-mostly-deterministic">Runtime Manager — inner loop (mostly deterministic)</a><ul>
+<li><a href="#runtime-manager">Runtime Manager</a></li>
+<li><a href="#validation-gate">Validation Gate</a></li>
+<li><a href="#deployer">Deployer</a></li>
+<li><a href="#monitors">Monitors</a></li>
+<li><a href="#post-deploy-evaluator">Post-Deploy Evaluator</a></li>
+<li><a href="#unified-adaptation-engine">Unified Adaptation Engine</a></li>
+<li><a href="#kg-client">KG Client</a></li>
+</ul>
+</li>
+<li><a href="#slow-planner-outer-loop-llm-driven">Slow Planner — outer loop (LLM-driven)</a><ul>
+<li><a href="#slow-planner">Slow Planner</a></li>
+<li><a href="#slow-planner-analytics">Slow-Planner Analytics</a></li>
+</ul>
+</li>
+<li><a href="#the-two-models">The two models</a><ul>
+<li><a href="#planner-llm-the-decision-model">Planner LLM — the decision model</a></li>
+<li><a href="#regen-llm-the-tier-2-code-model">Regen LLM — the Tier-2 code model</a></li>
+</ul>
+</li>
+</ul>
+</li>
+</ul>
+</div>
+</nav>
+<h1 id="component-summary">Component Summary<a class="anchor" href="#component-summary" title="Permanent link">¶</a></h1>
+<p>A one-page tour of every significant component in the system — grouped by the two loops and the
+two models, with each component's role, responsibilities, interface, and the single most important
+gotcha. For the full reference cards see the per-component docs linked under each entry (and the
+<a href="README.md">Component Reference README</a>).</p>
+<h2 id="two-loops-two-models">Two loops, two models<a class="anchor" href="#two-loops-two-models" title="Permanent link">¶</a></h2>
+<pre><code>mission ─▶ SLOW PLANNER (outer loop) ─▶ artifact ─▶ RUNTIME MANAGER (inner loop) ─▶ live P4/BMv2
+            └ decision LLM (cuda:0)                   └ deterministic; tier-2 regen LLM (cuda:1) optional
+</code></pre>
+<p>The <strong>Slow Planner</strong> (outer loop) reads the Knowledge Graph + history and decides <em>which</em> SFC and
+path, then writes a JSON artifact and stops. The <strong>Runtime Manager</strong> (inner loop) takes that
+artifact, deploys it to the live P4/BMv2 network, and drives one episode to a terminal verdict via
+a cost-ordered adaptation ladder — escalating only when no in-envelope fix exists. The <strong>Knowledge
+Graph</strong> is the shared hub: the planner reads strategic state; the runtime is the sole writer of
+operational state.</p>
+<table>
+<thead>
+<tr>
+<th>Group</th>
+<th>Components</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>Runtime Manager</strong> (inner loop)</td>
+<td>Runtime Manager · Validation Gate · Deployer · Monitors · Evaluator · Adaptation Engine · KG Client</td>
+</tr>
+<tr>
+<td><strong>Slow Planner</strong> (outer loop)</td>
+<td>Slow Planner · Slow-Planner Analytics</td>
+</tr>
+<tr>
+<td><strong>The two models</strong></td>
+<td>Planner LLM (decision) · Regen LLM (Tier-2 code)</td>
+</tr>
+</tbody>
+</table>
+<hr />
+<h2 id="runtime-manager-inner-loop-mostly-deterministic">Runtime Manager — inner loop (mostly deterministic)<a class="anchor" href="#runtime-manager-inner-loop-mostly-deterministic" title="Permanent link">¶</a></h2>
+<h3 id="runtime-manager">Runtime Manager<a class="anchor" href="#runtime-manager" title="Permanent link">¶</a></h3>
+<p><em>Orchestrates one deployment's episode — gate, deploy, observe, evaluate, adapt — and records verdicts and snapshots to the KG.</em></p>
+<p>Owns the episode lifecycle: runs the pre-deploy binding gate, provisions a fresh per-episode
+<code>Budget</code> and <code>EvalContext</code> to the evaluator, and on a commit promotes last-known-good and
+re-baselines. It does <strong>not</strong> own attribution (evaluator), the tier ladder/guards (adapt engine),
+live re-install (deployer), or observation/hysteresis (monitor). Mostly deterministic — the only
+non-determinism is the optional Tier-2 regen LLM (defaults to <code>None</code>).</p>
+<p><strong>Does:</strong>
+- Pre-deploy gate rejects invalid specs; refused specs are logged to the KG and never touch the network.
+- Refreshes <code>current_tables</code> from the deployer each episode so the Tier-2 gate sees live switch tables, not stale values.
+- Builds <code>EvalContext</code> with a fresh per-episode <code>Budget</code>, observes one window, writes switch status + baseline snapshot, then evaluates.
+- On any commit: ends the episode, re-captures last-good, calls <code>monitor.rebaseline()</code>, persists the new last-good + re-baselined snapshot.</p>
+<p><strong>Interface.</strong> <code>RuntimeManager.run_episode(spec, timestamp) -&gt; EvalResult</code> (<code>runtime/runtime_manager.py</code>); CLIs: <code>run_episode.py</code> (scenario-driven), <code>run_from_planner.py</code> (planner-driven), <code>soak.py</code> (repeated episodes + kill injection).
+<strong>Gotcha.</strong> KG writes are best-effort — transient Neo4j failures are swallowed/counted but never abort an episode; <code>Budget</code> is per-episode by construction (any deviation breaks the budget-bounded escalation guarantee).
+<a href="runtime-manager.md">Full card → runtime-manager.md</a></p>
+<h3 id="validation-gate">Validation Gate<a class="anchor" href="#validation-gate" title="Permanent link">¶</a></h3>
+<p><em>The sound, pre-deploy authority that proves a binding or adapt candidate is safe before it touches the data plane.</em></p>
+<p>Owns the deterministic, conservative, fast structural checks (L0–L2) that guarantee a config
+installs cleanly, stays in-envelope, and cannot blackhole a flow — this is what makes an LLM
+acceptable in a live control loop (the model proposes, the gate is the authority). It does <strong>not</strong>
+decide SLA satisfaction or talk to the KG.</p>
+<p><strong>Does:</strong>
+- Two entry points: <code>check_binding()</code> validates a full <code>DeploymentSpec</code> pre-deploy; <code>check()</code> validates tune/reroute/regen candidates before apply.
+- <strong>L0 syntax/grammar:</strong> parses as <code>simple_switch_CLI</code>, references known tables, validates MAC/IPv4 keys, egress is a real switch port.
+- <strong>L1 envelope:</strong> tier ∈ <code>legal_tiers</code>, knob ∈ <code>knob_ranges</code>, path ∈ <code>legal_paths</code>.
+- <strong>L2 safety invariants:</strong> simulates commands against a <code>current_tables</code> copy; asserts all required drone MACs stay forwarded and the edge stays reachable.
+- <strong>L3 dry-install</strong> (optional, node-only): catches real install errors (DUPLICATE_ENTRY / handle drift) simulation can't; OFF by default.</p>
+<p><strong>Interface.</strong> <code>ValidationGate.check_binding(spec) -&gt; GateResult</code>, <code>check(cand, env, current_tables) -&gt; GateResult</code> (<code>runtime/gate.py</code>); contracts from <code>runtime/contracts.py</code>, bounds from <code>runtime/config.py</code>.
+<strong>Gotcha.</strong> L2 keys the working set by <code>(table, handle)</code> not handle alone (BMv2 handles aren't unique across tables) — keying by handle alone collapsed entries and produced false blackhole rejections; port args are matched as exact strings.
+<a href="validation-gate.md">Full card → validation-gate.md</a></p>
+<h3 id="deployer">Deployer<a class="anchor" href="#deployer" title="Permanent link">¶</a></h3>
+<p><em>Live re-installs table rules and host QoS over a persistent BMv2 network, tracks config state, and handles rollback.</em></p>
+<p>Owns all command construction, output parsing, and state tracking for the data plane: installs and
+modifies switch table rules and host <code>tc</code> qdiscs, applies optimization candidates (tune/reroute/
+regen), and restores prior configs. It does <strong>not</strong> decide what to deploy, whether it's safe, or
+whether it met SLA.</p>
+<p><strong>Does:</strong>
+- Two mutation surfaces: switch tables via <code>run_cli</code> (<code>table_add/modify/delete</code>) and host namespaces via <code>run_host</code> (<code>tc</code>, <code>ip</code>, <code>arp</code>).
+- Reroute is a 5-part ordered action to prevent blackholes (install relay edge-MAC → repoint s1 → bind path → re-arp drones).
+- Tracks state by table <strong>key</strong> (not handle) so it survives switch restarts (handles get re-numbered on reboot).
+- Idempotent deploy with <code>_reset_switch</code>; <code>dry_install</code> is the gate's L3 hook (test-applies live, catches real errors, rolls back).
+- Agnostic to command delivery via an injected <code>Runner</code> (live <code>NodeRunner</code> or <code>ScriptedRunner</code> for off-node tests).</p>
+<p><strong>Interface.</strong> <code>Deployer.deploy(spec)</code>, <code>apply(cand)</code>, <code>rollback(snapshot)</code>, <code>re_push</code>, <code>recover_switch</code>, <code>dry_install</code>, <code>capture</code>, <code>table_state</code>, <code>state</code> (<code>runtime/deployer.py</code>).
+<strong>Gotcha.</strong> The testbed P4 program must match the deployment config — a mismatch surfaces as a handle-count mismatch (N <code>table_add</code> lines but N−1 handles) because BMv2 silently rejects duplicate keys.
+<a href="deployer.md">Full card → deployer.md</a></p>
+<h3 id="monitors">Monitors<a class="anchor" href="#monitors" title="Permanent link">¶</a></h3>
+<p><em>Passive-first network monitor (noisy) + system liveness (sound), smoothed by K-of-M hysteresis into the <code>MonitorReport</code> the loop acts on.</em></p>
+<p>Owns real-time measurement of per-field RTT/loss/throughput, per-switch status derivation, baseline
+capture, and exogenous-shift detection. Computes <code>ProgrammableSwitch.status</code> from observation
+(replacing hardcoded tables). It passes signals to the loop but does <strong>not</strong> decide adaptation,
+deploy, or write to the KG directly.</p>
+<p><strong>Does:</strong>
+- Passive-first: throughput from root-namespace veth counters (never perturbed by tunes), RTT/loss from drone-namespace ping, liveness from process + thrift reachability.
+- K-of-M hysteresis per flow so noise can't trigger false adaptation (one probe = counters around a ping burst; window = M probes).
+- Status derivation: Failed → Standby → Active / Degraded, with a <code>path_sla_ok</code> verdict post-hysteresis.
+- Exogenous-shift detection (<code>qdisc_shifted</code>): baseline-vs-current <code>tc</code> on unmanaged links → signals "reroute, don't roll back."
+- Unreachable ping = 10 s RTT + 100% loss; system-fault only on s1 Failed OR both relays Failed.</p>
+<p><strong>Interface.</strong> <code>runtime/monitors/pipeline.py</code> (<code>HysteresisTracker</code>, <code>derive_switch_status</code>, <code>qdisc_shifted</code>, <code>assemble_report</code>), <code>network_monitor.py</code> (<code>NetworkMonitor</code>, <code>NodeSampler</code>), <code>system_monitor.py</code>.
+<strong>Gotcha.</strong> Unreachable ping reads as a <strong>violation</strong>, not healthy; a dead switch's empty counter dict is falsy-but-valid (code uses <code>is None</code>, not <code>or</code>); missing port / degenerate <code>dt&lt;=0</code> yields rate 0.0 to avoid crashes.
+<a href="monitors.md">Full card → monitors.md</a></p>
+<h3 id="post-deploy-evaluator">Post-Deploy Evaluator<a class="anchor" href="#post-deploy-evaluator" title="Permanent link">¶</a></h3>
+<p><em>Attributes the post-deploy <code>MonitorReport</code> through a 6-stage ladder to a terminal Verdict (healthy/marginal/rollback/system_fault) + optional EscalationTicket.</em></p>
+<p>Owns post-deploy attribution and the commit gate: is the system sound? was SLA met? was a
+regression <em>caused by our change</em> (rollback) or <em>the environment</em> (adapt)? commit or escalate? It
+delegates adaptation mechanics to the adapt engine and owns no monitoring, mutation, or KG writes.</p>
+<p><strong>Does:</strong>
+- Six-stage ladder: system sound → SLA met → caused regression (rollback) → in-envelope fix (adapt) → displaced harm (adapt) → headroom-based commit.
+- <code>REGRESSION_EPS</code> (0.02) deadband prevents spurious rollbacks from monitor jitter; the exogenous-shift guard attributes environment-coincident regressions outward (adapt, not rollback).
+- Tier-2 LLM rule synthesis forces a <strong>marginal</strong> verdict regardless of headroom; escalations carry full context (metrics, envelope, trace, reason).</p>
+<p><strong>Interface.</strong> <code>evaluate(spec, report, ctx) -&gt; EvalResult</code>; <code>EvalContext(deployer, monitor, gate, budget, last_good, …, regen_proposer, timestamp)</code>; <code>commit_outcome(headroom, tier_reached) -&gt; str</code>.
+<strong>Gotcha.</strong> Tier-2 adaptations always yield marginal verdicts (signaling inherent precariousness); the stage-3 <code>REGRESSION_EPS</code> deadband is critical to keep measurement noise from triggering false rollbacks.
+<a href="evaluator.md">Full card → evaluator.md</a></p>
+<h3 id="unified-adaptation-engine">Unified Adaptation Engine<a class="anchor" href="#unified-adaptation-engine" title="Permanent link">¶</a></h3>
+<p><em>Cost-ordered tier ladder (tune → reroute → regen) that hill-climbs to <code>target_sla_met</code> AND <code>no_displaced_harm</code>, or escalates.</em></p>
+<p>Owns in-envelope recovery: diagnose the worst violation, propose one candidate per tier, gate it,
+re-observe. Serves both the target-failing and neighbour-harmed callers. It does <strong>not</strong> own
+attribution, live mutation, gate rules, or the Tier-2 LLM itself (calls an injected <code>regen_proposer</code>
+seam).</p>
+<p><strong>Does:</strong>
+- Three tiers: Tier 0 tune (deterministic knob step), Tier 1 reroute (deterministic primary↔backup flip), Tier 2 regen (LLM, stubbed by default).
+- Guards: <code>dominates</code> rejects when the target fails or harm count rises; <code>improves</code> requires strict progress on some axis.
+- Shared episode budget: <code>spend(1)</code> only on <em>applied</em> attempts; gate-rejects/capacity-skips bounded by a finite tried-set for termination.
+- <code>regen_proposer</code> defaults to <code>None</code> (escalate-sooner fail-safe): an unavailable/hanging LLM degrades capability, not safety.</p>
+<p><strong>Interface.</strong> <code>runtime/adapt.py</code> (<code>Budget</code>, <code>diagnose</code>, <code>propose</code>, <code>dominates</code>, <code>improves</code>, <code>adapt</code>); <code>runtime/regen/proposer.py</code> (<code>RegenProposer</code>, the Tier-2 seam).
+<strong>Gotcha.</strong> A headroom rise with the target margin intentionally dropping is correct (harm-relief gives back the target's grab to lift a neighbour); grids are integer-indexed to avoid float drift.
+<a href="adaptation-engine.md">Full card → adaptation-engine.md</a></p>
+<h3 id="kg-client">KG Client<a class="anchor" href="#kg-client" title="Permanent link">¶</a></h3>
+<p><em>The runtime's Neo4j read/write boundary: reads strategic bounds, writes runtime records, translates field ids.</em></p>
+<p>Owns the runtime's entire Neo4j surface. Reads strategic state (<code>SFCTemplate</code> bounds, per-field
+requirements) and writes runtime state <strong>only</strong> (switch status, verdicts, tickets, snapshots). It
+does <strong>not</strong> touch the SFC library or planner-owned topology, nor compute the action space (that's
+runtime-owned via config).</p>
+<p><strong>Does:</strong>
+- Builds envelopes by merging the strictest bounds (min latency / max bandwidth) from <code>SFCTemplate</code> + <code>AgriculturalField</code> with the runtime-owned action space (legal tiers/paths/knob ranges).
+- Writes verdicts, escalation tickets, baseline snapshots, last-known-good — all tagged <code>updated_by='runtime-manager'</code>.
+- Idempotent writes via <code>MERGE</code> on <code>correlation_id</code>/<code>timestamp</code>/key to survive transient-error retries.
+- Translates field ids at the boundary (<code>F&lt;n&gt;</code> runtime ↔ <code>Field_&lt;n&gt;</code> KG); lazy-loads the driver in prod, accepts an injected driver in tests.</p>
+<p><strong>Interface.</strong> <code>KGClient.connect()</code>, <code>build_envelope(sfc, target_field)</code>, <code>read_field_requirements()</code>, <code>read_last_good(sfc)</code>, <code>write_{switch_status,verdict,escalation,baseline,last_good}()</code> (<code>runtime/kg_client.py</code>).
+<strong>Gotcha.</strong> <code>read_last_good</code> returns a raw dict keyed by SFC name only (two deployments share one slot) and isn't consumed by the live loop today — the deployer holds its own <code>ConfigSnapshot</code> last-good.
+<a href="kg-client.md">Full card → kg-client.md</a></p>
+<hr />
+<h2 id="slow-planner-outer-loop-llm-driven">Slow Planner — outer loop (LLM-driven)<a class="anchor" href="#slow-planner-outer-loop-llm-driven" title="Permanent link">¶</a></h2>
+<h3 id="slow-planner">Slow Planner<a class="anchor" href="#slow-planner" title="Permanent link">¶</a></h3>
+<p><em>The outer-loop KG-RAG orchestrator: read Neo4j topology + run history → prompt the decision LLM → validate/fallback → compile a deployable artifact.</em></p>
+<p>Owns the end-to-end planning pipeline: assemble the LLM input from KG + telemetry + history, invoke
+the decision model, enforce the decision contract, and compile the chosen SFC/policy into a concrete
+deployment artifact (P4 JSON + rule-file paths). It does <strong>not</strong> own the decision model, the inner
+loop, or the KG's contents.</p>
+<p><strong>Does:</strong>
+- Assembles input from a Neo4j topology snapshot, candidate SFC/P4 policy sets, normalized results CSV, and the top-3 historical runs by similarity.
+- Invokes the model, parses to a 6-key decision, validates against the contract; swaps to a deterministic rule-based fallback on invalid output.
+- Compiles the validated decision into an <code>experiment_config</code> artifact (P4 JSON + rule files) with artifact verification before deploy.
+- Derives <code>orchestration_constraints</code> (allowed SFC ids / policy types / paths / relays) as the single source of truth for the validator and the grammar.</p>
+<p><strong>Interface.</strong> <code>build_runtime_input_object()</code>, <code>run_pipeline()</code> → <code>{raw_model_output, decision, validation, experiment_config, artifact_check}</code>, <code>compile_llm_decision_to_experiment_config()</code> (<code>llm_orchestrator/orchestrate.py</code> + <code>kg_context</code>, <code>history_retriever</code>, <code>prompt_builder</code>, <code>validator</code>, <code>policy_compiler</code>).
+<strong>Gotcha.</strong> The fallback is deterministic rule-based (not the LLM) and is masked when constrained decoding is on; topology/candidates come live from Neo4j every call — an <strong>empty KG silently degrades</strong> to <code>fallback_candidate_actions()</code>.
+<a href="slow-planner.md">Full card → slow-planner.md</a></p>
+<h3 id="slow-planner-analytics">Slow-Planner Analytics<a class="anchor" href="#slow-planner-analytics" title="Permanent link">¶</a></h3>
+<p><em>Aggregates the Runtime Manager's verdict/escalation history into reliability signals that feed back into planning.</em></p>
+<p>A read-only consumer of the inner loop's KG records (<code>Verdict</code>/<code>EscalationTicket</code>). Owns aggregation
+and reporting; produces the per-SFC reliability signal that closes the loop via <code>runtime_feedback</code>.
+It makes no decisions, writes no verdicts, and never touches the network.</p>
+<p><strong>Does:</strong>
+- Reads <code>Verdict</code> (outcome/tier/headroom/timestamp) + <code>EscalationTicket</code> (sfc/reason) nodes.
+- Aggregates outcome distribution, adapt-tier histogram, commit-headroom stats, escalations by SFC/reason.
+- Best-effort per-SFC attribution (join on <code>EscalationTicket.sfc</code> or parse <code>plan-&lt;sfc&gt;-&lt;hex&gt;</code> correlation ids).
+- Exports <code>collect()</code>, <code>reliability_summary()</code>, <code>feedback_for_planner()</code> (closed-loop entry, toggled by <code>NETPROMPT_PLANNER_FEEDBACK</code>), <code>format_report()</code>.</p>
+<p><strong>Interface.</strong> <code>analytics.py</code>: <code>collect(run_cypher)</code>, <code>reliability_summary(stats)</code>, <code>feedback_for_planner(run_cypher)</code>, <code>format_report(stats)</code>; CLI with <code>--json</code> / <code>--write-kg</code>.
+<strong>Gotcha.</strong> Verdicts have no SFC field, so attribution is best-effort; escalation-rate ≠ SFC-unsuitability (it can mean unachievable SLA bounds), and the current model doesn't yet exploit the feedback signal.
+<a href="planner-analytics.md">Full card → planner-analytics.md</a></p>
+<hr />
+<h2 id="the-two-models">The two models<a class="anchor" href="#the-two-models" title="Permanent link">¶</a></h2>
+<h3 id="planner-llm-the-decision-model">Planner LLM — the decision model<a class="anchor" href="#planner-llm-the-decision-model" title="Permanent link">¶</a></h3>
+<p><em>Fine-tuned Qwen2.5-1.5B-Instruct + LoRA that emits 6-key orchestration decisions under grammar-constrained decoding (<code>cuda:0</code>).</em></p>
+<p>A subsystem of the Slow Planner that owns decision-model inference: load base + LoRA, build the
+constrained-decoding logits processor, generate, and parse to a decision dict. It does <strong>not</strong>
+assemble input, validate, run fallback, compile artifacts, or regenerate P4 rules.</p>
+<p><strong>Does:</strong>
+- Emits the 6-key decision: <code>selected_sfc</code>, <code>selected_policy</code>, <code>selected_path</code>, <code>selected_relay</code>, <code>priority_class</code>, <code>deployment_mode</code>.
+- Grammar-constrained decoding (per-request GBNF) makes the output validator-valid by construction.
+- Greedy deterministic decoding (<code>do_sample=False</code>); promoted default adapter is <code>final_adapter_retrained</code> (original preserved as rollback).
+- Retrained via <code>train_decision_lora.py</code> distilling a balanced dataset labeled by the fallback oracle.</p>
+<p><strong>Interface.</strong> <code>LLMOrchestrator(...).load() / .generate_raw(input_object)</code>, <code>parse_model_decision</code>, <code>build_decision_gbnf</code>, <code>validate_generated_decision</code>, <code>fallback_decision</code> (<code>llm_orchestrator/llm_runner.py</code>).
+<strong>Gotcha.</strong> Constrained decoding is ON by default and a grammar-valid decision bypasses the fallback entirely; <code>build_decision_gbnf</code> raises → unconstrained when there are no candidate pairs/relays (an unseeded KG silently loses the constraint). Known gap: generic/telemetry-only missions default to BandwidthOptimized.
+<a href="planner-llm.md">Full card → planner-llm.md</a></p>
+<h3 id="regen-llm-the-tier-2-code-model">Regen LLM — the Tier-2 code model<a class="anchor" href="#regen-llm-the-tier-2-code-model" title="Permanent link">¶</a></h3>
+<p><em>Grammar-constrained Qwen2.5-Coder-1.5B that generates candidate BMv2 table rules (<code>cuda:1</code>).</em></p>
+<p>A Tier-2 leaf component that owns <strong>only</strong> candidate generation for P4 table rules: given a
+violation, envelope, and current table state, it proposes replacement <code>table_modify</code>/<code>table_add</code>
+lines. It does <strong>not</strong> own the adapt ladder, gate, apply/observe, or escalation — those stay with
+the Runtime Manager. It is a fail-safe leaf: unavailable/erroring degrades to escalate-sooner.</p>
+<p><strong>Does:</strong>
+- Lazy-loads the pinned FP16 model on first call with an <code>IncrementalGrammarConstraint</code> logits processor; resets parser state per call.
+- Grammar built from the same constants the gate enforces (deliberately narrower — no <code>table_delete</code>).
+- <code>RegenProposer</code> is stateless across calls, K-capped at <code>REGEN_MAX_REJECTS=3</code>; generation exceptions are caught and treated as rejected attempts (never crashes).
+- Defaults to a stub client (escalates immediately); the real client is wired only by <code>soak --with-regen</code> and the M7 live tests.</p>
+<p><strong>Interface.</strong> <code>LocalHFClient(...).generate(prompt)</code>, <code>StubLLMClient</code>, <code>RegenProposer(client, table_state_fn, switch, max_rejects).__call__(diag, env, state, exclude) -&gt; Candidate|None</code> (<code>runtime/regen/</code>).
+<strong>Gotcha.</strong> Default-stubbed in <code>run_episode</code>/<code>run_from_planner</code> (Tier 2 escalates with no model wired); the pinned <code>REGEN_REVISION</code> is part of the reproducibility manifest — changing it shifts the manifest hash; vLLM is unsupported on the P100.
+<a href="regen-llm.md">Full card → regen-llm.md</a></p>
+<hr />
+<p><em>See also: the <a href="../architecture-review/01-architecture.html">architecture review</a> (whole-system
+design, KG hub, workflow, novelty), and the <a href="README.md">Component Reference README</a> for the full
+per-component cards.</em></p>
+<footer class="doc">Generated from <code>components-summary.md</code> on 2026-06-29 — RuntimeManager architecture docs.</footer>
+</div>
+</body>
+</html>

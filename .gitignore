@@ -25,3 +25,7 @@ final_adapter_original_backup/
 # Transient planner run artifacts — orchestrate dumps these every run (prompt,
 # raw model output, parse-stage, grammar). Recover via a run, not from git.
 **/outputs/debug_*
+
+# The KRONOS / NetPrompt v2 paper draft is kept in-tree for reference but is NOT
+# version-controlled (per the workflow: commit plans/results, not the draft PDF).
+docs/design/NetPrompt_V2.pdf

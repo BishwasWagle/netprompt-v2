@@ -1,0 +1,6 @@
+perturbation,kind,stable,valid,n
+misleading_advisory,evidence,4,4,4
+stale_kg,evidence,4,4,4
+conflicting_telemetry,near-circular,4,4,4
+noisy_topology,evidence,4,4,4
+format_shift,guarantee,4,4,4

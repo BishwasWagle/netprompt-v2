@@ -105,3 +105,47 @@ Table IV query-latency ranges. **Cannot claim:** that the condition→SFC rows e
 telemetry reasoning (the planner is 0/4 off-taxonomy — those are rule-grounded).
 
 **Reproduce:** `repro/table4_provenance.sh [repeat_context]` (needs venv · seeded Neo4j · GPU).
+
+---
+
+## Build #3 — §V.D(2): adversarial robustness of the set-A decision (re-measured)
+
+**Driver:** `repro/vd2_robustness.sh` → `runtime/tools/e1_robustness.py`.
+**Method:** load the planner once; per set-A mission, build the clean input, then apply 5
+deterministic context perturbations and check whether `selected_sfc` stays stable. Perturbations
+touch only the *evidence* (telemetry / topology / advisory / serialization) — never the action
+space (`orchestration_constraints` + `candidate_sfc_policy_set`), so the correct answer is always
+still selectable. Output: [`vd2_robustness.csv`](vd2_robustness.csv) (per mission×perturbation) +
+[`vd2_summary.csv`](vd2_summary.csv) + [`plots/vd2_robustness.png`](plots/vd2_robustness.png).
+
+| Perturbation | Kind | Decision-stability | Valid |
+|---|---|---|---|
+| misleading_advisory (recommends the wrong SFC) | evidence | **4/4** | 4/4 |
+| stale_kg (active/standby swapped, relay marked down) | evidence | **4/4** | 4/4 |
+| conflicting_telemetry (telemetry contradicts the name) | near-circular | **4/4** | 4/4 |
+| noisy_topology (junk links, inflated counts, fake relays) | evidence | **4/4** | 4/4 |
+| format_shift (stringified numbers, reordered keys) | guarantee | **4/4** | 4/4 |
+
+**Result: 20/20 decisions stable, 20/20 valid** — reproduces the draft's "remained robust."
+
+**Findings (and the honest caveat).**
+1. **The decision is perfectly stable under all 5 perturbations.** Even `misleading_advisory` and
+   `stale_kg`, which actively recommend/imply the *wrong* path/SFC, do not flip the choice — and
+   `noisy_topology` doesn't either.
+2. **But this is robustness *by insensitivity*, not by reasoning.** The planner keys on the mission
+   *name* and largely ignores telemetry/topology/advisory context (the same trait behind 0/4
+   off-taxonomy, [E1](../results/experiment-results.md)). It correctly ignores *misleading* context
+   here — but it would equally ignore *corrective* context. So "robust" is the favorable face of the
+   §3 limitation, not independent evidence of reasoning.
+3. **Two probes are low-information by design** (as the plan flagged): `format_shift` validity is a
+   **constrained-decoding guarantee** (every output is a valid 6-key decision regardless), and
+   `conflicting_telemetry` is **near-circular** (the planner ignores telemetry, so it trivially
+   "survives"). Reported as such, not as wins.
+
+**Can claim:** the set-A decision is stable and validator-compliant under misleading advisory,
+stale KG, conflicting telemetry, noisy topology, and format shift (20/20) — it is not derailed by
+noisy context. **Cannot claim:** that this reflects robust *reasoning* — it reflects name-keying /
+context-insensitivity; format-validity is a decoding guarantee, and the telemetry probe is
+near-circular.
+
+**Reproduce:** `repro/vd2_robustness.sh` (needs venv · seeded Neo4j · GPU).

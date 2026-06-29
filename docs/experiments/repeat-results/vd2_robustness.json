@@ -1,0 +1,222 @@
+[
+  {
+    "mission": "emergency_alert_relay",
+    "perturbation": "misleading_advisory",
+    "kind": "evidence",
+    "clean_sfc": "ReliableRelaySFC",
+    "perturbed_sfc": "ReliableRelaySFC",
+    "perturbed_path": "backup",
+    "stable": "1",
+    "valid": "1",
+    "parse_status": "parsed_json"
+  },
+  {
+    "mission": "emergency_alert_relay",
+    "perturbation": "stale_kg",
+    "kind": "evidence",
+    "clean_sfc": "ReliableRelaySFC",
+    "perturbed_sfc": "ReliableRelaySFC",
+    "perturbed_path": "backup",
+    "stable": "1",
+    "valid": "1",
+    "parse_status": "parsed_json"
+  },
+  {
+    "mission": "emergency_alert_relay",
+    "perturbation": "conflicting_telemetry",
+    "kind": "near-circular",
+    "clean_sfc": "ReliableRelaySFC",
+    "perturbed_sfc": "ReliableRelaySFC",
+    "perturbed_path": "backup",
+    "stable": "1",
+    "valid": "1",
+    "parse_status": "parsed_json"
+  },
+  {
+    "mission": "emergency_alert_relay",
+    "perturbation": "noisy_topology",
+    "kind": "evidence",
+    "clean_sfc": "ReliableRelaySFC",
+    "perturbed_sfc": "ReliableRelaySFC",
+    "perturbed_path": "backup",
+    "stable": "1",
+    "valid": "1",
+    "parse_status": "parsed_json"
+  },
+  {
+    "mission": "emergency_alert_relay",
+    "perturbation": "format_shift",
+    "kind": "guarantee",
+    "clean_sfc": "ReliableRelaySFC",
+    "perturbed_sfc": "ReliableRelaySFC",
+    "perturbed_path": "backup",
+    "stable": "1",
+    "valid": "1",
+    "parse_status": "parsed_json"
+  },
+  {
+    "mission": "bulk_data_transfer",
+    "perturbation": "misleading_advisory",
+    "kind": "evidence",
+    "clean_sfc": "BandwidthOptimizedSFC",
+    "perturbed_sfc": "BandwidthOptimizedSFC",
+    "perturbed_path": "primary",
+    "stable": "1",
+    "valid": "1",
+    "parse_status": "parsed_json"
+  },
+  {
+    "mission": "bulk_data_transfer",
+    "perturbation": "stale_kg",
+    "kind": "evidence",
+    "clean_sfc": "BandwidthOptimizedSFC",
+    "perturbed_sfc": "BandwidthOptimizedSFC",
+    "perturbed_path": "primary",
+    "stable": "1",
+    "valid": "1",
+    "parse_status": "parsed_json"
+  },
+  {
+    "mission": "bulk_data_transfer",
+    "perturbation": "conflicting_telemetry",
+    "kind": "near-circular",
+    "clean_sfc": "BandwidthOptimizedSFC",
+    "perturbed_sfc": "BandwidthOptimizedSFC",
+    "perturbed_path": "primary",
+    "stable": "1",
+    "valid": "1",
+    "parse_status": "parsed_json"
+  },
+  {
+    "mission": "bulk_data_transfer",
+    "perturbation": "noisy_topology",
+    "kind": "evidence",
+    "clean_sfc": "BandwidthOptimizedSFC",
+    "perturbed_sfc": "BandwidthOptimizedSFC",
+    "perturbed_path": "primary",
+    "stable": "1",
+    "valid": "1",
+    "parse_status": "parsed_json"
+  },
+  {
+    "mission": "bulk_data_transfer",
+    "perturbation": "format_shift",
+    "kind": "guarantee",
+    "clean_sfc": "BandwidthOptimizedSFC",
+    "perturbed_sfc": "BandwidthOptimizedSFC",
+    "perturbed_path": "primary",
+    "stable": "1",
+    "valid": "1",
+    "parse_status": "parsed_json"
+  },
+  {
+    "mission": "real_time_pest_detection",
+    "perturbation": "misleading_advisory",
+    "kind": "evidence",
+    "clean_sfc": "LowLatencyVideoSFC",
+    "perturbed_sfc": "LowLatencyVideoSFC",
+    "perturbed_path": "primary",
+    "stable": "1",
+    "valid": "1",
+    "parse_status": "parsed_json"
+  },
+  {
+    "mission": "real_time_pest_detection",
+    "perturbation": "stale_kg",
+    "kind": "evidence",
+    "clean_sfc": "LowLatencyVideoSFC",
+    "perturbed_sfc": "LowLatencyVideoSFC",
+    "perturbed_path": "primary",
+    "stable": "1",
+    "valid": "1",
+    "parse_status": "parsed_json"
+  },
+  {
+    "mission": "real_time_pest_detection",
+    "perturbation": "conflicting_telemetry",
+    "kind": "near-circular",
+    "clean_sfc": "LowLatencyVideoSFC",
+    "perturbed_sfc": "LowLatencyVideoSFC",
+    "perturbed_path": "primary",
+    "stable": "1",
+    "valid": "1",
+    "parse_status": "parsed_json"
+  },
+  {
+    "mission": "real_time_pest_detection",
+    "perturbation": "noisy_topology",
+    "kind": "evidence",
+    "clean_sfc": "LowLatencyVideoSFC",
+    "perturbed_sfc": "LowLatencyVideoSFC",
+    "perturbed_path": "primary",
+    "stable": "1",
+    "valid": "1",
+    "parse_status": "parsed_json"
+  },
+  {
+    "mission": "real_time_pest_detection",
+    "perturbation": "format_shift",
+    "kind": "guarantee",
+    "clean_sfc": "LowLatencyVideoSFC",
+    "perturbed_sfc": "LowLatencyVideoSFC",
+    "perturbed_path": "primary",
+    "stable": "1",
+    "valid": "1",
+    "parse_status": "parsed_json"
+  },
+  {
+    "mission": "long_term_soil_monitoring",
+    "perturbation": "misleading_advisory",
+    "kind": "evidence",
+    "clean_sfc": "EnergyAwareSFC",
+    "perturbed_sfc": "EnergyAwareSFC",
+    "perturbed_path": "backup",
+    "stable": "1",
+    "valid": "1",
+    "parse_status": "parsed_json"
+  },
+  {
+    "mission": "long_term_soil_monitoring",
+    "perturbation": "stale_kg",
+    "kind": "evidence",
+    "clean_sfc": "EnergyAwareSFC",
+    "perturbed_sfc": "EnergyAwareSFC",
+    "perturbed_path": "primary",
+    "stable": "1",
+    "valid": "1",
+    "parse_status": "parsed_json"
+  },
+  {
+    "mission": "long_term_soil_monitoring",
+    "perturbation": "conflicting_telemetry",
+    "kind": "near-circular",
+    "clean_sfc": "EnergyAwareSFC",
+    "perturbed_sfc": "EnergyAwareSFC",
+    "perturbed_path": "primary",
+    "stable": "1",
+    "valid": "1",
+    "parse_status": "parsed_json"
+  },
+  {
+    "mission": "long_term_soil_monitoring",
+    "perturbation": "noisy_topology",
+    "kind": "evidence",
+    "clean_sfc": "EnergyAwareSFC",
+    "perturbed_sfc": "EnergyAwareSFC",
+    "perturbed_path": "primary",
+    "stable": "1",
+    "valid": "1",
+    "parse_status": "parsed_json"
+  },
+  {
+    "mission": "long_term_soil_monitoring",
+    "perturbation": "format_shift",
+    "kind": "guarantee",
+    "clean_sfc": "EnergyAwareSFC",
+    "perturbed_sfc": "EnergyAwareSFC",
+    "perturbed_path": "primary",
+    "stable": "1",
+    "valid": "1",
+    "parse_status": "parsed_json"
+  }
+]

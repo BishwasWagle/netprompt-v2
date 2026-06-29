@@ -65,7 +65,7 @@ So the honest "skip" list is **not** a list of impossible experiments. It is two
 | Table VII | KG ablation (full vs NoKG) | **Build small tool** | Not run | E3 ablation |
 | Table VIII | Control-plane timing breakdown | **Build small tool** | ✅ **done (build #1)** — SFC sel **11.04 s** (not 1 s), KG ~30 ms, rule ~11 µs; KG-update gap | E1 / E3 |
 | Fig. 6 / §V.D(1) | Confusion matrix, 4 SFC classes | **Yes** (set-A); build tool for exact % | ✅ done (direction); exact % to add | E1 |
-| §V.D(2) | Adversarial robustness (5 perturbations) | **Build small tool** | Not started | E1 sub-study |
+| §V.D(2) | Adversarial robustness (5 perturbations) | **Build small tool** | ✅ **done (build #3)** — 20/20 stable & valid (robust *by insensitivity*) | E1 sub-study |
 | §V.D(3) | Counterfactual sensitivity | **Build small tool** | Not started | E1 |
 | Abstract/§IV | Historical-performance-aware path selection | **Build, or drop the claim** | Claimed in paper, **no result** | E3 / closed loop |
 
@@ -335,8 +335,12 @@ Ordered by value-per-effort. All are small; none needs new hardware.
    `--repeat-context`); driver `repro/table4_provenance.sh` + scorer `runtime/tools/table4_to_csv.py`
    → [`repeat-results/`](repeat-results/repeat-results.md). Set-A 4/4 provenance; SFC query
    **2.2–2.7 ms**, path query **2.0–2.5 ms** — **reproduces the draft's Table IV ranges**.
-3. **§V.D(2) robustness harness** — `runtime/tools/e1_robustness.py` (5 dict transforms over the
-   assembled `input_object`).
+3. ✅ **§V.D(2) robustness harness** — **DONE.** `runtime/tools/e1_robustness.py` (5 dict transforms
+   over the assembled `input_object`; perturbs evidence only, action space intact) + driver
+   `repro/vd2_robustness.sh` → [`repeat-results/`](repeat-results/repeat-results.md). **20/20 stable
+   & valid** — reproduces "remained robust," but framed as robustness *by insensitivity* (the planner
+   ignores the perturbed context, per the §3 limitation); format-validity = decoding guarantee,
+   conflicting-telemetry = near-circular.
 4. **§V.D(3) counterfactual driver** — `repro/e1-d5.sh` + oracle-agreement scorer.
 5. **Table VII NoKG arm** — `nokg` arm in `e3_compare.py`/`e3_measure.py` + operational NoKG
    definition (candidate-set-only). *(Needs the testbed.)*

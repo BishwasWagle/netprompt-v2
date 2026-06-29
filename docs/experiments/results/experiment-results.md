@@ -232,32 +232,38 @@ fixed commit** (the `revision` column, 12-char; full SHAs in [`m7_xfam.csv`](m7_
 [`m7_xfam.json`](m7_xfam.json)) via the harness's `org/model@<sha>` syntax — a cross-family run
 must **not** inherit a single model's `NETPROMPT_REGEN_REVISION` pin across all repos.
 
-| Model (params) | Family | Tokenizer | Rev | Category | grammar-valid | gate-accept | recovers | latency |
-|---|---|---|---|---|---|---|---|---|
-| Qwen2.5-Coder-0.5B-Instruct | Qwen2 | Qwen2 | `ea3f2471cf1b` | runs | 100% | 100% | **0%** | 5.6 s |
-| Qwen2.5-Coder-1.5B-Instruct | Qwen2 | Qwen2 | `2e1fd397ee46` | runs | 100% | 100% | **0%** | 6.1 s |
-| Qwen2.5-Coder-3B-Instruct | Qwen2 | Qwen2 | `488639f1ff80` | runs | 100% | 100% | **0%** | 8.0 s |
-| Qwen2.5-1.5B-Instruct (generalist) | Qwen2 | Qwen2 | `989aa7980e4c` | runs | 100% | 0% | **0%** | 6.3 s |
-| TinyLlama-1.1B-Chat-v1.0 | Llama | Llama | `fe8a4ea1ffed` | runs | 0% | 0% | **0%** | 4.0 s |
-| deepseek-coder-1.3b-instruct | Llama | Llama | `e063262dac83` | runs | 100% | 100% | **0%** | 4.5 s |
-| SmolLM2-1.7B-Instruct | Llama | GPT2 | `31b70e2e869a` | runs | 0% | 0% | **0%** | 4.5 s |
-| granite-3.0-2b-instruct | Granite | GPT2 | `5ad66c190631` | runs | 0% | 0% | **0%** | 8.0 s |
-| Phi-3-mini-4k-instruct | Phi3 | Llama | `f39ac1d28e92` | runs | 100% | 0% | **0%** | 7.6 s |
-| stable-code-instruct-3b | StableLm | GPTNeoX | `20e21f0e817b` | **fail_unsupported_tokenizer** | — | — | — | — |
-| starcoder2-3b | Starcoder2 | GPT2 | `733247c55e3f` | **fail_no_chat_template** | — | — | — | — |
+**Recovery is 0% for every model that ran** (no family or size emits the *corrective* row), so it
+is dropped from the table and figure below — a uniformly-zero column carries no cross-family
+signal — and stated here once. (The Qwen size-sweep above keeps recovery because there it *is* the
+finding: 0% across 0.5B→3B shows size doesn't buy it.)
 
-9 models run across **4 architecture families** (Qwen2, Llama, Phi3, Granite) and **3 tokenizer
-classes**; 2 probes sit at the load/decoding frontier. The honest findings:
+| Model (params) | Family | Tokenizer | Rev | Category | grammar-valid | gate-accept | latency |
+|---|---|---|---|---|---|---|---|
+| Qwen2.5-Coder-0.5B-Instruct | Qwen2 | Qwen2 | `ea3f2471cf1b` | runs | 100% | 100% | 5.6 s |
+| Qwen2.5-Coder-1.5B-Instruct | Qwen2 | Qwen2 | `2e1fd397ee46` | runs | 100% | 100% | 6.1 s |
+| Qwen2.5-Coder-3B-Instruct | Qwen2 | Qwen2 | `488639f1ff80` | runs | 100% | 100% | 8.0 s |
+| Qwen2.5-1.5B-Instruct (generalist) | Qwen2 | Qwen2 | `989aa7980e4c` | runs | 100% | 0% | 6.3 s |
+| TinyLlama-1.1B-Chat-v1.0 | Llama | Llama | `fe8a4ea1ffed` | runs | 0% | 0% | 4.0 s |
+| deepseek-coder-1.3b-instruct | Llama | Llama | `e063262dac83` | runs | 100% | 100% | 4.5 s |
+| SmolLM2-1.7B-Instruct | Llama | GPT2 | `31b70e2e869a` | runs | 0% | 0% | 4.5 s |
+| granite-3.0-2b-instruct | Granite | GPT2 | `5ad66c190631` | runs | 0% | 0% | 8.0 s |
+| Phi-3-mini-4k-instruct | Phi3 | Llama | `f39ac1d28e92` | runs | 100% | 0% | 7.6 s |
+| stable-code-instruct-3b | StableLm | GPTNeoX | `20e21f0e817b` | **fail_unsupported_tokenizer** | — | — | — |
+| starcoder2-3b | Starcoder2 | GPT2 | `733247c55e3f` | **fail_no_chat_template** | — | — | — |
+
+(`recovery_rate` per model is retained in [`m7_xfam.csv`](m7_xfam.csv) / [`m7_xfam.json`](m7_xfam.json)
+— all 0.) 9 models run across **4 architecture families** (Qwen2, Llama, Phi3, Granite) and **3
+tokenizer classes**; 2 probes sit at the load/decoding frontier. The honest findings:
 
 - **Gate *soundness* holds across every family; recovery is the frontier everywhere.** No row is
   gate-accepted while grammar-invalid — the sound gate accepts nothing non-conformant, in any
-  family — and **recovery is 0% for all nine runners** (no model emits the corrective row). Only
-  two families ever produce a gate-*accepted* candidate (`deepseek`/Llama and the Qwen2.5-Coder
-  sizes/Qwen2), so the cross-family evidence is "a non-Qwen model *can* clear the gate" + total
-  soundness — not a broad per-family safety sweep.
+  family — and (as above) **recovery is 0% for all nine runners** (no model emits the corrective
+  row). Only two families ever produce a gate-*accepted* candidate (`deepseek`/Llama and the
+  Qwen2.5-Coder sizes/Qwen2), so the cross-family evidence is "a non-Qwen model *can* clear the
+  gate" + total soundness — not a broad per-family safety sweep.
 - **The Qwen-Coder size sweep reproduces inside the cross-family run:** 0.5B/1.5B/3B are all
-  100% / 100% / **0%** (safe, gate-vetted, never the corrective row) — matching the standalone
-  size-sweep, and size still doesn't buy recovery.
+  100% grammar-valid and 100% gate-accepted (safe, gate-vetted) yet never recover — matching the
+  standalone size-sweep, and size still doesn't buy recovery.
 - **Three models are *completely unsuccessful* (0% grammar-valid): TinyLlama, SmolLM2, granite.**
   They never produce a usable candidate, for **two distinct** reasons — both caught before the gate,
   neither a regression. TinyLlama is **truncation**: all three outputs
@@ -273,10 +279,10 @@ classes**; 2 probes sit at the load/decoding frontier. The honest findings:
   fine but its `GPTNeoXTokenizerFast` isn't in transformers-cfg's exact-match set; `starcoder2-3b`
   is a base model with no chat template. Both are categorized cleanly instead of crashing the sweep.
 
-Figures: [`m7_xfam_rates.png`](plots/m7_xfam_rates.png) (grammar/gate/recovery — the **6 models
-that produced grammar-valid output**; the three 0%-grammar models above are omitted) and
-[`m7_xfam_latency.png`](plots/m7_xfam_latency.png) (latency by family, all 9 runners).
-**Reproduce:** see [Reproduce → M7](#m7--cross-family-regen-comparison-multi-llm).
+Figures: [`m7_xfam_rates.png`](plots/m7_xfam_rates.png) (grammar-valid + gate-accept — the **6
+models that produced grammar-valid output**; recovery is 0% for all and the three 0%-grammar models
+are omitted) and [`m7_xfam_latency.png`](plots/m7_xfam_latency.png) (latency by family, all 9
+runners). **Reproduce:** see [Reproduce → M7](#m7--cross-family-regen-comparison-multi-llm).
 
 ---
 
@@ -340,7 +346,7 @@ python3 -m runtime.tools.plot_results --resultsdir docs/experiments/results
 | `e3_overhead_by_scenario_arm.png` | orchestration wall time per scenario × arm |
 | `e4_recover_by_arm.png` | recover correctness by arm — stub 100/100/100 vs real (1.5B Coder) 100/75/**0** (the frontier) |
 | `e4_reject_safety.png` | broken scripts refused by fault class — syntactic 8/8 (grammar), runtime 4/4 (gate L2) |
-| `m7_xfam_rates.png` | M7 cross-family grammar-valid / gate-accept / recovery — the 6 models with grammar-valid output (TinyLlama/SmolLM2/granite at 0% omitted) — recovery **0% across every family** |
+| `m7_xfam_rates.png` | M7 cross-family grammar-valid + gate-accept — the 6 models with grammar-valid output (TinyLlama/SmolLM2/granite at 0% omitted); recovery is 0% for all and dropped from the plot |
 | `m7_xfam_latency.png` | M7 cross-family mean GBNF-constrained generation latency per model, coloured by family |
 
 The committed CSVs are from the **2026-06-24** E3 run (36/36 cells) and the E1 probe

@@ -247,15 +247,15 @@ def plot_xfam(resultsdir: str, plots: str) -> list[str]:
     saved = []
     label = lambda r: f"{r['model']}\n({r['family']})"            # noqa: E731
 
-    # Fig 1 — grammar-valid / gate-accept / recovery, for models that produced any
-    # grammar-valid output. The fully-unsuccessful ones (grammar-valid 0% — TinyLlama,
-    # SmolLM2, granite: truncation / wrong-action) are omitted here for legibility (all
-    # bars would be empty) and reported in the text; the cross-family takeaway is that
-    # recovery is 0% even for the models that DO clear grammar/gate.
+    # Fig 1 — grammar-valid / gate-accept, for models that produced any grammar-valid
+    # output. recovery is intentionally NOT plotted: it is 0% for every model (no family
+    # or size emits the corrective row), so a third all-zero series adds no insight — it
+    # is stated in the text instead. The fully-unsuccessful models (grammar-valid 0% —
+    # TinyLlama, SmolLM2, granite: truncation / wrong-action) are also omitted here (all
+    # bars would be empty) and reported in the text.
     scored = [r for r in ran if _f(r["grammar_valid_rate"]) > 0]
     metrics = [("grammar_valid_rate", "grammar-valid", "#2e8b57"),
-               ("gate_pass_rate", "gate-accept", "#5b8fb9"),
-               ("recovery_rate", "recovers", "#c0392b")]
+               ("gate_pass_rate", "gate-accept", "#5b8fb9")]
     fig, ax = plt.subplots(figsize=(9, 5))
     n = len(metrics); width = 0.8 / n; x = list(range(len(scored)))
     for i, (k, lbl, col) in enumerate(metrics):
@@ -263,9 +263,9 @@ def plot_xfam(resultsdir: str, plots: str) -> list[str]:
         off = [xi + (i - (n - 1) / 2) * width for xi in x]
         ax.bar(off, vals, width, label=lbl, color=col)
     ax.set_xticks(x); ax.set_xticklabels([label(r) for r in scored], rotation=30, ha="right", fontsize=8)
-    ax.set_ylim(0, 109); ax.set_ylabel("rate (%)"); ax.legend(title="metric", ncol=3)
-    ax.set_title("M7 cross-family Tier-2 regen — grammar-valid / gate-accept / recovery\n"
-                 "(models with grammar-valid output; recovery 0% across every family)")
+    ax.set_ylim(0, 109); ax.set_ylabel("rate (%)"); ax.legend(title="metric", ncol=2)
+    ax.set_title("M7 cross-family Tier-2 regen — grammar-valid / gate-accept\n"
+                 "(models with grammar-valid output; recovery 0% for all, omitted)")
     p = os.path.join(plots, "m7_xfam_rates.png")
     fig.tight_layout(); fig.savefig(p, dpi=300); plt.close(fig); saved.append(p)
 

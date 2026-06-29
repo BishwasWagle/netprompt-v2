@@ -50,21 +50,25 @@ separately (test D, DoD #3).
 Eleven models across **6 architecture families** and **4 tokenizer classes**; nine load and run,
 two are categorized at the load/decoding frontier. **Each model is pinned to a fixed commit** (12-char
 `rev`; full SHAs + raw bundle in the committed artifacts below) — a cross-family run must NOT inherit
-one model's `NETPROMPT_REGEN_REVISION` pin across all repos.
+one model's `NETPROMPT_REGEN_REVISION` pin across all repos. **Recovery is 0% for every model that
+ran** (no family or size emits the corrective row), so it is omitted from this table and the figure —
+a uniformly-zero column carries no cross-family signal; the per-model `recovery_rate` is retained (all
+0) in the committed `m7_xfam.csv` / `m7_xfam.json`. (The Qwen size-sweep table above keeps recovery
+because there 0% across 0.5B→3B *is* the finding.)
 
-| Model | Family | Tokenizer | Rev | Category | grammar-valid | gate-accept | recovery | latency |
-|---|---|---|---|---|---|---|---|---|
-| Qwen2.5-Coder-0.5B-Instruct | Qwen2 | Qwen2TokenizerFast | `ea3f2471cf1b` | runs | 100% | 100% | 0% | 5.6 s |
-| Qwen2.5-Coder-1.5B-Instruct | Qwen2 | Qwen2TokenizerFast | `2e1fd397ee46` | runs | 100% | 100% | 0% | 6.1 s |
-| Qwen2.5-Coder-3B-Instruct | Qwen2 | Qwen2TokenizerFast | `488639f1ff80` | runs | 100% | 100% | 0% | 8.0 s |
-| Qwen2.5-1.5B-Instruct | Qwen2 | Qwen2TokenizerFast | `989aa7980e4c` | runs | 100% | 0% | 0% | 6.3 s |
-| deepseek-coder-1.3b-instruct | Llama | LlamaTokenizerFast | `e063262dac83` | runs | 100% | 100% | 0% | 4.5 s |
-| TinyLlama-1.1B-Chat-v1.0 | Llama | LlamaTokenizerFast | `fe8a4ea1ffed` | runs | 0% | 0% | 0% | 4.0 s |
-| SmolLM2-1.7B-Instruct | Llama | GPT2TokenizerFast | `31b70e2e869a` | runs | 0% | 0% | 0% | 4.5 s |
-| Phi-3-mini-4k-instruct | Phi3 | LlamaTokenizerFast | `f39ac1d28e92` | runs | 100% | 0% | 0% | 7.6 s |
-| granite-3.0-2b-instruct | Granite | GPT2TokenizerFast | `5ad66c190631` | runs | 0% | 0% | 0% | 8.0 s |
-| stable-code-instruct-3b | StableLm | GPTNeoXTokenizerFast | `20e21f0e817b` | **fail_unsupported_tokenizer** | — | — | — | — |
-| starcoder2-3b | Starcoder2 | GPT2TokenizerFast | `733247c55e3f` | **fail_no_chat_template** | — | — | — | — |
+| Model | Family | Tokenizer | Rev | Category | grammar-valid | gate-accept | latency |
+|---|---|---|---|---|---|---|---|
+| Qwen2.5-Coder-0.5B-Instruct | Qwen2 | Qwen2TokenizerFast | `ea3f2471cf1b` | runs | 100% | 100% | 5.6 s |
+| Qwen2.5-Coder-1.5B-Instruct | Qwen2 | Qwen2TokenizerFast | `2e1fd397ee46` | runs | 100% | 100% | 6.1 s |
+| Qwen2.5-Coder-3B-Instruct | Qwen2 | Qwen2TokenizerFast | `488639f1ff80` | runs | 100% | 100% | 8.0 s |
+| Qwen2.5-1.5B-Instruct | Qwen2 | Qwen2TokenizerFast | `989aa7980e4c` | runs | 100% | 0% | 6.3 s |
+| deepseek-coder-1.3b-instruct | Llama | LlamaTokenizerFast | `e063262dac83` | runs | 100% | 100% | 4.5 s |
+| TinyLlama-1.1B-Chat-v1.0 | Llama | LlamaTokenizerFast | `fe8a4ea1ffed` | runs | 0% | 0% | 4.0 s |
+| SmolLM2-1.7B-Instruct | Llama | GPT2TokenizerFast | `31b70e2e869a` | runs | 0% | 0% | 4.5 s |
+| Phi-3-mini-4k-instruct | Phi3 | LlamaTokenizerFast | `f39ac1d28e92` | runs | 100% | 0% | 7.6 s |
+| granite-3.0-2b-instruct | Granite | GPT2TokenizerFast | `5ad66c190631` | runs | 0% | 0% | 8.0 s |
+| stable-code-instruct-3b | StableLm | GPTNeoXTokenizerFast | `20e21f0e817b` | **fail_unsupported_tokenizer** | — | — | — |
+| starcoder2-3b | Starcoder2 | GPT2TokenizerFast | `733247c55e3f` | **fail_no_chat_template** | — | — | — |
 
 Committed artifacts (regenerate with `repro/m7_xfam.sh`): the tidy
 [`m7_xfam.csv`](../experiments/results/m7_xfam.csv), the raw

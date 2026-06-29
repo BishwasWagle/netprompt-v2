@@ -1,0 +1,5 @@
+sweep,varied_field,n,planner_distinct_sfcs,oracle_distinct_sfcs,planner_sensitive,agree
+mission_name,mission,4,4,4,1,4
+delay_ms,delay,5,1,2,0,3
+loss_percent,loss,5,1,2,0,1
+battery_percent,batt,5,1,2,0,2

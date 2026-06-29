@@ -1,0 +1,211 @@
+[
+  {
+    "sweep": "mission_name",
+    "varied_field": "mission",
+    "value": "emergency_alert_relay",
+    "mission": "emergency_alert_relay",
+    "planner_sfc": "ReliableRelaySFC",
+    "oracle_sfc": "ReliableRelaySFC",
+    "agree": "1",
+    "valid": "1",
+    "parse_status": "parsed_json"
+  },
+  {
+    "sweep": "mission_name",
+    "varied_field": "mission",
+    "value": "bulk_data_transfer",
+    "mission": "bulk_data_transfer",
+    "planner_sfc": "BandwidthOptimizedSFC",
+    "oracle_sfc": "BandwidthOptimizedSFC",
+    "agree": "1",
+    "valid": "1",
+    "parse_status": "parsed_json"
+  },
+  {
+    "sweep": "mission_name",
+    "varied_field": "mission",
+    "value": "real_time_pest_detection",
+    "mission": "real_time_pest_detection",
+    "planner_sfc": "LowLatencyVideoSFC",
+    "oracle_sfc": "LowLatencyVideoSFC",
+    "agree": "1",
+    "valid": "1",
+    "parse_status": "parsed_json"
+  },
+  {
+    "sweep": "mission_name",
+    "varied_field": "mission",
+    "value": "long_term_soil_monitoring",
+    "mission": "long_term_soil_monitoring",
+    "planner_sfc": "EnergyAwareSFC",
+    "oracle_sfc": "EnergyAwareSFC",
+    "agree": "1",
+    "valid": "1",
+    "parse_status": "parsed_json"
+  },
+  {
+    "sweep": "delay_ms",
+    "varied_field": "delay",
+    "value": 3,
+    "mission": "bulk_data_transfer",
+    "planner_sfc": "BandwidthOptimizedSFC",
+    "oracle_sfc": "LowLatencyVideoSFC",
+    "agree": "0",
+    "valid": "1",
+    "parse_status": "parsed_json"
+  },
+  {
+    "sweep": "delay_ms",
+    "varied_field": "delay",
+    "value": 6,
+    "mission": "bulk_data_transfer",
+    "planner_sfc": "BandwidthOptimizedSFC",
+    "oracle_sfc": "LowLatencyVideoSFC",
+    "agree": "0",
+    "valid": "1",
+    "parse_status": "parsed_json"
+  },
+  {
+    "sweep": "delay_ms",
+    "varied_field": "delay",
+    "value": 20,
+    "mission": "bulk_data_transfer",
+    "planner_sfc": "BandwidthOptimizedSFC",
+    "oracle_sfc": "BandwidthOptimizedSFC",
+    "agree": "1",
+    "valid": "1",
+    "parse_status": "parsed_json"
+  },
+  {
+    "sweep": "delay_ms",
+    "varied_field": "delay",
+    "value": 50,
+    "mission": "bulk_data_transfer",
+    "planner_sfc": "BandwidthOptimizedSFC",
+    "oracle_sfc": "BandwidthOptimizedSFC",
+    "agree": "1",
+    "valid": "1",
+    "parse_status": "parsed_json"
+  },
+  {
+    "sweep": "delay_ms",
+    "varied_field": "delay",
+    "value": 100,
+    "mission": "bulk_data_transfer",
+    "planner_sfc": "BandwidthOptimizedSFC",
+    "oracle_sfc": "BandwidthOptimizedSFC",
+    "agree": "1",
+    "valid": "1",
+    "parse_status": "parsed_json"
+  },
+  {
+    "sweep": "loss_percent",
+    "varied_field": "loss",
+    "value": 0,
+    "mission": "bulk_data_transfer",
+    "planner_sfc": "BandwidthOptimizedSFC",
+    "oracle_sfc": "ReliableRelaySFC",
+    "agree": "0",
+    "valid": "1",
+    "parse_status": "parsed_json"
+  },
+  {
+    "sweep": "loss_percent",
+    "varied_field": "loss",
+    "value": 1,
+    "mission": "bulk_data_transfer",
+    "planner_sfc": "BandwidthOptimizedSFC",
+    "oracle_sfc": "BandwidthOptimizedSFC",
+    "agree": "1",
+    "valid": "1",
+    "parse_status": "parsed_json"
+  },
+  {
+    "sweep": "loss_percent",
+    "varied_field": "loss",
+    "value": 3,
+    "mission": "bulk_data_transfer",
+    "planner_sfc": "BandwidthOptimizedSFC",
+    "oracle_sfc": "ReliableRelaySFC",
+    "agree": "0",
+    "valid": "1",
+    "parse_status": "parsed_json"
+  },
+  {
+    "sweep": "loss_percent",
+    "varied_field": "loss",
+    "value": 5,
+    "mission": "bulk_data_transfer",
+    "planner_sfc": "BandwidthOptimizedSFC",
+    "oracle_sfc": "ReliableRelaySFC",
+    "agree": "0",
+    "valid": "1",
+    "parse_status": "parsed_json"
+  },
+  {
+    "sweep": "loss_percent",
+    "varied_field": "loss",
+    "value": 10,
+    "mission": "bulk_data_transfer",
+    "planner_sfc": "BandwidthOptimizedSFC",
+    "oracle_sfc": "ReliableRelaySFC",
+    "agree": "0",
+    "valid": "1",
+    "parse_status": "parsed_json"
+  },
+  {
+    "sweep": "battery_percent",
+    "varied_field": "batt",
+    "value": 90,
+    "mission": "bulk_data_transfer",
+    "planner_sfc": "BandwidthOptimizedSFC",
+    "oracle_sfc": "BandwidthOptimizedSFC",
+    "agree": "1",
+    "valid": "1",
+    "parse_status": "parsed_json"
+  },
+  {
+    "sweep": "battery_percent",
+    "varied_field": "batt",
+    "value": 50,
+    "mission": "bulk_data_transfer",
+    "planner_sfc": "BandwidthOptimizedSFC",
+    "oracle_sfc": "BandwidthOptimizedSFC",
+    "agree": "1",
+    "valid": "1",
+    "parse_status": "parsed_json"
+  },
+  {
+    "sweep": "battery_percent",
+    "varied_field": "batt",
+    "value": 35,
+    "mission": "bulk_data_transfer",
+    "planner_sfc": "BandwidthOptimizedSFC",
+    "oracle_sfc": "EnergyAwareSFC",
+    "agree": "0",
+    "valid": "1",
+    "parse_status": "parsed_json"
+  },
+  {
+    "sweep": "battery_percent",
+    "varied_field": "batt",
+    "value": 20,
+    "mission": "bulk_data_transfer",
+    "planner_sfc": "BandwidthOptimizedSFC",
+    "oracle_sfc": "EnergyAwareSFC",
+    "agree": "0",
+    "valid": "1",
+    "parse_status": "parsed_json"
+  },
+  {
+    "sweep": "battery_percent",
+    "varied_field": "batt",
+    "value": 10,
+    "mission": "bulk_data_transfer",
+    "planner_sfc": "BandwidthOptimizedSFC",
+    "oracle_sfc": "EnergyAwareSFC",
+    "agree": "0",
+    "valid": "1",
+    "parse_status": "parsed_json"
+  }
+]

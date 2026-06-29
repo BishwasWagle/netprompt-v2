@@ -149,3 +149,44 @@ context-insensitivity; format-validity is a decoding guarantee, and the telemetr
 near-circular.
 
 **Reproduce:** `repro/vd2_robustness.sh` (needs venv · seeded Neo4j · GPU).
+
+---
+
+## Build #4 — §V.D(3): counterfactual sensitivity, planner vs oracle (re-measured)
+
+**Driver:** `repro/vd3_counterfactual.sh` → `runtime/tools/e1_counterfactual.py`.
+**Method:** vary one signal at a time, hold the rest fixed, and contrast the planner's
+`selected_sfc` with the deterministic oracle (`validator.fallback_decision`) on the same input.
+Telemetry sweeps fix the mission to `bulk_data_transfer` (no oracle name-trigger) so telemetry
+alone drives the oracle. Output: [`vd3_counterfactual.csv`](vd3_counterfactual.csv) +
+[`vd3_summary.csv`](vd3_summary.csv) + [`plots/vd3_counterfactual.png`](plots/vd3_counterfactual.png).
+
+| Sweep | Planner distinct SFCs | Oracle distinct SFCs | Planner tracks it? | Oracle agreement |
+|---|---|---|---|---|
+| **mission_name** (set A) | **4** | 4 | **yes** | **4/4** |
+| delay_ms (3→100) | 1 (flat: Bandwidth) | 2 | **no** | 3/5 |
+| loss_percent (0→10) | 1 (flat: Bandwidth) | 2 | **no** | 1/5 |
+| battery_percent (90→10) | 1 (flat: Bandwidth) | 2 | **no** | 2/5 |
+
+Overall planner-oracle agreement **10/19**.
+
+**Findings.**
+1. **"Changes appropriately" holds only for the mission-name counterfactual.** Varying the name
+   across set A, the planner produces 4 distinct, correct SFCs and **agrees with the oracle 4/4** —
+   genuine sensitivity to the mission objective.
+2. **The planner is flat to *telemetry* counterfactuals.** Holding the name fixed and sweeping
+   delay / loss / battery, the planner never changes (always BandwidthOptimized), while the oracle
+   responds (LowLatency at delay≤10; Reliable at loss≥3; Energy at battery<40). This is the
+   §3 limitation expressed as a counterfactual: the planner does **not** track telemetry.
+3. **So the draft's "SFC changed appropriately when … telemetry … was modified" does not hold as a
+   generalization claim** — it holds for the *name*, not the numbers. Reported here strictly as
+   per-episode **oracle-agreement**, never as planner generalization (edits-doc §6.2). *(Minor: the
+   oracle treats `loss=0` as missing via its `or 999` idiom → Reliable, which is why loss-sweep
+   agreement is 1/5; an oracle quirk, not a planner effect.)*
+
+**Can claim:** the planner is counterfactually sensitive to the mission objective (4/4 distinct,
+oracle-agreeing) and counterfactually **insensitive** to telemetry (flat where the oracle moves) —
+a clean, honest characterization. **Cannot claim:** telemetry-driven counterfactual reasoning /
+generalization (the draft's framing) — that is contradicted here, as in E1.
+
+**Reproduce:** `repro/vd3_counterfactual.sh` (needs venv · seeded Neo4j · GPU).

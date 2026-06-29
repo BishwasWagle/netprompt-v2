@@ -66,7 +66,7 @@ So the honest "skip" list is **not** a list of impossible experiments. It is two
 | Table VIII | Control-plane timing breakdown | **Build small tool** | ✅ **done (build #1)** — SFC sel **11.04 s** (not 1 s), KG ~30 ms, rule ~11 µs; KG-update gap | E1 / E3 |
 | Fig. 6 / §V.D(1) | Confusion matrix, 4 SFC classes | **Yes** (set-A); build tool for exact % | ✅ done (direction); exact % to add | E1 |
 | §V.D(2) | Adversarial robustness (5 perturbations) | **Build small tool** | ✅ **done (build #3)** — 20/20 stable & valid (robust *by insensitivity*) | E1 sub-study |
-| §V.D(3) | Counterfactual sensitivity | **Build small tool** | Not started | E1 |
+| §V.D(3) | Counterfactual sensitivity | **Build small tool** | ✅ **done (build #4)** — sensitive to name (4/4), **flat to telemetry** (planner 1 vs oracle 2 SFCs) | E1 |
 | Abstract/§IV | Historical-performance-aware path selection | **Build, or drop the claim** | Claimed in paper, **no result** | E3 / closed loop |
 
 ---
@@ -341,7 +341,11 @@ Ordered by value-per-effort. All are small; none needs new hardware.
    & valid** — reproduces "remained robust," but framed as robustness *by insensitivity* (the planner
    ignores the perturbed context, per the §3 limitation); format-validity = decoding guarantee,
    conflicting-telemetry = near-circular.
-4. **§V.D(3) counterfactual driver** — `repro/e1-d5.sh` + oracle-agreement scorer.
+4. ✅ **§V.D(3) counterfactual driver** — **DONE.** `runtime/tools/e1_counterfactual.py` +
+   `repro/vd3_counterfactual.sh` → [`repeat-results/`](repeat-results/repeat-results.md). Planner is
+   counterfactually **sensitive to the mission name** (4 distinct SFCs, 4/4 oracle agreement) and
+   **flat to telemetry** (delay/loss/battery: planner 1 SFC vs oracle 2) — scored as oracle-agreement
+   (10/19), re-scoping the draft's "changed appropriately" away from telemetry generalization.
 5. **Table VII NoKG arm** — `nokg` arm in `e3_compare.py`/`e3_measure.py` + operational NoKG
    definition (candidate-set-only). *(Needs the testbed.)*
 6. **Fig. 6 exact %** — held-out probe generator (N/class) + per-class confusion aggregator.

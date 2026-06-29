@@ -63,7 +63,7 @@ So the honest "skip" list is **not** a list of impossible experiments. It is two
 | Table V | KG-reasoning scalability, 10→200 synthetic drones | **Build small tool** *(de-prioritize)* | Not started | E1 adjunct |
 | Table VI | Topology-equivalent RTT/loss/throughput, 3 arms × scenarios | **Yes, as-is** | ✅ done (E3, 36/36) | E3 |
 | Table VII | KG ablation (full vs NoKG) | **Build small tool** | Not run | E3 ablation |
-| Table VIII | Control-plane timing breakdown | **Build small tool** | Aggregate-only done; per-stage split to add | E1 / E3 |
+| Table VIII | Control-plane timing breakdown | **Build small tool** | ✅ **done (build #1)** — SFC sel **11.04 s** (not 1 s), KG ~30 ms, rule ~11 µs; KG-update gap | E1 / E3 |
 | Fig. 6 / §V.D(1) | Confusion matrix, 4 SFC classes | **Yes** (set-A); build tool for exact % | ✅ done (direction); exact % to add | E1 |
 | §V.D(2) | Adversarial robustness (5 perturbations) | **Build small tool** | Not started | E1 sub-study |
 | §V.D(3) | Counterfactual sensitivity | **Build small tool** | Not started | E1 |
@@ -325,8 +325,11 @@ differentiator and is already validated (E2a 6/6 gate; M5/M6 6/6 live).
 
 Ordered by value-per-effort. All are small; none needs new hardware.
 
-1. **Table VIII per-stage timing** — ~3 `perf_counter` brackets in `orchestrate.py` + result-dict
-   keys. *(Highest value: cheap, and the overhead story is currently aggregate-only.)*
+1. ✅ **Table VIII per-stage timing** — **DONE.** `perf_counter` brackets in `orchestrate.py`
+   (+ `--save-timings` / `--repeat-decision`); driver `repro/table8_timing.sh` + scorer
+   `runtime/tools/table8_to_csv.py` → [`repeat-results/`](repeat-results/repeat-results.md). Measured
+   warm SFC selection **11.04 s ± 0.19** (not the draft's 1 s), rule-based **11 µs**, KG reasoning
+   **30 ms**. Remaining: instrument the **runtime-side KG-update write** for the 4th component.
 2. **Table IV latency + provenance columns** — `perf_counter` around the two `kg_context` Cypher
    queries; extend `results_to_csv.py` e1 to emit path/policy/latency.
 3. **§V.D(2) robustness harness** — `runtime/tools/e1_robustness.py` (5 dict transforms over the

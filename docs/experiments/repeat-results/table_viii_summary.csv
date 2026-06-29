@@ -1,0 +1,10 @@
+component,avg_s,std_s,note
+"SFC Selection (LLM, warm steady-state)",11.037517,0.187044,comparable to draft 'SFC Selection 1.00 s'; warm = excludes cold first-call
+"SFC Selection (LLM, cold first call)",11.473722,0.181986,first decode after load — includes CUDA warmup + constrained decode
+SFC Selection (rule-based fallback),0.000011,,deterministic baseline — the draft's 'rule-based ~us' contrast
+KG Reasoning,0.029921,0.000514,"Cypher context reads; cold here, near-warm within a process (draft warm 7.7 ms)"
+Compile + artifact check,0.000375,0.000083,decision -> experiment config
+Result Writeback (planner config file),0.000583,0.000065,planner-side write; draft 'Result Writeback 0.54 s' was a KG write
+History Build,0.014892,0.000078,CSV history + input assembly
+Model Load (one-time),3.716757,0.021300,amortized — excluded from steady-state SFC selection
+KG Update (runtime-side),,,NOT in planner path; the closed-loop Verdict/snapshot KG write lives in runtime/ (E2/E3) — gap vs draft Table VIII

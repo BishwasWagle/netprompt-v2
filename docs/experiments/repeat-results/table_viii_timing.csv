@@ -1,0 +1,5 @@
+probe,model_load_s,kg_reasoning_s,history_build_s,sfc_cold_s,sfc_warm_mean_s,sfc_warm_sd_s,compile_s,result_writeback_s
+bulk_data_transfer,3.711018,0.029345,0.015018,11.518321,11.104639,0.646147,0.000285,0.000526
+emergency_alert_relay,3.684342,0.030570,0.014848,11.667324,11.233284,0.660449,0.000496,0.000681
+long_term_soil_monitoring,3.734569,0.029497,0.014809,11.174851,10.729217,0.652821,0.000313,0.000522
+real_time_pest_detection,3.737100,0.030272,0.014891,11.534391,11.082929,0.658145,0.000405,0.000605
